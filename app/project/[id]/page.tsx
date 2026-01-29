@@ -3,10 +3,10 @@ import Link from "next/link";
 import Header from "../../components/Header";
 
 const recommendedProjects = [
-  { id: 1, image: "photo-1558618666-fcd25c85cd64" },
-  { id: 2, image: "photo-1493225457124-a3eb161ffa5f" },
-  { id: 3, image: "photo-1511632765486-a01980e01a18" },
-  { id: 4, image: "photo-1469474968028-56623f02e42e" },
+  { id: 1, image: "photo-1558618666-fcd25c85cd64", title: "Handcrafted Ceramic Pottery Collection", creator: "SARAH CHEN" },
+  { id: 2, image: "photo-1493225457124-a3eb161ffa5f", title: "Independent Music Album: Echoes of Tomorrow", creator: "THE MIDNIGHT COLLECTIVE" },
+  { id: 3, image: "photo-1511632765486-a01980e01a18", title: "Community Garden Initiative for Urban Schools", creator: "GREEN FUTURES" },
+  { id: 4, image: "photo-1469474968028-56623f02e42e", title: "Documentary: Voices of the Mountains", creator: "WILD LENS FILMS" },
 ];
 
 export default function ProjectDetail() {
@@ -44,8 +44,8 @@ export default function ProjectDetail() {
           ENCORE: BRONZE - THE ART OF LIAM SHARP
         </h1>
         <p className="text-gray-600 mb-8 max-w-2xl">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-          incididunt ut labore et dolore magna aliqua. Ut enim
+          A stunning 200-page hardcover art book showcasing three decades of fantasy and comic book
+          artwork from acclaimed artist Liam Sharp, featuring never-before-seen sketches and commentary.
         </p>
 
         {/* Two Column Layout */}
@@ -85,15 +85,36 @@ export default function ProjectDetail() {
 
             {/* Feature Points */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="flex gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex-shrink-0" />
-                  <p className="text-sm text-gray-600">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                    eiusmod tempor.
-                  </p>
+              <div className="flex gap-3">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-[#8BC34A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
                 </div>
-              ))}
+                <p className="text-sm text-gray-600">
+                  Over 200 pages of full-color artwork printed on premium archival paper.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-[#8BC34A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Exclusive signed bookplate included with every early bird pledge.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-[#8BC34A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Worldwide shipping available with eco-friendly packaging materials.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -103,7 +124,7 @@ export default function ProjectDetail() {
               {/* Funding Stats */}
               <div className="mb-6">
                 <p className="text-3xl font-bold text-gray-900">US$ 60,984</p>
-                <p className="text-sm text-gray-500 mb-4">Current pledged</p>
+                <p className="text-sm text-gray-500 mb-4">pledged of $25,000 goal</p>
 
                 <p className="text-2xl font-bold text-gray-900">427</p>
                 <p className="text-sm text-gray-500 mb-4">backers</p>
@@ -112,11 +133,10 @@ export default function ProjectDetail() {
                 <p className="text-sm text-gray-500 mb-6">days to go</p>
 
                 <button className="w-full bg-[#8BC34A] text-white py-3 rounded-lg font-medium hover:bg-[#7CB342] transition-colors mb-3">
-                  Lorem ipsum dolor
+                  Back this project
                 </button>
                 <p className="text-xs text-gray-500">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit,
-                  and do eiusmod.
+                  All or nothing. This project will only be funded if it reaches its goal by March 15, 2026.
                 </p>
               </div>
 
@@ -125,15 +145,14 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 rounded-full bg-[#8BC34A]" />
                   <div>
-                    <p className="font-semibold text-gray-900">Sharpy</p>
+                    <p className="font-semibold text-gray-900">Liam Sharp</p>
                     <p className="text-xs text-gray-500">4 created · 54 backed</p>
                   </div>
                 </div>
                 <p className="text-sm text-gray-600 mb-2">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-                  ut labore et dolore magna aliqua. Ut enim ad
-                  minima veniam, quis nostrud exercitation ullamco
-                  laboris nisi ut aliquip ex ea.{" "}
+                  Award-winning comic book artist known for work on Wonder Woman, Green Lantern, and
+                  The Brave and the Bold. Currently based in the UK, creating fantasy worlds and
+                  bringing mythical creatures to life through illustration.{" "}
                   <Link href="#" className="text-[#8BC34A] hover:underline">
                     Read More
                   </Link>
@@ -155,13 +174,11 @@ export default function ProjectDetail() {
                 </div>
 
                 <p className="text-xs text-gray-500">
-                  Lorem ipsum dolor sit amet, consectetur
-                  adipiscing elit, sed do eiusmod tempor incididunt
-                  ut labore et dolore magna aliqua. Ut enim ad
-                  minima veniam, quis nostrud exercitation ullamco
-                  laboris nisi ut aliquip ex ea.{" "}
+                  Back it because you believe in it. Support the project for no reward,
+                  just because it speaks to you. Your contribution helps bring this
+                  creative vision to life and supports independent artists.{" "}
                   <Link href="#" className="text-[#8BC34A] hover:underline">
-                    Read More
+                    Learn More
                   </Link>
                 </p>
               </div>
@@ -173,9 +190,9 @@ export default function ProjectDetail() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Story</h2>
           <p className="text-gray-600 mb-8 max-w-3xl">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-            incididunt ut labore et dolore magna aliqua. Ut enim ad minima veniam, quis
-            nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat
+            After 30 years in the comic book industry, I&apos;ve accumulated thousands of sketches,
+            paintings, and illustrations that have never been seen by the public. This book represents
+            my life&apos;s work and my passion for fantasy art and storytelling.
           </p>
 
           {/* Book Image and Green Circle */}
@@ -196,16 +213,16 @@ export default function ProjectDetail() {
           {/* About the Book */}
           <h3 className="text-xl font-bold text-gray-900 mb-4">About the Book</h3>
           <p className="text-gray-600 mb-4 max-w-3xl">
-            Eating is a tricky subject. And as a society, we have a pretty messed up relationship to
-            food, eating, and body image. Harmful, fatphobic messages permeate our culture, our
-            movies, music, and even our medicine, and make it that much harder to develop a healthy
-            relationship with ourselves and our bodies.
+            &quot;Encore: Bronze&quot; is a comprehensive retrospective of my artistic journey, from my early
+            days working on 2000 AD to my recent work with DC Comics. The book features over 300
+            pieces of artwork, including concept sketches, character designs, cover art, and
+            personal projects that have never been published.
           </p>
           <p className="text-gray-600 mb-8 max-w-3xl">
-            Dr. Faith Harper, author of the bestselling books Unfuck Your Brain and Unfuck Your Body is
-            a therapist and clinical nutritionist and has helped a ton of clients with eating disorders
-            and disordered eating. She lays out a huge amount of knowledge and perspective in this
-            new book, with her trademark combo of science, swearing, and kind humor.
+            Each chapter explores a different era of my career, with detailed commentary about the
+            creative process, the challenges faced, and the stories behind the art. You&apos;ll discover
+            how iconic characters evolved from initial sketches to final illustrations, and gain
+            insight into the techniques used to create them.
           </p>
 
           {/* Book Pages Preview */}
@@ -219,9 +236,10 @@ export default function ProjectDetail() {
           </div>
 
           <p className="text-gray-600 mb-8 max-w-3xl">
-            She walks you through the difference between eating disorders and disordered eating and
-            explains how trauma and other co-occurring conditions - as well as factors imposed on us
-            by society - can lead to unhealthy relationships with food, eating, and our own selves.
+            The book is printed on 170gsm premium art paper with a cloth-bound hardcover and
+            embossed gold lettering. Each copy is individually wrapped and shipped in a custom
+            protective box to ensure it arrives in perfect condition. Early bird backers will also
+            receive an exclusive art print not available anywhere else.
           </p>
 
           {/* Report Button */}
@@ -238,7 +256,7 @@ export default function ProjectDetail() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {recommendedProjects.map((project) => (
-              <div key={project.id} className="group cursor-pointer">
+              <Link key={project.id} href="/project/1" className="group cursor-pointer block">
                 {/* Project Image */}
                 <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
                   <Image
@@ -252,19 +270,19 @@ export default function ProjectDetail() {
                 {/* Project Info */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                    Lorem ipsum dolor sit amet, consectetur
+                    {project.title}
                   </h3>
                   <p className="text-xs text-gray-500 mb-1">
-                    Funded 1/10 Project By:{" "}
-                    <span className="font-semibold text-gray-700">JOEL PEDERSON</span>
+                    78% funded · By:{" "}
+                    <span className="font-semibold text-gray-700">{project.creator}</span>
                   </p>
                   <p className="text-xs text-gray-500 mb-2">
-                    Funders: <span className="font-medium">$60</span>
+                    Raised: <span className="font-medium">$12,450</span>
                   </p>
 
                   {/* Action Buttons */}
                   <div className="flex items-center text-xs text-gray-500 space-x-4">
-                    <button className="flex items-center hover:text-[#8BC34A] transition-colors">
+                    <span className="flex items-center hover:text-[#8BC34A] transition-colors">
                       <svg
                         className="w-4 h-4 mr-1"
                         fill="none"
@@ -279,12 +297,12 @@ export default function ProjectDetail() {
                         />
                       </svg>
                       Save
-                    </button>
-                    <button className="flex items-center hover:text-[#8BC34A] transition-colors">
+                    </span>
+                    <span className="flex items-center hover:text-[#8BC34A] transition-colors">
                       <span className="mr-1">$</span>
                       Fund
-                    </button>
-                    <button className="flex items-center hover:text-[#8BC34A] transition-colors">
+                    </span>
+                    <span className="flex items-center hover:text-[#8BC34A] transition-colors">
                       <svg
                         className="w-4 h-4 mr-1"
                         fill="none"
@@ -299,10 +317,10 @@ export default function ProjectDetail() {
                         />
                       </svg>
                       Skip
-                    </button>
+                    </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -328,57 +346,57 @@ export default function ProjectDetail() {
 
             {/* Links Column 1 */}
             <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
+              <h3 className="font-bold text-gray-900 mb-4 text-sm">About</h3>
               <div className="space-y-2 text-sm text-gray-600">
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  About Us
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Our Charter
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Stats
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Press
                 </p>
               </div>
             </div>
 
             {/* Links Column 2 */}
             <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
+              <h3 className="font-bold text-gray-900 mb-4 text-sm">Support</h3>
               <div className="space-y-2 text-sm text-gray-600">
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Help Center
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Our Rules
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Creator Resources
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Brand Assets
                 </p>
               </div>
             </div>
 
             {/* Links Column 3 */}
             <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
+              <h3 className="font-bold text-gray-900 mb-4 text-sm">More</h3>
               <div className="space-y-2 text-sm text-gray-600">
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Newsletter
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Community Guidelines
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Privacy Policy
                 </p>
                 <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">
-                  lorem ipsum dolor
+                  Terms of Use
                 </p>
               </div>
             </div>
@@ -386,8 +404,7 @@ export default function ProjectDetail() {
 
           {/* Copyright */}
           <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2022 community funding ltd is registered in england and
-            wales no. 07831511.
+            &copy; 2011-2026 Community Fundings, PBC. All rights reserved.
           </div>
         </div>
       </footer>

@@ -65,19 +65,19 @@ export default function SettingsPage() {
               Community Fundings
             </span>
           </Link>
-          <div className="flex items-center">
+          <Link href="/" className="flex items-center">
             {user?.imageUrl ? (
               <Image
                 src={user.imageUrl}
                 alt="Profile"
                 width={40}
                 height={40}
-                className="rounded-full"
+                className="rounded-full hover:ring-2 hover:ring-[#8BC34A] transition-all"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 hover:ring-2 hover:ring-[#8BC34A] transition-all" />
             )}
-          </div>
+          </Link>
         </div>
       </header>
 

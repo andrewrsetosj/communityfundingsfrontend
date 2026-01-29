@@ -76,7 +76,7 @@ export default function ProjectsWeLove() {
         {/* Projects Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {projects.map((project) => (
-            <div key={project.id} className="group cursor-pointer">
+            <Link key={project.id} href="/project/1" className="group cursor-pointer block">
               {/* Project Image */}
               <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
                 <Image
@@ -102,7 +102,7 @@ export default function ProjectsWeLove() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center text-xs text-gray-500 space-x-4">
-                  <button className="flex items-center hover:text-[#8BC34A] transition-colors">
+                  <span className="flex items-center hover:text-[#8BC34A] transition-colors">
                     <svg
                       className="w-4 h-4 mr-1"
                       fill="none"
@@ -117,12 +117,12 @@ export default function ProjectsWeLove() {
                       />
                     </svg>
                     Save
-                  </button>
-                  <button className="flex items-center hover:text-[#8BC34A] transition-colors">
+                  </span>
+                  <span className="flex items-center hover:text-[#8BC34A] transition-colors">
                     <span className="mr-1">$</span>
                     Fund
-                  </button>
-                  <button className="flex items-center hover:text-[#8BC34A] transition-colors">
+                  </span>
+                  <span className="flex items-center hover:text-[#8BC34A] transition-colors">
                     <svg
                       className="w-4 h-4 mr-1"
                       fill="none"
@@ -137,10 +137,10 @@ export default function ProjectsWeLove() {
                       />
                     </svg>
                     Skip
-                  </button>
+                  </span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 

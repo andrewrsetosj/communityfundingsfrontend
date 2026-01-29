@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import Header from "./components/Header";
 
 export default function Home() {
@@ -88,7 +89,7 @@ export default function Home() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Featured Card */}
-          <div className="lg:col-span-2 relative rounded-2xl overflow-hidden group cursor-pointer">
+          <Link href="/project/1" className="lg:col-span-2 relative rounded-2xl overflow-hidden group cursor-pointer">
             <div className="aspect-[16/10] bg-gray-200 relative">
               <Image
                 src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
@@ -107,12 +108,12 @@ export default function Home() {
                 </h3>
               </div>
             </div>
-          </div>
+          </Link>
 
           {/* Side Cards */}
           <div className="space-y-4">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="flex gap-3 group cursor-pointer">
+              <Link key={item} href="/project/1" className="flex gap-3 group cursor-pointer">
                 <div className="relative w-24 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200">
                   <Image
                     src={`https://images.unsplash.com/photo-151903176${item}074-81bece64645a?w=200`}
@@ -135,7 +136,7 @@ export default function Home() {
                     <span>&gt; Mty</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -187,7 +188,7 @@ export default function Home() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <Link key={item} href="/project/1" className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
               <div className="relative h-40 bg-gray-200">
                 <Image
                   src={`https://images.unsplash.com/photo-150633263${item}355-506871c6b6c4?w=400`}
@@ -219,11 +220,11 @@ export default function Home() {
                 </div>
               </div>
               <div className="px-4 pb-4">
-                <button className="w-full py-2 border border-[#8BC34A] text-[#8BC34A] rounded-full text-sm font-medium hover:bg-[#8BC34A] hover:text-white transition-colors">
+                <span className="w-full py-2 border border-[#8BC34A] text-[#8BC34A] rounded-full text-sm font-medium hover:bg-[#8BC34A] hover:text-white transition-colors block text-center">
                   Lorem ipsum
-                </button>
+                </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -244,7 +245,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((item) => (
-              <div key={item} className="bg-white rounded-lg overflow-hidden shadow-sm">
+              <Link key={item} href="/project/1" className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
                 <div className="relative h-36 bg-gray-200">
                   <Image
                     src={`https://images.unsplash.com/photo-149963932${item}710-8f4e1e4e3e4e?w=400`}
@@ -267,7 +268,7 @@ export default function Home() {
                     <span>&gt; Mty</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -333,7 +334,7 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {[1, 2].map((item) => (
-            <div key={item} className="bg-white rounded-lg overflow-hidden shadow-sm">
+            <Link key={item} href="/project/1" className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
               <div className="relative h-56 bg-gray-200">
                 <Image
                   src={`https://images.unsplash.com/photo-155484762${item}851-c926e3f89e4c?w=600`}
@@ -358,7 +359,7 @@ export default function Home() {
                   <span>&gt; Mty</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
