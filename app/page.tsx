@@ -33,20 +33,19 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto px-6 py-20 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 max-w-2xl mx-auto">
-            Lorem ipsum dolor sit amet, consectetur
+            Community Makes it Possible
           </h1>
           <p className="text-white/90 mb-8 max-w-xl mx-auto">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+            Let's build something bigger than ourselves. 
           </p>
 
-          <div className="flex justify-center gap-4 mb-16">
-            <button className="bg-[#689F38] text-white px-6 py-3 rounded-full font-medium hover:bg-[#558B2F] transition-colors">
-              Lorem ipsum
-            </button>
-            <button className="bg-white text-[#8BC34A] px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors">
-              Lorem ipsum
-            </button>
+          <div className="flex justify-center mb-16">
+            <Link
+              href="/create-project/basics"
+              className="bg-white text-[#8BC34A] px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
+            >
+              Start a Project
+            </Link>
           </div>
 
           {/* Stats */}
