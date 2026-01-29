@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
 
 const recommendedProjects = [
@@ -10,16 +13,18 @@ const recommendedProjects = [
 ];
 
 export default function ProjectDetail() {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
+        {/* Back Button */}
         <div className="mb-6">
-          <Link
-            href="/projects-we-love"
+          <button
+            onClick={() => router.back()}
             className="inline-flex items-center text-sm text-[#8BC34A] hover:text-[#7CB342] transition-colors"
           >
             <svg
@@ -35,8 +40,8 @@ export default function ProjectDetail() {
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Projects We Love
-          </Link>
+            Back
+          </button>
         </div>
 
         {/* Project Title */}

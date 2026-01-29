@@ -58,7 +58,7 @@ export default function SignUpPage() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
-        router.push("/");
+        router.push("/onboarding");
       }
     } catch (err: unknown) {
       const clerkError = err as { errors?: { message: string }[] };
@@ -75,7 +75,7 @@ export default function SignUpPage() {
       await signUp.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: "/onboarding",
       });
     } catch (err: unknown) {
       const clerkError = err as { errors?: { message: string }[] };
