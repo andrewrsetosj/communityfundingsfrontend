@@ -5,17 +5,33 @@ import Link from "next/link";
 import Image from "next/image";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
 
+const categories = [
+  { name: "Comics & Illustration", slug: "comics-illustration" },
+  { name: "Design & Tech", slug: "design-tech" },
+  { name: "Food & Craft", slug: "food-craft" },
+  { name: "Arts", slug: "arts" },
+  { name: "Film", slug: "film" },
+  { name: "Game", slug: "game" },
+  { name: "Music", slug: "music" },
+  { name: "Publishing", slug: "publishing" },
+];
+
 export default function Header() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const categoriesRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
+        setIsCategoriesOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -36,28 +52,63 @@ export default function Header() {
       {/* Navigation */}
       <nav className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center">
+          {/* Left Nav Links */}
+          <div className="hidden md:flex items-center space-x-6 text-sm text-gray-700 flex-1">
+            <Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
+              Projects We Love
+            </Link>
+            <div className="relative" ref={categoriesRef}>
+              <button
+                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                className="flex items-center hover:text-[#8BC34A] transition-colors"
+              >
+                Categories
+                <svg
+                  className={`w-4 h-4 ml-1 transition-transform ${isCategoriesOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {isCategoriesOpen && (
+                <div className="absolute left-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-3 z-50">
+                  <div className="grid grid-cols-2 gap-1 px-2">
+                    {categories.map((category) => (
+                      <Link
+                        key={category.slug}
+                        href={`/categories/${category.slug}`}
+                        onClick={() => setIsCategoriesOpen(false)}
+                        className="px-3 py-2 text-sm text-gray-700 hover:bg-[#8BC34A]/10 hover:text-[#8BC34A] rounded-md transition-colors"
+                      >
+                        {category.name}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="border-t border-gray-100 mt-2 pt-2 px-2">
+                    <Link
+                      href="/categories"
+                      onClick={() => setIsCategoriesOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium text-[#8BC34A] hover:bg-[#8BC34A]/10 rounded-md transition-colors"
+                    >
+                      View All Categories
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Center Logo */}
+          <Link href="/" className="flex items-center justify-center">
             <span className="text-[#8BC34A] font-bold tracking-widest text-lg uppercase">
               Community Fundings
             </span>
           </Link>
 
-          {/* Nav Links */}
-          <div className="hidden md:flex items-center space-x-6 text-sm text-gray-700">
-            <Link href="/" className="hover:text-[#8BC34A] transition-colors">
-              Home
-            </Link>
-            <Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
-              Projects We Love
-            </Link>
-            <Link href="/categories" className="hover:text-[#8BC34A] transition-colors">
-              Categories
-            </Link>
-          </div>
-
           {/* Right Side */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-1 justify-end">
             {/* Search Icon */}
             <button className="text-gray-500 hover:text-[#8BC34A] transition-colors">
               <svg
