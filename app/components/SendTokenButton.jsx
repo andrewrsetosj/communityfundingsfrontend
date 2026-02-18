@@ -9,7 +9,8 @@ export default function SendTokenButton() {
       // obtain the JWT for the currently signed-in user
       const token = await getToken({ template: "single" }); // default template; you may omit template
       // POST to backend
-      const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
+    //   const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
+    const res = await fetch('/api/proxy/api/auth/verify-and-store', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
