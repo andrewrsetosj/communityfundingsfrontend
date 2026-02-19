@@ -79,15 +79,6 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            {/* Country Flags */}
-            <div className="flex items-center gap-2 mb-6">
-              {["🇬🇧", "🇺🇸", "🇩🇪", "🇫🇷", "🇪🇸", "🇮🇹", "🇯🇵", "🇰🇷"].map((flag, i) => (
-                <span key={i} className="text-xl">
-                  {flag}
-                </span>
-              ))}
-            </div>
-
             {/* Feature Points */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="flex gap-3">
