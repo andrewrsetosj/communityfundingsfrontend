@@ -1,4 +1,5 @@
 // SignInWatcher.jsx
+"use client";
 import { useEffect, useRef } from "react";
 import { useUser, useAuth } from "@clerk/clerk-react";
 
