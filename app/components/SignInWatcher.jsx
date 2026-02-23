@@ -91,6 +91,7 @@ export default function SignInWatcher() {
             "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify({ source: "SignInWatcher", user: payload }),
+          credentials: "include",
         });
 
         console.log("SignInWatcher: response status", res.status);
