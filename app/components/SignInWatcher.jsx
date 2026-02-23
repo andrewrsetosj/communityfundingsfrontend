@@ -85,8 +85,8 @@ export default function SignInWatcher() {
           image_url: user.profileImageUrl ?? null,
         };
 
-        console.log("SignInWatcher: payload to send:", payload);
-        console.log("SignInWatcher: token preview:", token?.slice?.(0, 40));
+        // console.log("SignInWatcher: payload to send:", payload);
+        // console.log("SignInWatcher: token preview:", token?.slice?.(0, 40));
 
         // perform the fetch and handle response synchronously inside the same scope
         const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
