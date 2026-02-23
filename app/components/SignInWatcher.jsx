@@ -58,15 +58,18 @@
 
 // SignInWatcher.jsx (client component)
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useUser, useAuth } from "@clerk/nextjs";
 
 export default function SignInWatcher() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
+  const sentRef = useRef(false); // avoid repeated sends during re-renders
 
   useEffect(() => {
     if (!isSignedIn || !user) return;
+    if (sentRef.current) return; // already sent for this session
+    sentRef.current = true;
 
     async function send() {
       try {
@@ -79,24 +82,37 @@ export default function SignInWatcher() {
           first_name: user.firstName ?? null,
           last_name: user.lastName ?? null,
           email: user.primaryEmailAddress?.emailAddress ?? null,
-          image_url: user.profileImageUrl ?? null
+          image_url: user.profileImageUrl ?? null,
         };
 
         console.log("SignInWatcher: payload to send:", payload);
+        console.log("SignInWatcher: token preview:", token?.slice?.(0, 40));
 
+        // perform the fetch and handle response synchronously inside the same scope
         const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
           },
-          body: JSON.stringify({ source: "SignInWatcher", user: payload }),
-          credentials: "include",
+          body: JSON.stringify({ user: payload }),
         });
 
-        console.log("SignInWatcher: response status", res.status);
-        const json = await res.json().catch(() => null);
-        console.log("SignInWatcher: response body", json);
+        console.log("SignInWatcher: fetch response status:", res.status, res.statusText);
+
+        // try to parse body safely
+        const text = await res.text();
+        let parsed = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch (_) {
+          parsed = text;
+        }
+        console.log("SignInWatcher: fetch response body:", parsed);
+
+        if (!res.ok) {
+          console.error("SignInWatcher: server returned error:", res.status, parsed);
+        }
       } catch (err) {
         console.error("SignInWatcher: error sending token:", err);
       }
