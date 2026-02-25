@@ -1,39 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCampaignDraft } from "../store/useCampaignDraft";
+import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
-interface Collaborator {
-  id: number;
+interface CollaboratorUI {
+  key: string; // stable key for rendering
   email: string;
-  role: string;
+  role: "co-creator";
   status: "pending" | "verified";
 }
 
 export default function PeoplePage() {
-  const [vanityUrl, setVanityUrl] = useState("");
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const router = useRouter();
+
+  // Store selectors (hooks)
+  const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
+  const vanitySlug = useCampaignDraft((s) => s.draft.vanity_slug);
+  const coCreators = useCampaignDraft((s) => s.draft.co_creators);
+  const setPeople = useCampaignDraft((s) => s.setPeople);
+
+  // Local state (hooks)
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
-  const [newCollaboratorRole, setNewCollaboratorRole] = useState("collaborator");
 
-  const handleAddCollaborator = () => {
-    if (!newCollaboratorEmail) return;
-
-    const newCollaborator: Collaborator = {
-      id: Date.now(),
-      email: newCollaboratorEmail,
-      role: newCollaboratorRole,
+  // Derived state (hook)
+  const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
+    const list = coCreators ?? [];
+    return list.map((c, idx) => ({
+      key: `${c.email}-${idx}`,
+      email: c.email,
+      role: "co-creator",
       status: "pending",
-    };
+    }));
+  }, [coCreators]);
 
-    setCollaborators([...collaborators, newCollaborator]);
-    setNewCollaboratorEmail("");
-    setNewCollaboratorRole("collaborator");
+  // Side effects (hooks)
+  useEffect(() => {
+    setAgreedToTerms(false);
+  }, []);
+
+  // ✅ Now it's safe to return early (after hooks)
+  if (!hasHydrated) return null;
+
+  const handleVanityChange = (raw: string) => {
+    const sanitized = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    // write immediately to store so Back works even without Next
+    setPeople({ vanity_slug: sanitized });
   };
 
-  const handleRemoveCollaborator = (id: number) => {
-    setCollaborators(collaborators.filter((c) => c.id !== id));
+  const handleAddCollaborator = () => {
+    const email = newCollaboratorEmail.trim().toLowerCase();
+    if (!email) return;
+
+    const existing = (coCreators ?? []).some(
+      (c) => c.email.trim().toLowerCase() === email
+    );
+    if (existing) {
+      setNewCollaboratorEmail("");
+      return;
+    }
+
+    const next = [...(coCreators ?? []), { email }];
+
+    // write immediately to store
+    setPeople({ co_creators: next });
+    setNewCollaboratorEmail("");
+  };
+
+  const handleRemoveCollaborator = (emailToRemove: string) => {
+    const next = (coCreators ?? []).filter(
+      (c) => c.email.trim().toLowerCase() !== emailToRemove.trim().toLowerCase()
+    );
+
+    setPeople({ co_creators: next });
+  };
+
+  const handleSubmitForReview = () => {
+    if (!agreedToTerms) return; // ✅ hard guard
+
+    router.push("/create-project/submitted"); // change to your route
   };
 
   return (
@@ -51,9 +100,9 @@ export default function PeoplePage() {
           <label className="block text-sm font-medium text-gray-900 mb-4">
             Creator Profile
           </label>
+
           <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
             <div className="flex items-start gap-6">
-              {/* Profile Photo */}
               <div className="relative">
                 <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
                   <Image
@@ -64,13 +113,11 @@ export default function PeoplePage() {
                     className="object-cover w-full h-full"
                   />
                 </div>
-                <button className="absolute bottom-0 right-0 w-8 h-8 bg-[#8BC34A] rounded-full flex items-center justify-center text-white hover:bg-[#7CB342] transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#8BC34A] rounded-full flex items-center justify-center text-white hover:bg-[#7CB342] transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -81,7 +128,6 @@ export default function PeoplePage() {
                 </button>
               </div>
 
-              {/* Profile Info */}
               <div className="flex-1">
                 <h3 className="text-lg font-medium text-gray-900 mb-1">
                   Your Name
@@ -98,7 +144,6 @@ export default function PeoplePage() {
               </div>
             </div>
 
-            {/* Creator Bio */}
             <div className="mt-6 pt-6 border-t border-gray-200">
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Short Bio
@@ -115,7 +160,7 @@ export default function PeoplePage() {
         {/* Vanity URL */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            Vanity URL
+            URL
           </label>
           <div className="flex">
             <span className="inline-flex items-center px-4 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-sm">
@@ -123,39 +168,34 @@ export default function PeoplePage() {
             </span>
             <input
               type="text"
-              value={vanityUrl}
-              onChange={(e) => setVanityUrl(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              value={vanitySlug ?? ""}
+              onChange={(e) => handleVanityChange(e.target.value)}
               placeholder="my-awesome-project"
               className="flex-1 px-4 py-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
             />
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            Create a custom URL for your project page. Use only lowercase letters, numbers, and hyphens.
+            Create a custom URL for your project page. Use only lowercase letters,
+            numbers, and hyphens.
           </p>
         </div>
 
-        {/* Collaborators Section */}
+        {/* Co-creators */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-4">
-            Collaborators
+            Co-creators
           </label>
 
-          {/* Existing Collaborators */}
-          {collaborators.length > 0 && (
+          {collaboratorsUI.length > 0 && (
             <div className="space-y-3 mb-6">
-              {collaborators.map((collaborator) => (
+              {collaboratorsUI.map((collaborator) => (
                 <div
-                  key={collaborator.id}
+                  key={collaborator.key}
                   className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -173,26 +213,19 @@ export default function PeoplePage() {
                       </p>
                     </div>
                   </div>
+
                   <div className="flex items-center gap-3">
-                    {collaborator.status === "pending" ? (
-                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
-                        Pending
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                        Verified
-                      </span>
-                    )}
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
+                      Pending
+                    </span>
+
                     <button
-                      onClick={() => handleRemoveCollaborator(collaborator.id)}
+                      type="button"
+                      onClick={() => handleRemoveCollaborator(collaborator.email)}
                       className="text-gray-400 hover:text-red-500 transition-colors"
+                      aria-label="Remove co-creator"
                     >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -207,11 +240,12 @@ export default function PeoplePage() {
             </div>
           )}
 
-          {/* Add Collaborator Form */}
+          {/* Invite co-creator */}
           <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
             <h4 className="text-sm font-medium text-gray-900 mb-4">
-              Invite a collaborator
+              Invite a co-creator
             </h4>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">
@@ -221,47 +255,76 @@ export default function PeoplePage() {
                   type="email"
                   value={newCollaboratorEmail}
                   onChange={(e) => setNewCollaboratorEmail(e.target.value)}
-                  placeholder="collaborator@email.com"
+                  placeholder="communityfundings@email.com"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  Role
-                </label>
-                <select
-                  value={newCollaboratorRole}
-                  onChange={(e) => setNewCollaboratorRole(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
-                >
-                  <option value="collaborator">Collaborator</option>
-                  <option value="co-creator">Co-Creator</option>
-                  <option value="editor">Editor</option>
-                </select>
-              </div>
+
               <button
+                type="button"
                 onClick={handleAddCollaborator}
                 className="w-full bg-white border border-[#8BC34A] text-[#8BC34A] px-4 py-3 rounded-lg font-medium hover:bg-[#F5F9F0] transition-colors"
               >
                 Send Invite
               </button>
             </div>
-            <p className="mt-4 text-xs text-gray-500">
-              Collaborators will receive an email invitation to join your project.
+
+            <p className="mt-2 text-sm text-gray-500">
+              Co-creators can edit this project and manage campaign details.
             </p>
           </div>
         </div>
+
+        {/* Terms + Submit */}
+        <div className="space-y-6">
+          {/* Agree to Terms */}
+          <div className="border border-gray-200 rounded-lg bg-[#F3FAEE] p-6">
+            <label className="flex items-start gap-4 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-gray-300 text-[#8BC34A] focus:ring-[#8BC34A]"
+              />
+              <span className="text-gray-800">
+                I agree to the{" "}
+                <Link href="/terms" className="text-[#8BC34A] hover:underline">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/creator-agreement" className="text-[#8BC34A] hover:underline">
+                  Creator Agreement
+                </Link>
+                . I understand that Community Fundings will collect a 5% platform fee and
+                payment processing fees from successfully funded projects.
+              </span>
+            </label>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={handleSubmitForReview}
+                disabled={!agreedToTerms}
+                className="
+                  bg-[#8BC34A] text-white
+                  px-10 py-3
+                  rounded-full font-medium
+                  whitespace-nowrap
+                  hover:bg-[#7CB342]
+                  transition-colors
+                  disabled:opacity-50 disabled:hover:bg-[#8BC34A]
+                "
+              >
+                Submit for Review
+              </button>
+            </div>
+          </div>
+
       </div>
 
-      {/* Save & Continue Button */}
-      <div className="mt-12 flex justify-end">
-        <Link
-          href="/create-project/payment"
-          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
-        >
-          Save & Continue
-        </Link>
-      </div>
-    </div>
+      <DraftDebug />
+  </div>
   );
 }
