@@ -73,9 +73,8 @@ export default function SignInWatcher() {
 
     async function send() {
       try {
-        console.log("SignInWatcher: user object:", user);
-        const token = await getToken({ template: "standard" });
-        console.log("SignInWatcher: token present? ", !!token, "len:", token?.length);
+        const token = await getToken();
+        if (!token) return;
 
         const payload = {
           id: user.id,
@@ -85,11 +84,7 @@ export default function SignInWatcher() {
           image_url: user.profileImageUrl ?? null,
         };
 
-        // console.log("SignInWatcher: payload to send:", payload);
-        // console.log("SignInWatcher: token preview:", token?.slice?.(0, 40));
-
-        // perform the fetch and handle response synchronously inside the same scope
-        const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
+        await fetch("http://localhost:4000/api/auth/verify-and-store", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -97,24 +92,8 @@ export default function SignInWatcher() {
           },
           body: JSON.stringify({ user: payload }),
         });
-
-        console.log("SignInWatcher: fetch response status:", res.status, res.statusText);
-
-        // try to parse body safely
-        const text = await res.text();
-        let parsed = null;
-        try {
-          parsed = JSON.parse(text);
-        } catch (_) {
-          parsed = text;
-        }
-        console.log("SignInWatcher: fetch response body:", parsed);
-
-        if (!res.ok) {
-          console.error("SignInWatcher: server returned error:", res.status, parsed);
-        }
-      } catch (err) {
-        console.error("SignInWatcher: error sending token:", err);
+      } catch {
+        // Auth sync failed silently — non-blocking
       }
     }
 

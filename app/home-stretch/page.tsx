@@ -2,28 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import Header from "../../components/Header";
-
-const categoryNames: Record<string, string> = {
-  "arts": "Arts",
-  "comics-illustration": "Comics & Illustration",
-  "community": "Community",
-  "creative": "Creative",
-  "design-tech": "Design & Tech",
-  "disaster-relief": "Disaster Relief",
-  "education": "Education",
-  "emergency": "Emergency",
-  "film": "Film",
-  "food-craft": "Food & Craft",
-  "game": "Game",
-  "music": "Music",
-  "nonprofit": "Nonprofit",
-  "pets": "Pets",
-  "publishing": "Publishing",
-  "sports": "Sports",
-  "technology": "Technology",
-};
+import Header from "../components/Header";
 
 interface Campaign {
   id: string;
@@ -39,31 +18,30 @@ interface Campaign {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export default function CategoryPage() {
-  const params = useParams();
-  const slug = params.slug as string;
-  const categoryName = categoryNames[slug] || "Category";
-
+export default function HomeStretchPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchCampaigns() {
+    async function fetchHomeStretch() {
       try {
         const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&category=${encodeURIComponent(categoryName)}&per_page=50`
+          `${API_URL}/api/campaigns?status=active&sort=most_funded&per_page=50`
         );
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
-        setCampaigns(data.campaigns || []);
+        const homeStretch = data.campaigns.filter(
+          (c: Campaign) => c.funding_percentage >= 80 && c.funding_percentage < 100
+        );
+        setCampaigns(homeStretch);
       } catch (err) {
-        console.error("Error fetching campaigns:", err);
+        console.error("Error fetching home stretch campaigns:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchCampaigns();
-  }, [categoryName]);
+    fetchHomeStretch();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -75,7 +53,7 @@ export default function CategoryPage() {
           {/* Breadcrumb */}
           <div className="mb-6">
             <Link
-              href="/categories"
+              href="/"
               className="inline-flex items-center text-sm text-gray-600 hover:text-[#8BC34A] transition-colors border border-gray-300 rounded-full px-4 py-2 bg-white"
             >
               <svg
@@ -91,70 +69,51 @@ export default function CategoryPage() {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              Categories
+              Back to Home
             </Link>
           </div>
 
           {/* Title */}
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">
-            {categoryName}
+            Home Stretch
           </h1>
 
           {/* Description */}
-          <p className="text-gray-600 max-w-xl mb-6">
-            Explore projects in {categoryName}. Find creative work that inspires
-            you and support the creators behind them.
+          <p className="text-gray-600 max-w-xl">
+            These projects are almost at their funding goal. Help them cross the
+            finish line!
           </p>
-
-          {/* CTA Button */}
-          <Link
-            href="/create-project/basics"
-            className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
-          >
-            Start a Project
-          </Link>
         </div>
       </section>
 
       {/* Projects Grid Section */}
       <section className="max-w-7xl mx-auto px-6 py-12">
         {loading ? (
-          <>
-            <h2 className="text-xl font-medium text-gray-900 mb-8">
-              Loading projects in {categoryName}...
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div
-                  key={i}
-                  className="bg-gray-100 rounded-lg h-72 animate-pulse"
-                />
-              ))}
-            </div>
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div
+                key={i}
+                className="bg-gray-100 rounded-lg h-72 animate-pulse"
+              />
+            ))}
+          </div>
         ) : campaigns.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-gray-600 text-lg mb-2">
-              No projects in {categoryName} yet.
-            </p>
-            <p className="text-gray-500 text-sm mb-6">
-              Be the first to start a project in this category!
+            <p className="text-gray-600 text-lg">
+              No projects are in the home stretch right now. Check back soon!
             </p>
             <Link
-              href="/create-project/basics"
-              className="inline-block px-6 py-3 bg-[#8BC34A] text-white rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+              href="/"
+              className="inline-block mt-6 px-6 py-3 bg-[#8BC34A] text-white rounded-full font-medium hover:bg-[#7CB342] transition-colors"
             >
-              Start a Project
+              Browse All Projects
             </Link>
           </div>
         ) : (
           <>
             <h2 className="text-xl font-medium text-gray-900 mb-8">
-              Explore{" "}
-              <span className="font-bold">
-                {campaigns.length} {campaigns.length === 1 ? "project" : "projects"}
-              </span>{" "}
-              in {categoryName}
+              <span className="font-bold">{campaigns.length}</span>{" "}
+              {campaigns.length === 1 ? "project" : "projects"} almost funded
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

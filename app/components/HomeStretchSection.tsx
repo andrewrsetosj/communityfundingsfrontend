@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import ProjectCarousel from "./ProjectCarousel";
 
@@ -58,7 +57,7 @@ export default function HomeStretchSection() {
         </div>
         <div className="flex gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex-shrink-0 w-[calc(25%-18px)] bg-gray-100 rounded-lg h-72 animate-pulse" />
+            <div key={i} className="flex-shrink-0 w-72 bg-gray-100 rounded-lg h-72 animate-pulse" />
           ))}
         </div>
       </section>
@@ -96,15 +95,14 @@ export default function HomeStretchSection() {
           <Link
             key={campaign.id}
             href={`/campaign/${campaign.slug}`}
-            className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100"
+            className="flex-shrink-0 w-72 h-72 snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100"
           >
-            <div className="relative h-40 bg-gray-200">
-              {campaign.image_url ? (
-                <Image
+            <div className="relative h-36 bg-gray-200">
+              {campaign.image_url && campaign.image_url.startsWith("http") ? (
+                <img
                   src={campaign.image_url}
                   alt={campaign.title}
-                  fill
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-400">

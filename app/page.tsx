@@ -4,6 +4,8 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Header from "./components/Header";
 import ProjectCarousel from "./components/ProjectCarousel";
 import HomeStretchSection from "./components/HomeStretchSection";
+import CommunityFavoritesSection from "./components/CommunityFavoritesSection";
+import FeaturedSection from "./components/FeaturedSection";
 
 
 export default function Home() {
@@ -89,71 +91,7 @@ export default function Home() {
       </section>
 
       {/* Featured Business or Project */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-serif font-bold text-gray-900 mb-3">
-            Featured Business or Project
-          </h2>
-          <p className="text-gray-600 max-w-xl mx-auto">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Featured Card */}
-          <Link href="/project/1" className="lg:col-span-2 relative rounded-2xl overflow-hidden group cursor-pointer">
-            <div className="aspect-[16/10] bg-gray-200 relative">
-              <Image
-                src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
-                alt="Featured Project"
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              <div className="absolute bottom-6 left-6 right-6 text-white">
-                <span className="text-xs uppercase tracking-wider mb-2 block">
-                  Featured Business or Project
-                </span>
-                <h3 className="text-xl font-bold mb-2">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                  eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                </h3>
-              </div>
-            </div>
-          </Link>
-
-          {/* Side Cards */}
-          <div className="space-y-4">
-            {[1, 2, 3].map((item) => (
-              <Link key={item} href="/project/1" className="flex gap-3 group cursor-pointer">
-                <div className="relative w-24 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200">
-                  <Image
-                    src={`https://images.unsplash.com/photo-151903176${item}074-81bece64645a?w=200`}
-                    alt="Project thumbnail"
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 font-medium mb-1 line-clamp-2">
-                    Lorem ipsum dolor sit amet, consectetur
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Funded 1/10 Project By: <span className="font-medium">JOEL PEDERSON</span>
-                  </p>
-                  <p className="text-xs text-gray-500">Funders: $60</p>
-                  <div className="flex items-center text-xs text-gray-400 space-x-2 mt-1">
-                    <span>Save</span>
-                    <span>0 Fund</span>
-                    <span>&gt; Mty</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FeaturedSection />
 
       {/* Recommended for you */}
       <section className="bg-gray-50 py-16">
@@ -243,44 +181,7 @@ export default function Home() {
       </section>
 
       {/* Community Favorites */}
-      <section className="bg-gray-50 py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-10">
-            <h2 className="text-3xl font-serif font-bold text-gray-900">
-              Community Favorites
-            </h2>
-          </div>
-
-          <ProjectCarousel seeMoreHref="/community-favorites" seeMoreLabel="See More Favorites">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
-              <Link key={item} href="/project/1" className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
-                <div className="relative h-36 bg-gray-200">
-                  <Image
-                    src={`https://images.unsplash.com/photo-149963932${item}710-8f4e1e4e3e4e?w=400`}
-                    alt="Community Project"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <p className="text-sm text-gray-900 mb-1 line-clamp-2">
-                    Lorem ipsum dolor sit amet, consectetur
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Funded 1/10 Project By: <span className="font-medium">JOEL PEDERSON</span>
-                  </p>
-                  <p className="text-xs text-gray-500">Funders: $60</p>
-                  <div className="flex items-center text-xs text-gray-400 space-x-2 mt-2">
-                    <span>Save</span>
-                    <span>0 Fund</span>
-                    <span>&gt; Mty</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </ProjectCarousel>
-        </div>
-      </section>
+      <CommunityFavoritesSection />
 
       {/* Home Stretch */}
       <HomeStretchSection />
