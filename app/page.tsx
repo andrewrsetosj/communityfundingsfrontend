@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Header from "./components/Header";
 import ProjectCarousel from "./components/ProjectCarousel";
+import HomeStretchSection from "./components/HomeStretchSection";
 
 export default function Home() {
   return (
@@ -281,63 +282,7 @@ export default function Home() {
       </section>
 
       {/* Home Stretch */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-serif font-bold text-gray-900 mb-3">
-            Home Stretch
-          </h2>
-          <p className="text-gray-600 max-w-xl mx-auto">
-            These projects are almost at their funding goal. Help them cross the finish line!
-          </p>
-        </div>
-
-        <ProjectCarousel seeMoreHref="/home-stretch" seeMoreLabel="Home Stretch Projects">
-          {[
-            { title: "Eco-Friendly Packaging", creator: "SARAH CHEN", funded: "$4,500", goal: "$5,000", percent: 90, daysLeft: 3 },
-            { title: "Community Garden Project", creator: "MIKE JOHNSON", funded: "$9,200", goal: "$10,000", percent: 92, daysLeft: 5 },
-            { title: "Local Music Festival", creator: "EMMA DAVIS", funded: "$7,800", goal: "$8,500", percent: 92, daysLeft: 7 },
-            { title: "Youth Coding Workshop", creator: "ALEX RIVERA", funded: "$2,700", goal: "$3,000", percent: 90, daysLeft: 2 },
-            { title: "Neighborhood Mural", creator: "LISA WANG", funded: "$3,800", goal: "$4,000", percent: 95, daysLeft: 1 },
-            { title: "Local Bookstore Revival", creator: "TOM BAKER", funded: "$14,200", goal: "$15,000", percent: 95, daysLeft: 4 },
-            { title: "Clean Water Initiative", creator: "PRIYA PATEL", funded: "$8,100", goal: "$9,000", percent: 90, daysLeft: 6 },
-            { title: "Street Food Market", creator: "CARLOS RUIZ", funded: "$6,500", goal: "$7,000", percent: 93, daysLeft: 3 },
-            { title: "Indie Film Production", creator: "MAYA SCOTT", funded: "$18,500", goal: "$20,000", percent: 93, daysLeft: 8 },
-            { title: "Community Bike Share", creator: "JAMES LEE", funded: "$11,200", goal: "$12,000", percent: 93, daysLeft: 5 },
-          ].map((project, index) => (
-            <Link key={index} href="/project/1" className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100">
-              <div className="relative h-40 bg-gray-200">
-                <Image
-                  src={`https://images.unsplash.com/photo-150633263${index + 1}355-506871c6b6c4?w=400`}
-                  alt={project.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  {project.title}
-                </h3>
-                <p className="text-xs text-gray-500 mb-1">
-                  By: <span className="font-medium">{project.creator}</span>
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  {project.funded} raised of {project.goal}
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                  <div
-                    className="bg-[#8BC34A] h-1.5 rounded-full"
-                    style={{ width: `${project.percent}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span className="font-medium text-[#8BC34A]">{project.percent}% funded</span>
-                  <span>{project.daysLeft} days left</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </ProjectCarousel>
-      </section>
+      <HomeStretchSection />
 
       {/* Meet Community Council */}
       <section className="bg-[#8BC34A] py-16">
