@@ -4,6 +4,7 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Header from "./components/Header";
 import ProjectCarousel from "./components/ProjectCarousel";
 
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
