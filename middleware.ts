@@ -8,6 +8,9 @@ const isPublicRoute = createRouteMatcher([
   "/projects-we-love(.*)",
   "/project(.*)",
   "/categories(.*)",
+
+  // ✅ allow the proxy route through without auth
+  "/api/campaign-page(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
