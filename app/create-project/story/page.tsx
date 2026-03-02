@@ -42,6 +42,9 @@ export default function StoryPage() {
   // Rich text editor state (stores HTML)
   const [descriptionHtml, setDescriptionHtml] = useState<string>(initialDescription);
 
+  // ✅ NEW: touched flag for description editor
+  const [descriptionTouched, setDescriptionTouched] = useState(false);
+
   // FAQ state
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [isAddingFaq, setIsAddingFaq] = useState(false);
@@ -115,8 +118,14 @@ export default function StoryPage() {
 
   const showPlaceholder = isEditorVisuallyEmpty(descriptionHtml);
 
+  // ✅ gate continue
+  const descriptionIsValid = !isEditorVisuallyEmpty(descriptionHtml);
+  const canContinue = descriptionIsValid;
+
   // ---- Save into draft + navigate ----
   const handleNext = () => {
+    if (!canContinue) return;
+
     setStory({
       description_html: descriptionHtml,
       faqs: faqs.map((f, idx) => ({
@@ -142,18 +151,16 @@ export default function StoryPage() {
         {/* Project Description */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            Project Description
+            Project Description{" "}
           </label>
 
           <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#8BC34A] focus-within:border-transparent">
-            {/* Simple Toolbar */}
+            {/* Toolbar */}
             <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex gap-2">
               <button
                 type="button"
                 onClick={clearFormatting}
                 className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded transition-colors"
-                aria-label="Clear formatting"
-                title="Clear formatting"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
@@ -163,9 +170,7 @@ export default function StoryPage() {
               <button
                 type="button"
                 onClick={() => format("bold")}
-                className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded transition-colors font-bold text-sm"
-                aria-label="Bold"
-                title="Bold"
+                className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded font-bold text-sm"
               >
                 B
               </button>
@@ -173,9 +178,7 @@ export default function StoryPage() {
               <button
                 type="button"
                 onClick={() => format("italic")}
-                className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded transition-colors italic text-sm"
-                aria-label="Italic"
-                title="Italic"
+                className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded italic text-sm"
               >
                 I
               </button>
@@ -183,15 +186,13 @@ export default function StoryPage() {
               <button
                 type="button"
                 onClick={() => format("underline")}
-                className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded transition-colors underline text-sm"
-                aria-label="Underline"
-                title="Underline"
+                className="p-2 text-gray-600 hover:text-[#8BC34A] hover:bg-gray-100 rounded underline text-sm"
               >
                 U
               </button>
             </div>
 
-            {/* ContentEditable editor */}
+            {/* Editor */}
             <div className="relative">
               {showPlaceholder && (
                 <div className="pointer-events-none absolute top-4 left-4 right-4 text-gray-400 whitespace-pre-line">
@@ -204,7 +205,10 @@ export default function StoryPage() {
                 contentEditable
                 suppressContentEditableWarning
                 onInput={handleEditorInput}
-                onBlur={handleEditorInput}
+                onBlur={() => {
+                  setDescriptionTouched(true);
+                  handleEditorInput();
+                }}
                 className="w-full px-4 py-4 min-h-[220px] focus:outline-none"
               />
             </div>
@@ -213,51 +217,36 @@ export default function StoryPage() {
           <p className="mt-2 text-sm text-gray-500">
             A compelling story is key to a successful campaign. Be authentic and specific.
           </p>
+
+          {descriptionTouched && !descriptionIsValid && (
+            <p className="mt-2 text-sm text-red-500">
+              Please enter a project description to continue.
+            </p>
+          )}
         </div>
 
-        {/* FAQ (optional) */}
+        {/* FAQ */}
         <div className="mt-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">FAQ (optional)</h2>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">FAQ (optional)</h2>
 
-          {/* 1) Existing FAQs ALWAYS on top */}
           {faqs.length > 0 && (
             <div className="space-y-4 mb-6">
               {faqs.map((faq, idx) => (
-                <div
-                  key={`${faq.question}-${idx}`}
-                  className="border border-gray-200 rounded-xl p-6 bg-white"
-                >
-                  <div className="flex items-start justify-between gap-6">
+                <div key={idx} className="border border-gray-200 rounded-xl p-6 bg-white">
+                  <div className="flex justify-between">
                     <div>
-                      <div className="font-semibold text-gray-900">{faq.question}</div>
+                      <div className="font-semibold">{faq.question}</div>
                       <div className="text-gray-600 mt-2 whitespace-pre-line">
                         {faq.answer}
                       </div>
                     </div>
 
-                    {/* 2) Trash can remove button */}
                     <button
                       type="button"
                       onClick={() => removeFaq(idx)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                      aria-label="Remove FAQ"
-                      title="Remove FAQ"
+                      className="text-gray-400 hover:text-red-500"
                     >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -265,101 +254,64 @@ export default function StoryPage() {
             </div>
           )}
 
-          {/* 3) Below the list: either expanded form OR add box */}
           {isAddingFaq ? (
             <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">New FAQ</h3>
+              <input
+                value={faqDraft.question}
+                onChange={(e) =>
+                  setFaqDraft((p) => ({ ...p, question: e.target.value }))
+                }
+                placeholder="Question"
+                className="w-full mb-4 px-4 py-3 border rounded-lg"
+              />
 
-              <div className="space-y-6">
-                {/* Question */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Question
-                  </label>
-                  <input
-                    type="text"
-                    value={faqDraft.question}
-                    onChange={(e) =>
-                      setFaqDraft((prev) => ({ ...prev, question: e.target.value }))
-                    }
-                    placeholder="e.g., Do you have any social media accounts?"
-                    className="w-full px-6 py-4 border border-gray-300 rounded-xl bg-white
-                              text-base placeholder:text-gray-400
-                              focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-                  />
-                </div>
+              <textarea
+                value={faqDraft.answer}
+                onChange={(e) =>
+                  setFaqDraft((p) => ({ ...p, answer: e.target.value }))
+                }
+                placeholder="Answer"
+                rows={4}
+                className="w-full mb-4 px-4 py-3 border rounded-lg"
+              />
 
-                {/* Answer */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Answer
-                  </label>
-                  <textarea
-                    value={faqDraft.answer}
-                    onChange={(e) =>
-                      setFaqDraft((prev) => ({ ...prev, answer: e.target.value }))
-                    }
-                    placeholder="Write a clear answer for donors..."
-                    rows={5}
-                    className="w-full px-6 py-4 border border-gray-300 rounded-xl bg-white
-                              text-base placeholder:text-gray-400 resize-none
-                              focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex justify-end items-center gap-10 pt-2">
-                  <button
-                    type="button"
-                    onClick={cancelFaqForm}
-                    className="text-lg text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addFaq}
-                    disabled={!faqDraft.question.trim() || !faqDraft.answer.trim()}
-                    className="bg-[#8BC34A] text-white px-10 py-3 rounded-full text-lg font-medium
-                              hover:bg-[#7CB342] transition-colors disabled:opacity-50 disabled:hover:bg-[#8BC34A]"
-                  >
-                    Add FAQ
-                  </button>
-                </div>
+              <div className="flex justify-end gap-4">
+                <button onClick={cancelFaqForm}>Cancel</button>
+                <button
+                  onClick={addFaq}
+                  disabled={!faqDraft.question || !faqDraft.answer}
+                  className="bg-[#8BC34A] text-white px-6 py-2 rounded-full disabled:opacity-50"
+                >
+                  Add FAQ
+                </button>
               </div>
             </div>
           ) : (
             <button
-              type="button"
               onClick={openFaqForm}
-              className="w-full border-2 border-dashed border-[#8BC34A] rounded-xl py-10 flex flex-col items-center justify-center hover:bg-green-50/20 transition"
+              className="w-full border-2 border-dashed border-[#8BC34A] rounded-xl py-10 text-[#8BC34A]"
             >
-              <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mb-3">
-                <span className="text-[#8BC34A] text-2xl leading-none">+</span>
-              </div>
-              <div className="text-[#8BC34A] text-lg font-medium">
-                {faqs.length > 0 ? "Add another FAQ" : "Add a FAQ"}
-              </div>
-              <div className="text-gray-500 mt-1">Add common questions and answers.</div>
+              + Add FAQ
             </button>
           )}
-          <p className="mt-2 text-sm text-gray-500">
-            Answering common questions helps backers feel confident supporting your project.
-          </p>
         </div>
 
-        {/* Save & Continue Button (must call handleNext) */}
-        <div className="mt-12 flex justify-end">
+        {/* Save */}
+        <div className="flex justify-end">
           <button
-            type="button"
             onClick={handleNext}
-            className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+            disabled={!canContinue}
+            className={`px-8 py-3 rounded-full font-medium transition-colors
+              ${canContinue
+                ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                : "bg-[#8BC34A] text-white opacity-50 cursor-not-allowed"}
+            `}
           >
-            Save &amp; Continue
+            Save & Continue
           </button>
         </div>
       </div>
+
       <DraftDebug />
     </div>
   );
