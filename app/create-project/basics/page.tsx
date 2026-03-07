@@ -49,6 +49,8 @@ export default function BasicsPage() {
 
   const basicsValid = titleValid && fundingValid && durationValid;
 
+  const TITLE_LIMIT = 100;
+
   const addFiles = (files: FileList | File[]) => {
     const incoming = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (incoming.length === 0) return;
@@ -136,13 +138,19 @@ export default function BasicsPage() {
       <div className="space-y-8">
         {/* Project Title */}
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">
-            Project Title{" "}
-          </label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-gray-900">
+              Project Title{" "}
+            </label>
+            <span className="text-sm text-gray-500">
+              {draft.title.length}/{TITLE_LIMIT}
+            </span>
+          </div>
           <input
             type="text"
+            maxLength={TITLE_LIMIT}
             value={draft.title}
-            onChange={(e) => setBasics({ title: e.target.value })}
+            onChange={(e) => setBasics({ title: e.target.value.slice(0, TITLE_LIMIT) })}
             onBlur={() => setTitleTouched(true)}
             placeholder="Enter your project title"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"

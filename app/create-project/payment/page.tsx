@@ -47,8 +47,11 @@ export default function PaymentPage() {
     accountValid &&
     confirmValid;
 
-  const handleSubmitForReview = () => {
-    // mark touched so errors show if they try to submit
+const draft = useCampaignDraft((s) => s.draft);
+
+
+
+  const handleSubmitForReview = async () => {
     setTypeTouched(true);
     setNameTouched(true);
     setRoutingTouched(true);
@@ -57,7 +60,32 @@ export default function PaymentPage() {
 
     if (!canSubmit) return;
 
-    router.push("/create-project/submitted");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    try {
+      const res = await fetch(`${apiUrl}/api/campaigns/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(useCampaignDraft.getState().draft),
+      });
+
+      const text = await res.text(); // read body even if non-JSON
+
+      if (!res.ok) {
+        console.error("Finalize failed:", res.status, res.statusText, text);
+        alert(`Submit failed (${res.status}): ${text.slice(0, 300)}`);
+        return;
+      }
+
+      // If it’s JSON, parse after ok
+      const data = JSON.parse(text);
+      console.log("Finalize success:", data);
+
+      router.push(`/create-project/submitted?id=${data.campaign_id}`);
+    } catch (err: any) {
+      console.error("Network/JS error submitting:", err);
+      alert(`Network error: ${err?.message ?? String(err)}`);
+    }
   };
 
   return (

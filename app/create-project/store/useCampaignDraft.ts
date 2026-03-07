@@ -30,6 +30,9 @@ export type PaymentDraft = {
 };
 
 export type CampaignDraft = {
+  // Ownership (Clerk user id)
+  creator_id: string;
+
   // Basics
   title: string;
   category: string;
@@ -54,6 +57,8 @@ export type CampaignDraft = {
 };
 
 export const emptyDraft: CampaignDraft = {
+  creator_id: "creator_001",
+
   title: "",
   category: "",
   location: "",
@@ -83,6 +88,10 @@ type DraftStore = {
   hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
 
+  // Ownership
+  setCreatorId: (id: string) => void;
+
+  // Basics
   setBasics: (
     patch: Partial<
       Pick<
@@ -92,13 +101,18 @@ type DraftStore = {
     >
   ) => void;
 
+  // Rewards
   setRewards: (rewards: RewardDraft[]) => void;
+
+  // Story
   setStory: (patch: Partial<Pick<CampaignDraft, "description_html" | "faqs">>) => void;
 
+  // People
   setPeople: (
     patch: Partial<Pick<CampaignDraft, "bio" | "vanity_slug" | "co_creators">>
   ) => void;
 
+  // Payment
   setPayment: (patch: Partial<PaymentDraft>) => void;
 
   reset: () => void;
@@ -111,6 +125,11 @@ export const useCampaignDraft = create<DraftStore>()(
 
       hasHydrated: false,
       setHasHydrated: (v) => set({ hasHydrated: v }),
+
+      setCreatorId: (id) =>
+        set((s) => ({
+          draft: { ...s.draft, creator_id: id },
+        })),
 
       setBasics: (patch) => set((s) => ({ draft: { ...s.draft, ...patch } })),
       setRewards: (rewards) => set((s) => ({ draft: { ...s.draft, rewards } })),
@@ -129,15 +148,20 @@ export const useCampaignDraft = create<DraftStore>()(
     }),
     {
       name: "campaign-create-draft-v1",
-      version: 3,
+      version: 4,
       migrate: (persisted: any) => {
         const state = persisted?.state ?? persisted ?? {};
         const draft = state?.draft ?? {};
+
+        // Back-compat: if older persisted state used user_id, map it to creator_id.
+        const legacyCreatorId = draft.creator_id ?? draft.user_id ?? "";
+
         return {
           ...state,
           draft: {
             ...emptyDraft,
             ...draft,
+            creator_id: legacyCreatorId,
             payment: { ...emptyDraft.payment, ...(draft.payment ?? {}) },
           },
         };

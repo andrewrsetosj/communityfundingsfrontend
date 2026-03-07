@@ -95,7 +95,13 @@ export default function StoryPage() {
   };
 
   const handleEditorInput = () => {
-    setDescriptionHtml(editorRef.current?.innerHTML ?? "");
+    const nextHtml = editorRef.current?.innerHTML ?? "";
+    const nextLen = getPlainTextFromHtml(nextHtml).length;
+    if (nextLen > DESCRIPTION_LIMIT) {
+      editorRef.current!.innerHTML = descriptionHtml;
+      return;
+    }
+    setDescriptionHtml(nextHtml);
   };
 
   const clearFormatting = () => {
@@ -104,8 +110,8 @@ export default function StoryPage() {
     setDescriptionHtml(editorRef.current?.innerHTML ?? "");
   };
 
-  const isEditorVisuallyEmpty = (html: string) => {
-    const text = html
+  const getPlainTextFromHtml = (html: string) =>
+    html
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/div>/gi, "\n")
       .replace(/<[^>]*>/g, "")
@@ -113,13 +119,18 @@ export default function StoryPage() {
       .replace(/\u00a0/g, " ")
       .trim();
 
-    return text.length === 0;
-  };
+  const isEditorVisuallyEmpty = (html: string) =>
+    getPlainTextFromHtml(html).length === 0;
+
+  const DESCRIPTION_LIMIT = 1000;
+  const descriptionCharCount = getPlainTextFromHtml(descriptionHtml).length;
 
   const showPlaceholder = isEditorVisuallyEmpty(descriptionHtml);
 
-  // ✅ gate continue
-  const descriptionIsValid = !isEditorVisuallyEmpty(descriptionHtml);
+  // ✅ gate continue (non-empty and within limit)
+  const descriptionIsValid =
+    !isEditorVisuallyEmpty(descriptionHtml) &&
+    descriptionCharCount <= DESCRIPTION_LIMIT;
   const canContinue = descriptionIsValid;
 
   // ---- Save into draft + navigate ----
@@ -156,7 +167,7 @@ export default function StoryPage() {
 
           <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#8BC34A] focus-within:border-transparent">
             {/* Toolbar */}
-            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex gap-2">
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex gap-2 justify-between items-center">
               <button
                 type="button"
                 onClick={clearFormatting}
@@ -190,6 +201,15 @@ export default function StoryPage() {
               >
                 U
               </button>
+              <span
+                className={`text-sm ml-auto ${
+                  descriptionCharCount > DESCRIPTION_LIMIT
+                    ? "text-red-500"
+                    : "text-gray-500"
+                }`}
+              >
+                {descriptionCharCount}/{DESCRIPTION_LIMIT}
+              </span>
             </div>
 
             {/* Editor */}
@@ -220,7 +240,9 @@ export default function StoryPage() {
 
           {descriptionTouched && !descriptionIsValid && (
             <p className="mt-2 text-sm text-red-500">
-              Please enter a project description to continue.
+              {descriptionCharCount > DESCRIPTION_LIMIT
+                ? `Please reduce the description to ${DESCRIPTION_LIMIT} characters or fewer.`
+                : "Please enter a project description to continue."}
             </p>
           )}
         </div>
