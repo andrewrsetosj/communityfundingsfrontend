@@ -1,6 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Header from "./components/Header";
+import ProjectCarousel from "./components/ProjectCarousel";
+import HomeStretchSection from "./components/HomeStretchSection";
+
 
 export default function Home() {
   return (
@@ -40,12 +44,22 @@ export default function Home() {
           </p>
 
           <div className="flex justify-center mb-16">
-            <Link
-              href="/create-project/basics"
-              className="bg-white text-[#8BC34A] px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
-            >
-              Start a Project
-            </Link>
+            <SignedIn>
+              <Link
+                href="/create-project/basics"
+                className="bg-white text-[#8BC34A] px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
+              >
+                Start a Project
+              </Link>
+            </SignedIn>
+            <SignedOut>
+              <Link
+                href="/sign-in"
+                className="bg-white text-[#8BC34A] px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
+              >
+                Start a Project
+              </Link>
+            </SignedOut>
           </div>
 
           {/* Stats */}
@@ -59,13 +73,13 @@ export default function Home() {
               </div>
               <div className="text-center border-x border-gray-200">
                 <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  $6,361,326,533
+                  $6,361,326
                 </p>
                 <p className="text-gray-500 text-sm">Towards creative work</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  70,894,973
+                  70,894
                 </p>
                 <p className="text-gray-500 text-sm">Pledges</p>
               </div>
@@ -158,7 +172,7 @@ export default function Home() {
                 eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
               </p>
               <button className="bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors">
-                Lorem ipsum
+                See Recommended Projects
               </button>
             </div>
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-200">
@@ -185,9 +199,9 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((item) => (
-            <Link key={item} href="/project/1" className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
+        <ProjectCarousel seeMoreHref="/projects-near-you" seeMoreLabel="See More Projects">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
+            <Link key={item} href="/project/1" className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
               <div className="relative h-40 bg-gray-200">
                 <Image
                   src={`https://images.unsplash.com/photo-150633263${item}355-506871c6b6c4?w=400`}
@@ -225,26 +239,21 @@ export default function Home() {
               </div>
             </Link>
           ))}
-        </div>
+        </ProjectCarousel>
       </section>
 
       {/* Community Favorites */}
       <section className="bg-gray-50 py-16">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between mb-10">
+          <div className="mb-10">
             <h2 className="text-3xl font-serif font-bold text-gray-900">
               Community Favorites
             </h2>
-            <button className="w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors">
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((item) => (
-              <Link key={item} href="/project/1" className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
+          <ProjectCarousel seeMoreHref="/community-favorites" seeMoreLabel="See More Favorites">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
+              <Link key={item} href="/project/1" className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
                 <div className="relative h-36 bg-gray-200">
                   <Image
                     src={`https://images.unsplash.com/photo-149963932${item}710-8f4e1e4e3e4e?w=400`}
@@ -269,32 +278,12 @@ export default function Home() {
                 </div>
               </Link>
             ))}
-          </div>
+          </ProjectCarousel>
         </div>
       </section>
 
       {/* Home Stretch */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <p className="text-xs text-gray-500 mb-1">Lorem ipsum dolor sit amet</p>
-        <h2 className="text-3xl font-serif font-bold text-gray-900 mb-8">
-          Home Stretch
-        </h2>
-
-        <div className="flex flex-wrap gap-6">
-          {[1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="w-24 h-24 rounded-full bg-[#FFF8E1] border-4 border-[#FFD54F] flex items-center justify-center"
-            >
-              <div className="w-16 h-16 rounded-full bg-[#FFE082] flex items-center justify-center">
-                <svg className="w-8 h-8 text-[#F9A825]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                </svg>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <HomeStretchSection />
 
       {/* Meet Community Council */}
       <section className="bg-[#8BC34A] py-16">

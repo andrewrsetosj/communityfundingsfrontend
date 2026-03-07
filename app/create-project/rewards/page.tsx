@@ -1,43 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCampaignDraft, type RewardDraft } from "../store/useCampaignDraft";
+import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
-interface Reward {
-  id: number;
+interface RewardUI {
+  // stable key derived from index for now (see note below)
+  key: string;
   title: string;
-  amount: string;
+  amount: string; // dollars as user input
   description: string;
   deliveryDate: string;
-  limit: string;
+  limit: string; // number as string
+}
+
+function dollarsToCents(input: string): number {
+  const cleaned = input.replace(/[^0-9.]/g, "").trim();
+  if (!cleaned) return 0;
+
+  const parts = cleaned.split(".");
+  const dollars = parts[0] ? parseInt(parts[0], 10) : 0;
+
+  const centsRaw = parts[1] ?? "";
+  const cents =
+    centsRaw.length === 0 ? 0 : parseInt((centsRaw + "00").slice(0, 2), 10);
+
+  if (Number.isNaN(dollars) || Number.isNaN(cents)) return 0;
+  return dollars * 100 + cents;
+}
+
+function normalizeLimit(input: string): number | null {
+  const cleaned = input.replace(/[^0-9]/g, "").trim();
+  if (!cleaned) return null;
+  const n = parseInt(cleaned, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function rewardDraftToUI(r: RewardDraft, idx: number): RewardUI {
+  return {
+    key: `reward-${idx}`, // stable for display; index-based is fine if you only add/delete
+    title: r.title ?? "",
+    amount: String(((r.required_amount_cents ?? 0) / 100) || ""),
+    description: r.description ?? "",
+    deliveryDate: "", // UI-only unless you add it to store
+    limit: r.limit_total ? String(r.limit_total) : "",
+  };
 }
 
 export default function RewardsPage() {
-  const [rewards, setRewards] = useState<Reward[]>([]);
+  const router = useRouter();
+  const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
+  const draftRewards = useCampaignDraft((s) => s.draft.rewards);
+  const setRewards = useCampaignDraft((s) => s.setRewards);
+
+  // Rewards shown in UI come from the store
+  const rewardsUI: RewardUI[] = useMemo(() => {
+    const arr = draftRewards ?? [];
+    return arr.map((r, idx) => rewardDraftToUI(r, idx));
+  }, [draftRewards]);
+
   const [showForm, setShowForm] = useState(false);
-  const [editingReward, setEditingReward] = useState<Reward | null>(null);
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [limit, setLimit] = useState("");
-
-  const handleAddReward = () => {
-    if (!title || !amount) return;
-
-    const newReward: Reward = {
-      id: Date.now(),
-      title,
-      amount,
-      description,
-      deliveryDate,
-      limit,
-    };
-
-    setRewards([...rewards, newReward]);
-    resetForm();
-  };
 
   const resetForm = () => {
     setTitle("");
@@ -46,28 +75,61 @@ export default function RewardsPage() {
     setDeliveryDate("");
     setLimit("");
     setShowForm(false);
-    setEditingReward(null);
   };
 
-  const handleDeleteReward = (id: number) => {
-    setRewards(rewards.filter((r) => r.id !== id));
+  const handleAddReward = () => {
+    const cents = dollarsToCents(amount);
+    if (!title.trim() || cents <= 0) return;
+
+    const newDraftReward: RewardDraft = {
+      title: title.trim(),
+      required_amount_cents: cents,
+      description: description.trim(),
+      limit_total: normalizeLimit(limit),
+      display_order: (draftRewards?.length ?? 0), // keep order consistent
+    };
+
+    const next = [...(draftRewards ?? []), newDraftReward].map((r, idx) => ({
+      ...r,
+      display_order: idx, // re-normalize display_order
+    }));
+
+    setRewards(next);
+    resetForm();
   };
 
+  const handleDeleteReward = (idxToDelete: number) => {
+    const next = (draftRewards ?? [])
+      .filter((_, idx) => idx !== idxToDelete)
+      .map((r, idx) => ({ ...r, display_order: idx }));
+
+    setRewards(next);
+  };
+
+  const handleNext = () => {
+    // Store is already updated on add/delete, so just navigate
+    router.push("/create-project/story");
+  };
+
+   // Avoid rendering before persist rehydrates (prevents empty flash)
+  if (!hasHydrated) return null;
+  
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-serif font-bold text-gray-900 mb-2">
-        Add rewards
+        Add reward tiers
       </h1>
       <p className="text-gray-600 mb-8">
-        Offer tangible or intangible items to backers as a thank you for their support.
+        Reward tiers give supporters pre-set contribution options and clarify
+        what they’ll receive.
       </p>
 
       {/* Existing Rewards */}
-      {rewards.length > 0 && (
+      {rewardsUI.length > 0 && (
         <div className="space-y-4 mb-8">
-          {rewards.map((reward) => (
+          {rewardsUI.map((reward, idx) => (
             <div
-              key={reward.id}
+              key={reward.key}
               className="border border-gray-200 rounded-lg p-6 hover:border-[#8BC34A] transition-colors"
             >
               <div className="flex justify-between items-start">
@@ -80,11 +142,13 @@ export default function RewardsPage() {
                       {reward.title}
                     </h3>
                   </div>
+
                   {reward.description && (
                     <p className="text-gray-600 text-sm mb-3">
                       {reward.description}
                     </p>
                   )}
+
                   <div className="flex gap-4 text-sm text-gray-500">
                     {reward.deliveryDate && (
                       <span>Delivery: {reward.deliveryDate}</span>
@@ -92,26 +156,27 @@ export default function RewardsPage() {
                     {reward.limit && <span>Limit: {reward.limit} backers</span>}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleDeleteReward(reward.id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteReward(idx)}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  aria-label="Delete reward"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           ))}
@@ -149,10 +214,11 @@ export default function RewardsPage() {
                     $
                   </span>
                   <input
-                    type="text"
+                    type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="25"
+                    inputMode="decimal"
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
                   />
                 </div>
@@ -166,47 +232,22 @@ export default function RewardsPage() {
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what backers will receive..."
+                placeholder="Describe the perk and what makes this tier meaningful."
                 rows={3}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white resize-none"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Estimated Delivery
-                </label>
-                <input
-                  type="month"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Limit (optional)
-                </label>
-                <input
-                  type="number"
-                  value={limit}
-                  onChange={(e) => setLimit(e.target.value)}
-                  placeholder="Leave blank for unlimited"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
-                />
-              </div>
-            </div>
-
             <div className="flex justify-end gap-3">
               <button
+                type="button"
                 onClick={resetForm}
                 className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleAddReward}
                 className="bg-[#8BC34A] text-white px-6 py-2 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
               >
@@ -217,6 +258,7 @@ export default function RewardsPage() {
         </div>
       ) : (
         <button
+          type="button"
           onClick={() => setShowForm(true)}
           className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#8BC34A] transition-colors group"
         >
@@ -246,40 +288,17 @@ export default function RewardsPage() {
         </button>
       )}
 
-      {/* Tips Section */}
-      <div className="mt-8 bg-[#F5F9F0] rounded-lg p-6">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">Tips for great rewards</h3>
-        <ul className="space-y-2 text-sm text-gray-600">
-          <li className="flex items-start gap-2">
-            <svg className="w-4 h-4 text-[#8BC34A] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            Offer a range of price points to appeal to different backers
-          </li>
-          <li className="flex items-start gap-2">
-            <svg className="w-4 h-4 text-[#8BC34A] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            Include early bird specials to encourage quick pledges
-          </li>
-          <li className="flex items-start gap-2">
-            <svg className="w-4 h-4 text-[#8BC34A] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            Be realistic about delivery dates
-          </li>
-        </ul>
-      </div>
-
-      {/* Save & Continue Button */}
       <div className="mt-12 flex justify-end">
-        <Link
-          href="/create-project/story"
+        <button
+          type="button"
+          onClick={handleNext}
           className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
         >
           Save & Continue
-        </Link>
+        </button>
       </div>
+
+      <DraftDebug />
     </div>
   );
 }

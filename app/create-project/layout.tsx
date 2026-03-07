@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { useCampaignDraft } from "./store/useCampaignDraft"; // ✅ adjust path if needed
 
 const steps = [
   { number: "01", label: "Basics", path: "/create-project/basics" },
@@ -18,6 +20,32 @@ export default function CreateProjectLayout({
 }) {
   const pathname = usePathname();
 
+  // ✅ Zustand reset-on-entry (Option A)
+  const reset = useCampaignDraft((s) => s.reset);
+  const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
+  const didResetRef = useRef(false);
+
+  useEffect(() => {
+    // Wait for persist hydration, otherwise old persisted state can “win” after reset
+    if (!hasHydrated) return;
+
+    // Prevent double reset in React Strict Mode (dev)
+    if (didResetRef.current) return;
+    didResetRef.current = true;
+
+    reset();
+  }, [hasHydrated, reset]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // triggers native confirm dialog (Cancel / Leave)
+    };
+
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
   const currentStepIndex = steps.findIndex((step) => step.path === pathname);
 
   const getStepStatus = (index: number) => {
@@ -28,10 +56,13 @@ export default function CreateProjectLayout({
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Verification Banner */}
+      {/* Verification + Progress Warning Banner */}
       <div className="bg-[#FFF8E1] border-b border-[#FFE082] px-6 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          
+          {/* Left: icons + text */}
           <div className="flex items-center gap-3">
+            {/* Warning icon */}
             <div className="w-8 h-8 bg-[#FFD54F] rounded-full flex items-center justify-center">
               <svg
                 className="w-4 h-4 text-[#F57F17]"
@@ -47,15 +78,24 @@ export default function CreateProjectLayout({
                 />
               </svg>
             </div>
-            <span className="text-sm text-[#5D4037]">
-              Please verify your email address to continue with project creation
-            </span>
+
+            {/* Text */}
+            <div className="text-sm text-[#5D4037] leading-tight">
+              <div>
+                Please verify your email address to continue with project creation.
+              </div>
+              <div className="text-[#8D6E63]">
+                ⚠️ Refreshing or leaving this page will reset your campaign progress.
+              </div>
+            </div>
           </div>
-          <button className="text-sm text-[#8BC34A] font-medium hover:underline">
-            Resend verification
-          </button>
-        </div>
-      </div>
+
+    {/* Right: action */}
+    <button className="text-sm text-[#8BC34A] font-medium hover:underline whitespace-nowrap">
+      Resend verification
+    </button>
+  </div>
+</div>
 
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 py-4">
@@ -137,7 +177,6 @@ export default function CreateProjectLayout({
               return (
                 <div key={step.number} className="flex items-center">
                   <div className="flex flex-col items-center">
-                    {/* Step Circle */}
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                         status === "completed"
@@ -165,7 +204,7 @@ export default function CreateProjectLayout({
                         step.number
                       )}
                     </div>
-                    {/* Step Label */}
+
                     <span
                       className={`mt-2 text-xs font-medium ${
                         status === "completed" || status === "current"
@@ -176,7 +215,7 @@ export default function CreateProjectLayout({
                       {step.label}
                     </span>
                   </div>
-                  {/* Connector Line */}
+
                   {index < steps.length - 1 && (
                     <div
                       className={`hidden md:block w-16 h-0.5 mx-4 ${
