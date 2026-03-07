@@ -214,7 +214,7 @@ export default function RewardsPage() {
                     $
                   </span>
                   <input
-                    type="text"
+                    type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="25"

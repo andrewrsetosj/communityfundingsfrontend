@@ -19,6 +19,7 @@ export default function PeoplePage() {
 
   // Store selectors (hooks)
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
+  const bio = useCampaignDraft((s) => s.draft.bio);
   const vanitySlug = useCampaignDraft((s) => s.draft.vanity_slug);
   const coCreators = useCampaignDraft((s) => s.draft.co_creators);
   const setPeople = useCampaignDraft((s) => s.setPeople);
@@ -26,6 +27,14 @@ export default function PeoplePage() {
   // Local state (hooks)
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
+
+  // ✅ NEW: touched flags (only show required UI after interaction)
+  const [bioTouched, setBioTouched] = useState(false);
+  const [urlTouched, setUrlTouched] = useState(false);
+
+  // Slug availability check
+  const [slugCheckLoading, setSlugCheckLoading] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
 
   // Derived state (hook)
   const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
@@ -50,11 +59,37 @@ export default function PeoplePage() {
     const sanitized = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
     // write immediately to store so Back works even without Next
     setPeople({ vanity_slug: sanitized });
+    // Reset slug check when changing
+    setSlugAvailable(null);
+  };
+
+  const handleCheckSlug = async () => {
+    if (!vanitySlug || !vanitySlug.trim()) return;
+
+    setSlugCheckLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(vanitySlug)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setSlugAvailable(data.available);
+    } catch (err) {
+      console.error("Slug check failed:", err);
+      alert("Failed to check slug availability. Please try again.");
+    } finally {
+      setSlugCheckLoading(false);
+    }
   };
 
   const handleAddCollaborator = () => {
     const email = newCollaboratorEmail.trim().toLowerCase();
     if (!email) return;
+
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!isValidEmail) {
+      alert("Please enter a valid email address.");
+      return;
+    }
 
     const existing = (coCreators ?? []).some(
       (c) => c.email.trim().toLowerCase() === email
@@ -79,10 +114,25 @@ export default function PeoplePage() {
     setPeople({ co_creators: next });
   };
 
-  const handleSubmitForReview = () => {
-    if (!agreedToTerms) return; // ✅ hard guard
+  const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    newCollaboratorEmail.trim()
+  );
 
-    router.push("/create-project/submitted"); // change to your route
+  const BIO_LIMIT = 500;
+  const bioLength = (bio ?? "").length;
+
+  // ✅ REQUIRED FIELDS: bio + vanitySlug (bio within limit)
+  const bioIsValid =
+    (bio ?? "").trim().length > 0 && bioLength <= BIO_LIMIT;
+  const urlIsValid = (vanitySlug ?? "").trim().length > 0;
+  const canContinue = bioIsValid && urlIsValid;
+
+  const handleNext = () => {
+    // ✅ hard guard
+    if (!canContinue) return;
+
+    // Store is already updated on add/delete, so just navigate
+    router.push("/create-project/payment");
   };
 
   return (
@@ -145,14 +195,36 @@ export default function PeoplePage() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Short Bio
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Short Bio{" "}
+                </label>
+                <span
+                  className={`text-sm ${
+                    bioLength > BIO_LIMIT ? "text-red-500" : "text-gray-500"
+                  }`}
+                >
+                  {bioLength}/{BIO_LIMIT}
+                </span>
+              </div>
               <textarea
+                maxLength={BIO_LIMIT}
+                value={bio ?? ""}
+                onChange={(e) =>
+                  setPeople({ bio: e.target.value.slice(0, BIO_LIMIT) })
+                }
+                onBlur={() => setBioTouched(true)}
                 placeholder="Tell backers a bit about yourself..."
                 rows={3}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent resize-none bg-white"
               />
+              {bioTouched && !bioIsValid && (
+                <p className="mt-2 text-sm text-red-500">
+                  {bioLength > BIO_LIMIT
+                    ? `Please reduce the bio to ${BIO_LIMIT} characters or fewer.`
+                    : "Please enter a short bio to continue."}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -170,6 +242,7 @@ export default function PeoplePage() {
               type="text"
               value={vanitySlug ?? ""}
               onChange={(e) => handleVanityChange(e.target.value)}
+              onBlur={() => setUrlTouched(true)}
               placeholder="my-awesome-project"
               className="flex-1 px-4 py-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
             />
@@ -178,6 +251,28 @@ export default function PeoplePage() {
             Create a custom URL for your project page. Use only lowercase letters,
             numbers, and hyphens.
           </p>
+          {urlTouched && !urlIsValid && (
+            <p className="mt-2 text-sm text-red-500">
+              Please enter a URL to continue.
+            </p>
+          )}
+
+          {/* Check Slug Availability Button */}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleCheckSlug}
+              disabled={!vanitySlug || !vanitySlug.trim() || slugCheckLoading}
+              className="px-4 py-2 bg-[#8BC34A] text-white rounded-lg hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {slugCheckLoading ? "Checking..." : "Check Availability"}
+            </button>
+            {slugAvailable !== null && (
+              <p className={`mt-2 text-sm ${slugAvailable ? "text-green-600" : "text-red-600"}`}>
+                {slugAvailable ? "✓ This URL is available!" : "✗ This URL is already taken."}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Co-creators */}
@@ -263,68 +358,47 @@ export default function PeoplePage() {
               <button
                 type="button"
                 onClick={handleAddCollaborator}
-                className="w-full bg-white border border-[#8BC34A] text-[#8BC34A] px-4 py-3 rounded-lg font-medium hover:bg-[#F5F9F0] transition-colors"
+                disabled={!emailIsValid}
+                className="
+                  w-full px-4 py-3 rounded-lg font-medium transition-colors
+                  border border-[#8BC34A]
+                  text-[#8BC34A]
+                  bg-white
+                  hover:bg-[#F5F9F0]
+                  disabled:opacity-40 disabled:cursor-not-allowed
+                "
               >
                 Send Invite
               </button>
             </div>
 
             <p className="mt-2 text-sm text-gray-500">
-              Co-creators can edit this project and manage campaign details.
+              Co-creators can edit this project and manage campaign details. Must be a valid email.
             </p>
           </div>
         </div>
 
-        {/* Terms + Submit */}
-        <div className="space-y-6">
-          {/* Agree to Terms */}
-          <div className="border border-gray-200 rounded-lg bg-[#F3FAEE] p-6">
-            <label className="flex items-start gap-4 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-1 h-5 w-5 rounded border-gray-300 text-[#8BC34A] focus:ring-[#8BC34A]"
-              />
-              <span className="text-gray-800">
-                I agree to the{" "}
-                <Link href="/terms" className="text-[#8BC34A] hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/creator-agreement" className="text-[#8BC34A] hover:underline">
-                  Creator Agreement
-                </Link>
-                . I understand that Community Fundings will collect a 5% platform fee and
-                payment processing fees from successfully funded projects.
-              </span>
-            </label>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end">
-              <button
-                type="button"
-                onClick={handleSubmitForReview}
-                disabled={!agreedToTerms}
-                className="
-                  bg-[#8BC34A] text-white
-                  px-10 py-3
-                  rounded-full font-medium
-                  whitespace-nowrap
-                  hover:bg-[#7CB342]
-                  transition-colors
-                  disabled:opacity-50 disabled:hover:bg-[#8BC34A]
-                "
-              >
-                Submit for Review
-              </button>
-            </div>
-          </div>
-
+        {/* Save & Continue */}
+        <div className="mt-12 flex justify-end">
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={!canContinue}
+            className={[
+              "bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium transition-colors",
+              canContinue
+                ? "hover:bg-[#7CB342]"
+                : "opacity-50 cursor-not-allowed",
+            ].join(" ")}
+            aria-disabled={!canContinue}
+            title={!canContinue ? "Please fill out the short bio and URL to continue." : undefined}
+          >
+            Save &amp; Continue
+          </button>
+        </div>
       </div>
 
       <DraftDebug />
-  </div>
+    </div>
   );
 }
