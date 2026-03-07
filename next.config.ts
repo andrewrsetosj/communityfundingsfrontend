@@ -11,11 +11,6 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "img.clerk.com",
       },
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "4000",
-      },
     ],
   },
 };

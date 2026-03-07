@@ -28,7 +28,6 @@ export type CampaignDraft = {
   location: string;
   funding_goal_cents: number;
   duration_days: number;
-  image_url: string;
 
   // Rewards
   rewards: RewardDraft[];
@@ -48,7 +47,6 @@ export const emptyDraft: CampaignDraft = {
   location: "",
   funding_goal_cents: 0,
   duration_days: 1,
-  image_url: "",
   rewards: [],
   description_html: "",
   faqs: [],
@@ -66,7 +64,7 @@ type DraftStore = {
     patch: Partial<
       Pick<
         CampaignDraft,
-        "title" | "category" | "location" | "funding_goal_cents" | "duration_days" | "image_url"
+        "title" | "category" | "location" | "funding_goal_cents" | "duration_days"
       >
     >
   ) => void;

@@ -22,56 +22,55 @@ export default function BasicsPage() {
     return String(dollars);
   }, [draft.funding_goal_cents]);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  // --- image picker local state ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string>(draft.image_url || "");
+  const [projectImages, setProjectImages] = useState<File[]>([]);
+  const [projectImagePreviewUrls, setProjectImagePreviewUrls] = useState<string[]>([]);
+  const MAX_IMAGES = 5;
 
   const openFilePicker = () => fileInputRef.current?.click();
 
-  const uploadFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    setUploading(true);
-    setUploadError("");
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`${API_URL}/api/uploads/image`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Upload failed" }));
-        throw new Error(err.detail || "Upload failed");
-      }
-      const data = await res.json();
-      setBasics({ image_url: data.url });
-      setPreviewUrl(data.url);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-    }
+  const addFiles = (files: FileList | File[]) => {
+    const incoming = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (incoming.length === 0) return;
+
+    const remaining = MAX_IMAGES - projectImages.length;
+    if (remaining <= 0) return;
+
+    const accepted = incoming.slice(0, remaining);
+    const newUrls = accepted.map((f) => URL.createObjectURL(f));
+
+    setProjectImages((prev) => [...prev, ...accepted]);
+    setProjectImagePreviewUrls((prev) => [...prev, ...newUrls]);
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadFile(file);
+    if (!e.target.files) return;
+    addFiles(e.target.files);
     e.target.value = "";
   };
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) uploadFile(file);
+    if (!e.dataTransfer.files) return;
+    addFiles(e.dataTransfer.files);
   };
 
   const onDragOver = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
 
-  const removeImage = () => {
-    setBasics({ image_url: "" });
-    setPreviewUrl("");
+  const removeImageAt = (idx: number) => {
+    setProjectImages((prev) => prev.filter((_, i) => i !== idx));
+    setProjectImagePreviewUrls((prev) => {
+      const url = prev[idx];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const clearAllImages = () => {
+    projectImagePreviewUrls.forEach((u) => URL.revokeObjectURL(u));
+    setProjectImages([]);
+    setProjectImagePreviewUrls([]);
   };
 
   const handleNext = () => {
@@ -157,6 +156,7 @@ export default function BasicsPage() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             onChange={onFileChange}
           />
@@ -164,65 +164,72 @@ export default function BasicsPage() {
           <div
             role="button"
             tabIndex={0}
-            onClick={!previewUrl ? openFilePicker : undefined}
+            onClick={openFilePicker}
             onKeyDown={(e) => {
-              if (!previewUrl && (e.key === "Enter" || e.key === " ")) openFilePicker();
+              if (e.key === "Enter" || e.key === " ") openFilePicker();
             }}
             onDrop={onDrop}
             onDragOver={onDragOver}
-            className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
-              previewUrl ? "border-gray-200" : "border-gray-300 hover:border-[#8BC34A] cursor-pointer"
-            }`}
+            className="border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-[#8BC34A] transition-colors cursor-pointer"
           >
-            {uploading ? (
-              <div className="text-center py-4">
-                <div className="inline-block w-8 h-8 border-4 border-gray-200 border-t-[#8BC34A] rounded-full animate-spin mb-3" />
-                <p className="text-gray-600">Uploading image...</p>
-              </div>
-            ) : previewUrl ? (
-              <div className="relative">
-                <img
-                  src={previewUrl}
-                  alt="Project image"
-                  className="w-full max-h-64 object-cover rounded-md border"
-                />
-                <div className="mt-4 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openFilePicker();
-                    }}
-                    className="text-sm text-[#8BC34A] font-medium underline"
-                  >
-                    Replace image
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeImage();
-                    }}
-                    className="text-sm text-gray-600 underline"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ) : (
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-gray-700 font-medium">Upload up to {MAX_IMAGES} images</p>
+              <p className="text-sm text-gray-500">{projectImages.length}/{MAX_IMAGES}</p>
+            </div>
+
+            {projectImages.length === 0 ? (
               <div className="text-center">
                 <p className="text-gray-600 mb-2">
-                  Drag and drop an image, or{" "}
+                  Drag and drop images, or{" "}
                   <span className="text-[#8BC34A] font-medium underline">browse</span>
                 </p>
                 <p className="text-sm text-gray-400">
                   Recommended: 1024 x 576 pixels (16:9)
                 </p>
               </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {projectImagePreviewUrls.map((url, idx) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt={`Preview ${idx + 1}`} className="h-28 w-full object-cover rounded-md border" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeImageAt(idx);
+                      }}
+                      className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-800 rounded-full px-2 py-1 text-xs border"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
 
-            {uploadError && (
-              <p className="mt-3 text-sm text-red-600">{uploadError}</p>
+            {projectImages.length > 0 && (
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openFilePicker();
+                  }}
+                  className="text-sm text-[#8BC34A] font-medium underline"
+                >
+                  Add more
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    clearAllImages();
+                  }}
+                  className="text-sm text-gray-600 underline"
+                >
+                  Clear all
+                </button>
+              </div>
             )}
           </div>
           <p className="mt-2 text-sm text-gray-500">
