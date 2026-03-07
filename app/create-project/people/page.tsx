@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,18 @@ interface CollaboratorUI {
   email: string;
   role: "co-creator";
   status: "pending" | "verified";
+}
+
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
 }
 
 export default function PeoplePage() {
@@ -35,6 +47,36 @@ export default function PeoplePage() {
   // Slug availability check
   const [slugCheckLoading, setSlugCheckLoading] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+
+  // Debounced slug check
+  const checkSlugDebounced = useCallback(
+    debounce(async (slug: string) => {
+      if (!slug || !slug.trim()) {
+        setSlugAvailable(null);
+        return;
+      }
+
+      setSlugCheckLoading(true);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(slug)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setSlugAvailable(data.available);
+      } catch (err) {
+        console.error("Slug check failed:", err);
+        setSlugAvailable(null); // Reset on error
+      } finally {
+        setSlugCheckLoading(false);
+      }
+    }, 500), // 500ms debounce
+    []
+  );
+
+  // Effect to trigger check when slug changes
+  useEffect(() => {
+    checkSlugDebounced(vanitySlug || "");
+  }, [vanitySlug, checkSlugDebounced]);
 
   // Derived state (hook)
   const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
@@ -61,24 +103,6 @@ export default function PeoplePage() {
     setPeople({ vanity_slug: sanitized });
     // Reset slug check when changing
     setSlugAvailable(null);
-  };
-
-  const handleCheckSlug = async () => {
-    if (!vanitySlug || !vanitySlug.trim()) return;
-
-    setSlugCheckLoading(true);
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(vanitySlug)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setSlugAvailable(data.available);
-    } catch (err) {
-      console.error("Slug check failed:", err);
-      alert("Failed to check slug availability. Please try again.");
-    } finally {
-      setSlugCheckLoading(false);
-    }
   };
 
   const handleAddCollaborator = () => {
@@ -125,7 +149,7 @@ export default function PeoplePage() {
   const bioIsValid =
     (bio ?? "").trim().length > 0 && bioLength <= BIO_LIMIT;
   const urlIsValid = (vanitySlug ?? "").trim().length > 0;
-  const canContinue = bioIsValid && urlIsValid;
+  const canContinue = bioIsValid && urlIsValid && slugAvailable === true;
 
   const handleNext = () => {
     // ✅ hard guard
@@ -257,22 +281,18 @@ export default function PeoplePage() {
             </p>
           )}
 
-          {/* Check Slug Availability Button */}
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleCheckSlug}
-              disabled={!vanitySlug || !vanitySlug.trim() || slugCheckLoading}
-              className="px-4 py-2 bg-[#8BC34A] text-white rounded-lg hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {slugCheckLoading ? "Checking..." : "Check Availability"}
-            </button>
-            {slugAvailable !== null && (
-              <p className={`mt-2 text-sm ${slugAvailable ? "text-green-600" : "text-red-600"}`}>
-                {slugAvailable ? "✓ This URL is available!" : "✗ This URL is already taken."}
-              </p>
-            )}
-          </div>
+          {/* Slug Availability Status */}
+          {vanitySlug && vanitySlug.trim() && (
+            <div className="mt-2">
+              {slugCheckLoading ? (
+                <p className="text-sm text-gray-500">Checking availability...</p>
+              ) : slugAvailable === true ? (
+                <p className="text-sm text-green-600">✓ This URL is available!</p>
+              ) : slugAvailable === false ? (
+                <p className="text-sm text-red-600">✗ This URL is already taken.</p>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* Co-creators */}
@@ -391,7 +411,7 @@ export default function PeoplePage() {
                 : "opacity-50 cursor-not-allowed",
             ].join(" ")}
             aria-disabled={!canContinue}
-            title={!canContinue ? "Please fill out the short bio and URL to continue." : undefined}
+            title={!canContinue ? "Please fill out the short bio, enter a valid and available URL to continue." : undefined}
           >
             Save &amp; Continue
           </button>

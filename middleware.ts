@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/projects-we-love(.*)",
   "/project(.*)",
   "/categories(.*)",
+  "/create-project(.*)", // protect in layout instead so Clerk session is available on client nav
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
