@@ -37,7 +37,7 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto px-6 py-20 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 max-w-2xl mx-auto">
-            Community Makes it Possible
+            Community Makes It Possible
           </h1>
           <p className="text-white/90 mb-8 max-w-xl mx-auto">
             Let's build something bigger than ourselves. 
