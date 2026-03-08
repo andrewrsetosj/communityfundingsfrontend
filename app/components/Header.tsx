@@ -75,7 +75,7 @@ export default function Header() {
     <header className="w-full">
       {/* Top Banner */}
       <div className="bg-[#8BC34A] text-white text-center py-2 text-sm">
-        Community Funding is a project we&apos;re building together. Stay informed with our new blog, Project Updates.
+        Community Fundings is a project we&apos;re building together. Stay informed with our new blog, Project Updates.
       </div>
 
       {/* Navigation */}
