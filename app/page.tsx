@@ -71,26 +71,15 @@ export default function Home() {
                 </p>
                 <p className="text-gray-500 text-sm">Projects Funded</p>
               </div>
-<<<<<<< HEAD
-              <div className="text-center border-x border-gray-200">
-                <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  $6,361,326
-=======
               <div className="text-center md:px-6 md:border-x border-gray-200">
                 <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 whitespace-nowrap">
                   $6,361,326,533
->>>>>>> 17148dc (Favicon, other small changes)
                 </p>
                 <p className="text-gray-500 text-sm">Towards Creative Work</p>
               </div>
               <div className="text-center">
-<<<<<<< HEAD
-                <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  70,894
-=======
                 <p className="text-3xl md:text-4xl font-bold text-gray-900 whitespace-nowrap">
                   70,894,973
->>>>>>> 17148dc (Favicon, other small changes)
                 </p>
                 <p className="text-gray-500 text-sm">Pledges</p>
               </div>
@@ -369,7 +358,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">
-                Interviews from Our Local Business Owners
+                Interviews From Our Local Business Owners
               </h2>
               <p className="text-gray-600 mb-6">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
