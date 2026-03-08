@@ -63,23 +63,34 @@ export default function Home() {
           </div>
 
           {/* Stats */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr_1fr] gap-8 items-center">
               <div className="text-center">
-                <p className="text-3xl md:text-4xl font-bold text-gray-900">
+                <p className="text-3xl md:text-4xl font-bold text-gray-900 whitespace-nowrap">
                   230,000
                 </p>
-                <p className="text-gray-500 text-sm">Projects funded</p>
+                <p className="text-gray-500 text-sm">Projects Funded</p>
               </div>
+<<<<<<< HEAD
               <div className="text-center border-x border-gray-200">
                 <p className="text-3xl md:text-4xl font-bold text-gray-900">
                   $6,361,326
+=======
+              <div className="text-center md:px-6 md:border-x border-gray-200">
+                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 whitespace-nowrap">
+                  $6,361,326,533
+>>>>>>> 17148dc (Favicon, other small changes)
                 </p>
-                <p className="text-gray-500 text-sm">Towards creative work</p>
+                <p className="text-gray-500 text-sm">Towards Creative Work</p>
               </div>
               <div className="text-center">
+<<<<<<< HEAD
                 <p className="text-3xl md:text-4xl font-bold text-gray-900">
                   70,894
+=======
+                <p className="text-3xl md:text-4xl font-bold text-gray-900 whitespace-nowrap">
+                  70,894,973
+>>>>>>> 17148dc (Favicon, other small changes)
                 </p>
                 <p className="text-gray-500 text-sm">Pledges</p>
               </div>
@@ -161,7 +172,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">
-                Recommended for you
+                Recommended for You
               </h2>
               <p className="text-gray-600 mb-4">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
@@ -187,11 +198,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Project Near you */}
+      {/* Projects Near You */}
       <section className="max-w-7xl mx-auto px-6 py-16">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-serif font-bold text-gray-900 mb-3">
-            Project Near you
+            Projects Near You
           </h2>
           <p className="text-gray-600 max-w-xl mx-auto">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
@@ -285,12 +296,12 @@ export default function Home() {
       {/* Home Stretch */}
       <HomeStretchSection />
 
-      {/* Meet Community Council */}
+      {/* Meet the Community Council */}
       <section className="bg-[#8BC34A] py-16">
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-2xl">
             <h2 className="text-3xl font-serif font-bold text-white mb-4">
-              Meet Community Council
+              Meet the Community Council
             </h2>
             <p className="text-white/90 mb-8">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
@@ -451,8 +462,7 @@ export default function Home() {
 
           {/* Copyright */}
           <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2022 community funding ltd is registered in england and wales no. 07831511.
-          </div>
+&copy; 2011–2022 Community Fundings Ltd. Registered in England and Wales No. 07831511.          </div>
         </div>
       </footer>
     </div>

@@ -9,7 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/project(.*)",
   "/categories(.*)",
 
-  // ✅ allow the proxy route through without auth
+  // allow the proxy route through without auth, ONLY TO TEST
   "/api/campaign-page(.*)",
 ]);
 
