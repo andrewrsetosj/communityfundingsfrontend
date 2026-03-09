@@ -25,16 +25,16 @@ type Campaign = {
 
 type Creator = {
   creator_id: string;
-  first_name: string;
+  name: string;
   last_name: string;
   email: string;
   bio?: string;
 };
 
 type Faq = {
-  faq_id: number;
   question: string;
   answer: string;
+  display_order?: number;
 };
 
 type Reward = {
@@ -47,9 +47,19 @@ type Reward = {
 type Comment = {
   comment_id: number;
   comment_text: string;
-  first_name?: string;
+  name?: string;
   last_name?: string;
   time_created: string;
+};
+
+type Photo = {
+  photo_id: number;
+  campaign_id: number;
+  s3_bucket: string;
+  s3_key: string;
+  content_type: string;
+  is_primary: boolean;
+  image_url: string;
 };
 
 type CampaignPageData = {
@@ -57,6 +67,7 @@ type CampaignPageData = {
   creator: Creator | null;
   faqs: Faq[];
   rewards: Reward[];
+  photos: Photo[];
   comments: Comment[];
 };
 
@@ -77,8 +88,10 @@ export default function ProjectDetail() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
-  const [data, setData] = useState<CampaignPageData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const [data, setData] = useState<CampaignPageData | null>(null);
+const [error, setError] = useState<string | null>(null);
+
+const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -92,6 +105,7 @@ export default function ProjectDetail() {
 
         const json = (await res.json()) as CampaignPageData;
         setData(json);
+        setCurrentPhotoIndex(0);
       } catch (e: any) {
         setError(e?.message ?? "Unknown error");
       }
@@ -100,6 +114,22 @@ export default function ProjectDetail() {
 
   const campaign = data?.campaign;
   const creator = data?.creator;
+
+  const heroImage =
+    data?.photos?.[currentPhotoIndex]?.image_url ??
+    "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800";
+
+      const totalPhotos = data?.photos?.length ?? 0;
+
+  const goToPrevPhoto = () => {
+    if (!totalPhotos) return;
+    setCurrentPhotoIndex((prev) => (prev === 0 ? totalPhotos - 1 : prev - 1));
+  };
+
+  const goToNextPhoto = () => {
+    if (!totalPhotos) return;
+    setCurrentPhotoIndex((prev) => (prev === totalPhotos - 1 ? 0 : prev + 1));
+  };
 
   const daysToGo = useMemo(() => {
     if (!campaign?.time_created || typeof campaign?.duration_days !== "number") return null;
@@ -151,21 +181,51 @@ export default function ProjectDetail() {
               {/* Left Column - Media */}
               <div className="lg:col-span-2">
                 {/* Main Video/Image (still placeholder image) */}
-                <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
-                  <Image
-                    src="https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800"
-                    alt="Project cover"
-                    fill
-                    className="object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <button className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg">
-                      <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+<div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
+  <Image
+    src={heroImage}
+    alt={campaign.title}
+    fill
+    className="object-cover"
+  />
+
+  {totalPhotos > 1 && (
+    <>
+      <button
+        onClick={goToPrevPhoto}
+        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors"
+        aria-label="Previous image"
+      >
+        <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <button
+        onClick={goToNextPhoto}
+        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors"
+        aria-label="Next image"
+      >
+        <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        {data?.photos?.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentPhotoIndex(index)}
+            className={`w-2.5 h-2.5 rounded-full ${
+              index === currentPhotoIndex ? "bg-white" : "bg-white/50"
+            }`}
+            aria-label={`Go to image ${index + 1}`}
+          />
+        ))}
+      </div>
+    </>
+  )}
+</div>
 
                 {/* Feature Points (static FOR NOW) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -203,7 +263,7 @@ export default function ProjectDetail() {
                   ) : (
                     <div className="space-y-3">
                       {data.faqs.map((f) => (
-                        <div key={f.faq_id} className="border border-gray-200 rounded-lg p-4">
+                        <div key={f.display_order} className="border border-gray-200 rounded-lg p-4">
                           <div className="font-semibold text-gray-900">{f.question}</div>
                           <div className="text-gray-600 mt-1">{f.answer}</div>
                         </div>
@@ -249,7 +309,7 @@ export default function ProjectDetail() {
                       <div className="w-12 h-12 rounded-full bg-[#8BC34A]" />
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {creator ? `${creator.first_name} ${creator.last_name}` : "Unknown"}
+                          {creator ? `${creator.name} ${creator.last_name}` : "Unknown"}
                         </p>
                         <p className="text-xs text-gray-500">
                           {creator?.creator_id ?? ""}
