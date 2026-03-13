@@ -15,6 +15,7 @@ export default function PaymentPage() {
 
   // Local-only UI state
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ touched flags (show validation UI only after interaction)
   const [typeTouched, setTypeTouched] = useState(false);
@@ -52,6 +53,7 @@ const draft = useCampaignDraft((s) => s.draft);
 
 
   const handleSubmitForReview = async () => {
+    if (isSubmitting) return;
     setTypeTouched(true);
     setNameTouched(true);
     setRoutingTouched(true);
@@ -60,7 +62,8 @@ const draft = useCampaignDraft((s) => s.draft);
 
     if (!canSubmit) return;
 
-      try {
+    try {
+      setIsSubmitting(true);
       const res = await fetch("http://localhost:4000/api/campaigns/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,6 +87,8 @@ const draft = useCampaignDraft((s) => s.draft);
     } catch (err: any) {
       console.error("Network/JS error submitting:", err);
       alert(`Network error: ${err?.message ?? String(err)}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -345,7 +350,7 @@ const draft = useCampaignDraft((s) => s.draft);
             <button
               type="button"
               onClick={handleSubmitForReview}
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
               className="
                 bg-[#8BC34A] text-white
                 px-10 py-3
@@ -358,7 +363,7 @@ const draft = useCampaignDraft((s) => s.draft);
               "
               title={!canSubmit ? "Please complete all payment fields and agree to the terms." : undefined}
             >
-              Submit for Review
+              {isSubmitting ? "Submitting..." : "Submit for Review"}
             </button>
           </div>
         </div>
