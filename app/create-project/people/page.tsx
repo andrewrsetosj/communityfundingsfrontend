@@ -142,12 +142,8 @@ export default function PeoplePage() {
     newCollaboratorEmail.trim()
   );
 
-  const BIO_LIMIT = 500;
-  const bioLength = (bio ?? "").length;
-
-  // ✅ REQUIRED FIELDS: bio + vanitySlug (bio within limit)
-  const bioIsValid =
-    (bio ?? "").trim().length > 0 && bioLength <= BIO_LIMIT;
+  // ✅ REQUIRED FIELDS: bio + vanitySlug
+  const bioIsValid = (bio ?? "").trim().length > 0;
   const urlIsValid = (vanitySlug ?? "").trim().length > 0;
   const canContinue = bioIsValid && urlIsValid && slugAvailable === true;
 
@@ -219,24 +215,12 @@ export default function PeoplePage() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-900">
-                  Short Bio{" "}
-                </label>
-                <span
-                  className={`text-sm ${
-                    bioLength > BIO_LIMIT ? "text-red-500" : "text-gray-500"
-                  }`}
-                >
-                  {bioLength}/{BIO_LIMIT}
-                </span>
-              </div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Short Bio{" "}
+              </label>
               <textarea
-                maxLength={BIO_LIMIT}
                 value={bio ?? ""}
-                onChange={(e) =>
-                  setPeople({ bio: e.target.value.slice(0, BIO_LIMIT) })
-                }
+                onChange={(e) => setPeople({ bio: e.target.value })}
                 onBlur={() => setBioTouched(true)}
                 placeholder="Tell backers a bit about yourself..."
                 rows={3}
@@ -244,9 +228,7 @@ export default function PeoplePage() {
               />
               {bioTouched && !bioIsValid && (
                 <p className="mt-2 text-sm text-red-500">
-                  {bioLength > BIO_LIMIT
-                    ? `Please reduce the bio to ${BIO_LIMIT} characters or fewer.`
-                    : "Please enter a short bio to continue."}
+                  Please enter a short bio to continue.
                 </p>
               )}
             </div>

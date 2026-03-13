@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { useAuth, UserButton } from "@clerk/nextjs";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useCampaignDraft } from "./store/useCampaignDraft"; // ✅ adjust path if needed
 
 const steps = [
@@ -20,21 +19,6 @@ export default function CreateProjectLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { isSignedIn, isLoaded } = useAuth();
-  const [delayedCheckDone, setDelayedCheckDone] = useState(false);
-
-  // Wait before treating "not signed in" as real — gives Clerk time to restore session on client nav
-  useEffect(() => {
-    if (!isLoaded) return;
-    const t = setTimeout(() => {
-      setDelayedCheckDone(true);
-      if (!isSignedIn) {
-        router.replace("/sign-in?redirect_url=" + encodeURIComponent(pathname || "/create-project/basics"));
-      }
-    }, 500);
-    return () => clearTimeout(t);
-  }, [isLoaded, isSignedIn, router, pathname]);
 
   // ✅ Zustand reset-on-entry (Option A)
   const reset = useCampaignDraft((s) => s.reset);
@@ -64,15 +48,6 @@ export default function CreateProjectLayout({
 
   const currentStepIndex = steps.findIndex((step) => step.path === pathname);
 
-  // Show content while Clerk loads, or until we've done the delayed check and confirmed not signed in
-  const showContent = isLoaded && (isSignedIn || !delayedCheckDone);
-  if (!showContent) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-gray-500">{delayedCheckDone && !isSignedIn ? "Redirecting to sign in..." : "Loading..."}</p>
-      </div>
-    );
-  }
   const getStepStatus = (index: number) => {
     if (index < currentStepIndex) return "completed";
     if (index === currentStepIndex) return "current";
@@ -128,15 +103,24 @@ export default function CreateProjectLayout({
           <Link href="/" className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
             Community Fundings
           </Link>
-          <div className="flex items-center gap-3">
-            <UserButton afterSignOutUrl="/" />
-            <Link
-              href="/"
-              className="text-sm text-gray-600 hover:text-[#8BC34A] transition-colors"
+          <Link
+            href="/"
+            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+          >
+            <svg
+              className="w-5 h-5 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Back to Home
-            </Link>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+          </Link>
         </div>
       </header>
 

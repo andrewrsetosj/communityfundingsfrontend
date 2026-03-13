@@ -60,9 +60,8 @@ const draft = useCampaignDraft((s) => s.draft);
 
     if (!canSubmit) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-    try {
-      const res = await fetch(`${apiUrl}/api/campaigns/finalize`, {
+      try {
+      const res = await fetch("http://localhost:4000/api/campaigns/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
