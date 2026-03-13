@@ -1,18 +1,52 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "../components/Header";
 
-const categories = [
-  { name: "Comics & Illustration", slug: "comics-illustration", count: 12453 },
-  { name: "Design & Tech", slug: "design-tech", count: 8921 },
-  { name: "Food & Craft", slug: "food-craft", count: 6234 },
-  { name: "Arts", slug: "arts", count: 15678 },
-  { name: "Film", slug: "film", count: 9876 },
-  { name: "Game", slug: "game", count: 11234 },
-  { name: "Music", slug: "music", count: 7890 },
-  { name: "Publishing", slug: "publishing", count: 5432 },
+const allCategories = [
+  { name: "Arts", slug: "arts" },
+  { name: "Comics & Illustration", slug: "comics-illustration" },
+  { name: "Community", slug: "community" },
+  { name: "Creative", slug: "creative" },
+  { name: "Design & Tech", slug: "design-tech" },
+  { name: "Disaster Relief", slug: "disaster-relief" },
+  { name: "Education", slug: "education" },
+  { name: "Emergency", slug: "emergency" },
+  { name: "Film", slug: "film" },
+  { name: "Food & Craft", slug: "food-craft" },
+  { name: "Game", slug: "game" },
+  { name: "Music", slug: "music" },
+  { name: "Nonprofit", slug: "nonprofit" },
+  { name: "Pets", slug: "pets" },
+  { name: "Publishing", slug: "publishing" },
+  { name: "Sports", slug: "sports" },
+  { name: "Technology", slug: "technology" },
 ];
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 export default function CategoriesPage() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    async function fetchCounts() {
+      try {
+        const res = await fetch(`${API_URL}/api/campaigns/categories`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const map: Record<string, number> = {};
+        for (const item of data) {
+          map[item.name] = item.count;
+        }
+        setCounts(map);
+      } catch {
+        // Failed to fetch counts — leave at 0
+      }
+    }
+    fetchCounts();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -59,7 +93,7 @@ export default function CategoriesPage() {
       {/* Categories Grid */}
       <section className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((category) => (
+          {allCategories.map((category) => (
             <Link
               key={category.slug}
               href={`/categories/${category.slug}`}
@@ -84,7 +118,7 @@ export default function CategoriesPage() {
                 {category.name}
               </h3>
               <p className="text-sm text-gray-500">
-                {category.count.toLocaleString()} projects
+                {(counts[category.name] || 0).toLocaleString()} projects
               </p>
             </Link>
           ))}

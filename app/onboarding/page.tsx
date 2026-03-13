@@ -5,19 +5,27 @@ import { useRouter } from "next/navigation";
 import Header from "../components/Header";
 
 const interests = [
-  { name: "Art", icon: "🎨" },
+  { name: "Arts", icon: "🎨" },
   { name: "Comics", icon: "💬" },
+  { name: "Community", icon: "🤝" },
   { name: "Crafts", icon: "✂️" },
+  { name: "Creative", icon: "✨" },
   { name: "Dance", icon: "💃" },
   { name: "Design", icon: "🖌️" },
+  { name: "Disaster Relief", icon: "🆘" },
+  { name: "Education", icon: "📖" },
+  { name: "Emergency", icon: "🚨" },
   { name: "Fashion", icon: "👗" },
   { name: "Film & Video", icon: "🎬" },
   { name: "Food", icon: "🍽️" },
   { name: "Games", icon: "🎮" },
   { name: "Journalism", icon: "📰" },
   { name: "Music", icon: "🎵" },
+  { name: "Nonprofit", icon: "💚" },
+  { name: "Pets", icon: "🐾" },
   { name: "Photography", icon: "📷" },
   { name: "Publishing", icon: "📚" },
+  { name: "Sports", icon: "⚽" },
   { name: "Technology", icon: "💻" },
   { name: "Theater", icon: "🎭" },
 ];

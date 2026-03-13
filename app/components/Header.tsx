@@ -7,14 +7,23 @@ import { useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
 
 const categories = [
-  { name: "Comics & Illustration", slug: "comics-illustration" },
-  { name: "Design & Tech", slug: "design-tech" },
-  { name: "Food & Craft", slug: "food-craft" },
   { name: "Arts", slug: "arts" },
+  { name: "Comics & Illustration", slug: "comics-illustration" },
+  { name: "Community", slug: "community" },
+  { name: "Creative", slug: "creative" },
+  { name: "Design & Tech", slug: "design-tech" },
+  { name: "Disaster Relief", slug: "disaster-relief" },
+  { name: "Education", slug: "education" },
+  { name: "Emergency", slug: "emergency" },
   { name: "Film", slug: "film" },
+  { name: "Food & Craft", slug: "food-craft" },
   { name: "Game", slug: "game" },
   { name: "Music", slug: "music" },
+  { name: "Nonprofit", slug: "nonprofit" },
+  { name: "Pets", slug: "pets" },
   { name: "Publishing", slug: "publishing" },
+  { name: "Sports", slug: "sports" },
+  { name: "Technology", slug: "technology" },
 ];
 
 export default function Header() {

@@ -2,28 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import Header from "../../components/Header";
-
-const categoryNames: Record<string, string> = {
-  "arts": "Arts",
-  "comics-illustration": "Comics & Illustration",
-  "community": "Community",
-  "creative": "Creative",
-  "design-tech": "Design & Tech",
-  "disaster-relief": "Disaster Relief",
-  "education": "Education",
-  "emergency": "Emergency",
-  "film": "Film",
-  "food-craft": "Food & Craft",
-  "game": "Game",
-  "music": "Music",
-  "nonprofit": "Nonprofit",
-  "pets": "Pets",
-  "publishing": "Publishing",
-  "sports": "Sports",
-  "technology": "Technology",
-};
+import Header from "../components/Header";
 
 interface Campaign {
   id: string;
@@ -35,35 +14,32 @@ interface Campaign {
   days_left: number | null;
   creator_name: string | null;
   image_url: string | null;
+  donors_count: number;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export default function CategoryPage() {
-  const params = useParams();
-  const slug = params.slug as string;
-  const categoryName = categoryNames[slug] || "Category";
-
+export default function CommunityFavoritesPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchCampaigns() {
+    async function fetchFavorites() {
       try {
         const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&category=${encodeURIComponent(categoryName)}&per_page=50`
+          `${API_URL}/api/campaigns?status=active&sort=popular&per_page=50`
         );
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
         setCampaigns(data.campaigns || []);
       } catch (err) {
-        console.error("Error fetching campaigns:", err);
+        console.error("Error fetching community favorites:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchCampaigns();
-  }, [categoryName]);
+    fetchFavorites();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -75,7 +51,7 @@ export default function CategoryPage() {
           {/* Breadcrumb */}
           <div className="mb-6">
             <Link
-              href="/categories"
+              href="/"
               className="inline-flex items-center text-sm text-gray-600 hover:text-[#8BC34A] transition-colors border border-gray-300 rounded-full px-4 py-2 bg-white"
             >
               <svg
@@ -91,70 +67,52 @@ export default function CategoryPage() {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              Categories
+              Back to Home
             </Link>
           </div>
 
           {/* Title */}
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">
-            {categoryName}
+            Community Favorites
           </h1>
 
           {/* Description */}
-          <p className="text-gray-600 max-w-xl mb-6">
-            Explore projects in {categoryName}. Find creative work that inspires
-            you and support the creators behind them.
+          <p className="text-gray-600 max-w-xl">
+            The most popular projects on our platform, ranked by number of
+            backers. These are the campaigns our community loves most!
           </p>
-
-          {/* CTA Button */}
-          <Link
-            href="/create-project/basics"
-            className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
-          >
-            Start a Project
-          </Link>
         </div>
       </section>
 
       {/* Projects Grid Section */}
       <section className="max-w-7xl mx-auto px-6 py-12">
         {loading ? (
-          <>
-            <h2 className="text-xl font-medium text-gray-900 mb-8">
-              Loading projects in {categoryName}...
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div
-                  key={i}
-                  className="bg-gray-100 rounded-lg h-72 animate-pulse"
-                />
-              ))}
-            </div>
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div
+                key={i}
+                className="bg-gray-100 rounded-lg h-72 animate-pulse"
+              />
+            ))}
+          </div>
         ) : campaigns.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-gray-600 text-lg mb-2">
-              No projects in {categoryName} yet.
-            </p>
-            <p className="text-gray-500 text-sm mb-6">
-              Be the first to start a project in this category!
+            <p className="text-gray-600 text-lg">
+              No community favorites yet. Check back soon!
             </p>
             <Link
-              href="/create-project/basics"
-              className="inline-block px-6 py-3 bg-[#8BC34A] text-white rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+              href="/"
+              className="inline-block mt-6 px-6 py-3 bg-[#8BC34A] text-white rounded-full font-medium hover:bg-[#7CB342] transition-colors"
             >
-              Start a Project
+              Browse All Projects
             </Link>
           </div>
         ) : (
           <>
             <h2 className="text-xl font-medium text-gray-900 mb-8">
-              Explore{" "}
-              <span className="font-bold">
-                {campaigns.length} {campaigns.length === 1 ? "project" : "projects"}
-              </span>{" "}
-              in {categoryName}
+              <span className="font-bold">{campaigns.length}</span>{" "}
+              {campaigns.length === 1 ? "project" : "projects"} loved by the
+              community
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -165,7 +123,8 @@ export default function CategoryPage() {
                   className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100"
                 >
                   <div className="relative h-36 bg-gray-200">
-                    {campaign.image_url && campaign.image_url.startsWith("http") ? (
+                    {campaign.image_url &&
+                    campaign.image_url.startsWith("http") ? (
                       <img
                         src={campaign.image_url}
                         alt={campaign.title}
@@ -217,9 +176,7 @@ export default function CategoryPage() {
                       <span className="font-medium text-[#8BC34A]">
                         {campaign.funding_percentage}% funded
                       </span>
-                      {campaign.days_left !== null && (
-                        <span>{campaign.days_left} days left</span>
-                      )}
+                      <span>{campaign.donors_count} backers</span>
                     </div>
                   </div>
                 </Link>

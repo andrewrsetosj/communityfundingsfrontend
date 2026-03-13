@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import ProjectCarousel from "./ProjectCarousel";
 
 interface Campaign {
-  id: string;
+  campaign_id: number;
   title: string;
   slug: string;
-  goal_amount: number;
-  raised_amount: number;
+  funding_goal_cents: number;
+  amount_raised_cents: number;
   funding_percentage: number;
   days_left: number | null;
   creator_name: string | null;
-  image_url: string | null;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -26,14 +24,12 @@ export default function HomeStretchSection() {
   useEffect(() => {
     async function fetchHomeStretch() {
       try {
-        const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&sort=most_funded&per_page=50`
-        );
+        const res = await fetch(`${API_URL}/api/campaigns?status=active`);
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
-        // Filter for campaigns that are >= 80% funded
-        const homeStretch = data.campaigns.filter(
-          (c: Campaign) => c.funding_percentage >= 80 && c.funding_percentage < 100
+        // Filter for campaigns that are >= 80% funded but not yet 100%
+        const homeStretch = (data.campaigns as Campaign[]).filter(
+          (c) => c.funding_percentage >= 80 && c.funding_percentage < 100
         );
         setCampaigns(homeStretch.slice(0, 10));
       } catch (err) {
@@ -58,7 +54,7 @@ export default function HomeStretchSection() {
         </div>
         <div className="flex gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex-shrink-0 w-[calc(25%-18px)] bg-gray-100 rounded-lg h-72 animate-pulse" />
+            <div key={i} className="flex-shrink-0 w-72 bg-gray-100 rounded-lg h-72 animate-pulse" />
           ))}
         </div>
       </section>
@@ -94,25 +90,16 @@ export default function HomeStretchSection() {
       <ProjectCarousel seeMoreHref="/home-stretch" seeMoreLabel="Home Stretch Projects">
         {campaigns.map((campaign) => (
           <Link
-            key={campaign.id}
-            href={`/campaign/${campaign.slug}`}
-            className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100"
+            key={campaign.campaign_id}
+            href={`/project/${campaign.slug || campaign.campaign_id}`}
+            className="flex-shrink-0 w-72 h-72 snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100"
           >
-            <div className="relative h-40 bg-gray-200">
-              {campaign.image_url ? (
-                <Image
-                  src={campaign.image_url}
-                  alt={campaign.title}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              )}
+            <div className="relative h-36 bg-gray-200">
+              <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
             </div>
             <div className="p-4">
               <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">
@@ -124,7 +111,7 @@ export default function HomeStretchSection() {
                 </p>
               )}
               <p className="text-xs text-gray-500 mb-3">
-                ${campaign.raised_amount.toLocaleString()} raised of ${campaign.goal_amount.toLocaleString()}
+                ${(campaign.amount_raised_cents / 100).toLocaleString()} raised of ${(campaign.funding_goal_cents / 100).toLocaleString()}
               </p>
               <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                 <div

@@ -25,7 +25,7 @@ export default function BasicsPage() {
     return String(dollars);
   }, [draft.funding_goal_cents]);
 
-  // --- image picker local state ---
+  // --- your image picker local state can stay local ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectImages, setProjectImages] = useState<File[]>([]);
   const [projectImagePreviewUrls, setProjectImagePreviewUrls] = useState<string[]>([]);
@@ -103,21 +103,8 @@ export default function BasicsPage() {
   };
 
   const categories = [
-    "Art",
-    "Comics",
-    "Crafts",
-    "Dance",
-    "Design",
-    "Fashion",
-    "Film & Video",
-    "Food",
-    "Games",
-    "Journalism",
-    "Music",
-    "Photography",
-    "Publishing",
-    "Technology",
-    "Theater",
+    "Art","Comics","Crafts","Dance","Design","Fashion","Film & Video","Food","Games",
+    "Journalism","Music","Photography","Publishing","Technology","Theater",
   ];
 
   const emailIsValid = true; // not used here; keeping file minimal
