@@ -5,16 +5,15 @@ import Link from "next/link";
 import ProjectCarousel from "./ProjectCarousel";
 
 interface Campaign {
-  id: string;
+  campaign_id: number;
   title: string;
   slug: string;
-  goal_amount: number;
-  raised_amount: number;
+  funding_goal_cents: number;
+  amount_raised_cents: number;
   funding_percentage: number;
   days_left: number | null;
   creator_name: string | null;
-  image_url: string | null;
-  donors_count: number;
+  backers: number;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -26,9 +25,7 @@ export default function CommunityFavoritesSection() {
   useEffect(() => {
     async function fetchFavorites() {
       try {
-        const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&sort=popular&per_page=10`
-        );
+        const res = await fetch(`${API_URL}/api/campaigns?status=active`);
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
         setCampaigns(data.campaigns || []);
@@ -87,29 +84,21 @@ export default function CommunityFavoritesSection() {
         <ProjectCarousel seeMoreHref="/community-favorites" seeMoreLabel="See More Favorites">
           {campaigns.map((campaign) => (
             <Link
-              key={campaign.id}
-              href={`/campaign/${campaign.slug}`}
+              key={campaign.campaign_id}
+              href={`/project/${campaign.slug || campaign.campaign_id}`}
               className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block"
             >
               <div className="relative h-36 bg-gray-200">
-                {campaign.image_url && campaign.image_url.startsWith("http") ? (
-                  <img
-                    src={campaign.image_url}
-                    alt={campaign.title}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                )}
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">
@@ -121,8 +110,8 @@ export default function CommunityFavoritesSection() {
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mb-3">
-                  ${campaign.raised_amount.toLocaleString()} raised of $
-                  {campaign.goal_amount.toLocaleString()}
+                  ${(campaign.amount_raised_cents / 100).toLocaleString()} raised of $
+                  {(campaign.funding_goal_cents / 100).toLocaleString()}
                 </p>
                 <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                   <div
@@ -134,7 +123,7 @@ export default function CommunityFavoritesSection() {
                   <span className="font-medium text-[#8BC34A]">
                     {campaign.funding_percentage}% funded
                   </span>
-                  <span>{campaign.donors_count} backers</span>
+                  <span>{campaign.backers} backers</span>
                 </div>
               </div>
             </Link>

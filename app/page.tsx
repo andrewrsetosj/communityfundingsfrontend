@@ -6,6 +6,7 @@ import ProjectCarousel from "./components/ProjectCarousel";
 import HomeStretchSection from "./components/HomeStretchSection";
 import CommunityFavoritesSection from "./components/CommunityFavoritesSection";
 import FeaturedSection from "./components/FeaturedSection";
+import StatsSection from "./components/StatsSection";
 
 
 export default function Home() {
@@ -65,28 +66,7 @@ export default function Home() {
           </div>
 
           {/* Stats */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  230,000
-                </p>
-                <p className="text-gray-500 text-sm">Projects funded</p>
-              </div>
-              <div className="text-center border-x border-gray-200">
-                <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  $6,361,326
-                </p>
-                <p className="text-gray-500 text-sm">Towards creative work</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl md:text-4xl font-bold text-gray-900">
-                  70,894
-                </p>
-                <p className="text-gray-500 text-sm">Pledges</p>
-              </div>
-            </div>
-          </div>
+          <StatsSection />
         </div>
       </section>
 

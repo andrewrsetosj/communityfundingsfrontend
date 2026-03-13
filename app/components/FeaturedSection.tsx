@@ -4,17 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 interface Campaign {
-  id: string;
+  campaign_id: number;
   title: string;
   slug: string;
-  description: string;
-  goal_amount: number;
-  raised_amount: number;
+  description_html: string | null;
+  funding_goal_cents: number;
+  amount_raised_cents: number;
   funding_percentage: number;
   days_left: number | null;
   creator_name: string | null;
-  image_url: string | null;
-  donors_count: number;
+  backers: number;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -43,15 +42,13 @@ export default function FeaturedSection() {
   useEffect(() => {
     async function fetchFeatured() {
       try {
-        const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&sort=popular&per_page=50`
-        );
+        const res = await fetch(`${API_URL}/api/campaigns?status=active`);
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
 
         // Filter: >40% funded AND >50 backers
         const qualifying: Campaign[] = (data.campaigns || []).filter(
-          (c: Campaign) => c.funding_percentage > 40 && c.donors_count > 50
+          (c: Campaign) => c.funding_percentage > 40 && c.backers > 50
         );
 
         // Shuffle deterministically by week, pick up to 4
@@ -126,23 +123,15 @@ export default function FeaturedSection() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
         {/* Project Image */}
         <Link
-          href={`/campaign/${main.slug}`}
+          href={`/project/${main.slug || main.campaign_id}`}
           className="relative rounded-2xl overflow-hidden group cursor-pointer"
         >
           <div className="aspect-[4/3] bg-gray-200 relative">
-            {main.image_url && main.image_url.startsWith("http") ? (
-              <img
-                src={main.image_url}
-                alt={main.title}
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#8BC34A]/20 to-[#689F38]/20 flex items-center justify-center">
-                <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#8BC34A]/20 to-[#689F38]/20 flex items-center justify-center">
+              <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
           </div>
         </Link>
 
@@ -154,9 +143,9 @@ export default function FeaturedSection() {
           <h3 className="text-2xl font-bold text-gray-900 mb-3">
             {main.title}
           </h3>
-          {main.description && (
+          {main.description_html && (
             <p className="text-gray-600 mb-5 line-clamp-3">
-              {main.description}
+              {main.description_html.replace(/<[^>]*>/g, "")}
             </p>
           )}
 
@@ -172,15 +161,15 @@ export default function FeaturedSection() {
           <div className="grid grid-cols-3 gap-4 mb-5">
             <div>
               <p className="text-xl font-bold text-gray-900">
-                ${main.raised_amount.toLocaleString()}
+                ${(main.amount_raised_cents / 100).toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">
-                raised of ${main.goal_amount.toLocaleString()}
+                raised of ${(main.funding_goal_cents / 100).toLocaleString()}
               </p>
             </div>
             <div>
               <p className="text-xl font-bold text-gray-900">
-                {main.donors_count}
+                {main.backers}
               </p>
               <p className="text-xs text-gray-500">backers</p>
             </div>
@@ -199,7 +188,7 @@ export default function FeaturedSection() {
           )}
 
           <Link
-            href={`/campaign/${main.slug}`}
+            href={`/project/${main.slug || main.campaign_id}`}
             className="inline-block w-fit bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
           >
             View Project
