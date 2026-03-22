@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 interface SmallProjectCardProps {
+  slug: string;
   image: string;
   title: string;
   creator: string;
@@ -10,13 +12,14 @@ interface SmallProjectCardProps {
 }
 
 export default function SmallProjectCard({
+  slug,
   image,
   title,
   creator,
   funded,
 }: SmallProjectCardProps) {
   return (
-    <div className="flex gap-3 group cursor-pointer">
+    <Link href={`/project/${slug}`} className="flex gap-3 group cursor-pointer">
       {/* Thumbnail */}
       <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200">
         <Image
@@ -49,6 +52,6 @@ export default function SmallProjectCard({
           <span>&gt; Mty</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

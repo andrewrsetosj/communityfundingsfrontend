@@ -1,53 +1,120 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 type TabType = "account" | "edit-profile" | "payment-methods";
 
 export default function SettingsPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>("account");
-  const [fullName, setFullName] = useState(user?.fullName || "");
-  const [email, setEmail] = useState(user?.primaryEmailAddress?.emailAddress || "");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Edit Profile state
-  const [profileFullName, setProfileFullName] = useState("Thomas.D");
-  const [profileEmail, setProfileEmail] = useState("Info@gmail.com");
-  const [contactNumber, setContactNumber] = useState("+0 333 421 423");
-  const [address, setAddress] = useState("2485 S McCall Rd");
-  const [state, setState] = useState("Florida");
+  const [profileFirstName, setProfileFirstName] = useState("");
+  const [profileLastName, setProfileLastName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [state, setState] = useState("");
   const [country, setCountry] = useState("United States");
-  const [timeZone, setTimeZone] = useState("GMT-6");
+  const [timeZone, setTimeZone] = useState("");
   const [website, setWebsite] = useState("");
   const [aboutYou, setAboutYou] = useState("");
   const [privacyOption1, setPrivacyOption1] = useState(true);
   const [privacyOption2, setPrivacyOption2] = useState(false);
 
   // Payment Methods state
-  const [nameOnCard, setNameOnCard] = useState("Thomas.D");
+  const [nameOnCard, setNameOnCard] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [securityCode, setSecurityCode] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [cvc, setCvc] = useState("");
-  const [billingFullName, setBillingFullName] = useState("Thomas.D");
-  const [billingAddress, setBillingAddress] = useState("4085 Gleason Drives");
-  const [billingCity, setBillingCity] = useState("West Derickshire");
-  const [billingZip, setBillingZip] = useState("50703");
+  const [billingFullName, setBillingFullName] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingZip, setBillingZip] = useState("");
   const [billingCountry, setBillingCountry] = useState("United States");
 
+  // Pre-populate from Clerk user data
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+
+    const clerkName = user.fullName || "";
+    const clerkEmail = user.primaryEmailAddress?.emailAddress || "";
+
+    // Account tab
+    setFullName(clerkName);
+    setEmail(clerkEmail);
+
+    // Edit Profile tab — Clerk as initial fallback
+    setProfileFirstName(user.firstName || "");
+    setProfileLastName(user.lastName || "");
+    setProfileEmail(clerkEmail);
+
+    // Payment tab
+    setNameOnCard(clerkName);
+    setBillingFullName(clerkName);
+  }, [isLoaded, user]);
+
+  // Fetch full creator profile from DB (overrides Clerk defaults)
+  useEffect(() => {
+    if (!isLoaded || !user?.id) return;
+
+    async function fetchCreator() {
+      try {
+        const res = await fetch(`${API_URL}/api/users/${user!.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.name) setProfileFirstName(data.name);
+        if (data.last_name) setProfileLastName(data.last_name);
+        if (data.email) setProfileEmail(data.email);
+        if (data.bio) setAboutYou(data.bio);
+        if (data.phone_number) setContactNumber(data.phone_number);
+        if (data.address) setAddress(data.address);
+        if (data.state) setState(data.state);
+        if (data.time_zone) setTimeZone(data.time_zone);
+      } catch (err) {
+        console.error("Error fetching creator profile:", err);
+      }
+    }
+    fetchCreator();
+  }, [isLoaded, user?.id]);
+
   const handleSave = async () => {
+    if (!user?.id) return;
     setIsSaving(true);
-    // Here you would implement the actual save logic
-    // For now, we'll just simulate a save
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    alert("Settings saved!");
+    try {
+      const res = await fetch(`${API_URL}/api/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profileFirstName,
+          last_name: profileLastName,
+          bio: aboutYou,
+          phone_number: contactNumber,
+          address: address,
+          state: state,
+          time_zone: timeZone,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save profile");
+      alert("Settings saved!");
+      window.location.reload();
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      alert("Failed to save. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -257,27 +324,44 @@ export default function SettingsPage() {
 
             {/* Form Fields */}
             <div className="space-y-6">
-              {/* Row 1: Full Name & Email */}
+              {/* Row 1: First Name & Last Name */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
-                    htmlFor="profileFullName"
+                    htmlFor="profileFirstName"
                     className="block text-sm font-medium text-gray-700 mb-2"
                   >
-                    Full name
+                    First Name
                   </label>
                   <input
-                    id="profileFullName"
+                    id="profileFirstName"
                     type="text"
-                    value={profileFullName}
-                    onChange={(e) => setProfileFullName(e.target.value)}
-                    placeholder="Thomas.D"
+                    value={profileFirstName}
+                    onChange={(e) => setProfileFirstName(e.target.value)}
+                    placeholder="First name"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
-                  <p className="mt-2 text-xs text-gray-500">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod.
-                  </p>
                 </div>
+                <div>
+                  <label
+                    htmlFor="profileLastName"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Last Name
+                  </label>
+                  <input
+                    id="profileLastName"
+                    type="text"
+                    value={profileLastName}
+                    onChange={(e) => setProfileLastName(e.target.value)}
+                    placeholder="Last name"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
                     htmlFor="profileEmail"
@@ -290,7 +374,7 @@ export default function SettingsPage() {
                     type="email"
                     value={profileEmail}
                     onChange={(e) => setProfileEmail(e.target.value)}
-                    placeholder="Info@gmail.com"
+                    placeholder="your@email.com"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
                 </div>
@@ -310,7 +394,7 @@ export default function SettingsPage() {
                     type="tel"
                     value={contactNumber}
                     onChange={(e) => setContactNumber(e.target.value)}
-                    placeholder="+0 333 421 423"
+                    placeholder="Phone number"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
                 </div>
@@ -326,7 +410,7 @@ export default function SettingsPage() {
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="2485 S McCall Rd"
+                    placeholder="Street address"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
                 </div>
@@ -346,7 +430,7 @@ export default function SettingsPage() {
                     type="text"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    placeholder="Florida"
+                    placeholder="State"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
                 </div>
@@ -408,7 +492,7 @@ export default function SettingsPage() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                     />
                     <p className="mt-2 text-xs text-gray-500">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod.
+                      e.g. EST, PST, GMT-6
                     </p>
                   </div>
                   <div>

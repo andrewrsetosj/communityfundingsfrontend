@@ -18,29 +18,26 @@ interface Campaign {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export default function HomeStretchSection() {
+export default function CommunityFavoritesSection() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchHomeStretch() {
+    async function fetchFavorites() {
       try {
         const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&sort=most_funded&per_page=50`
+          `${API_URL}/api/campaigns?status=active&sort=popular&per_page=6`
         );
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
-        const homeStretch = data.campaigns.filter(
-          (c: Campaign) => c.funding_percentage >= 80 && c.funding_percentage < 100
-        );
-        setCampaigns(homeStretch.slice(0, 10));
+        setCampaigns(data.campaigns);
       } catch (err) {
-        console.error("Error fetching home stretch campaigns:", err);
+        console.error("Error fetching community favorites:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchHomeStretch();
+    fetchFavorites();
   }, []);
 
   if (loading) {
@@ -49,7 +46,7 @@ export default function HomeStretchSection() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-10">
             <h2 className="text-3xl font-serif font-bold text-gray-900">
-              Home Stretch
+              Community Favorites
             </h2>
           </div>
           <div className="flex gap-6">
@@ -68,9 +65,9 @@ export default function HomeStretchSection() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-10">
             <h2 className="text-3xl font-serif font-bold text-gray-900">
-              Home Stretch
+              Community Favorites
             </h2>
-            <p className="text-gray-600 mt-2">No projects are in the home stretch right now. Check back soon!</p>
+            <p className="text-gray-600 mt-2">No community favorites yet. Check back soon!</p>
           </div>
         </div>
       </section>
@@ -82,11 +79,11 @@ export default function HomeStretchSection() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="mb-10">
           <h2 className="text-3xl font-serif font-bold text-gray-900">
-            Home Stretch
+            Community Favorites
           </h2>
         </div>
 
-        <ProjectCarousel seeMoreHref="/home-stretch" seeMoreLabel="Home Stretch Projects">
+        <ProjectCarousel seeMoreHref="/community-favorites" seeMoreLabel="See More Favorites">
           {campaigns.map((campaign) => (
             <Link
               key={campaign.id}

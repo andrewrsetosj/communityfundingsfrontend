@@ -3,9 +3,12 @@
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useCampaignDraft } from "../store/useCampaignDraft";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { useCampaignDraft, saveDraftToBackend } from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface CollaboratorUI {
   key: string; // stable key for rendering
@@ -16,6 +19,9 @@ interface CollaboratorUI {
 
 export default function PeoplePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useUser();
+  const [saving, setSaving] = useState(false);
 
   // Store selectors (hooks)
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
@@ -27,6 +33,8 @@ export default function PeoplePage() {
   // Local state (hooks)
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
+  const [bioEditing, setBioEditing] = useState(false);
+  const [bioLoaded, setBioLoaded] = useState(false);
 
   // ✅ NEW: touched flags (only show required UI after interaction)
   const [bioTouched, setBioTouched] = useState(false);
@@ -47,6 +55,26 @@ export default function PeoplePage() {
   useEffect(() => {
     setAgreedToTerms(false);
   }, []);
+
+  // Fetch creator bio from DB and pre-populate if bio is empty
+  useEffect(() => {
+    if (!user?.id || bioLoaded) return;
+
+    async function fetchCreatorBio() {
+      try {
+        const res = await fetch(`${API_URL}/api/users/${user!.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.bio && !(bio ?? "").trim()) {
+          setPeople({ bio: data.bio });
+        }
+        setBioLoaded(true);
+      } catch (err) {
+        console.error("Error fetching creator bio:", err);
+      }
+    }
+    fetchCreatorBio();
+  }, [user?.id, bioLoaded, bio, setPeople]);
 
   // ✅ Now it's safe to return early (after hooks)
   if (!hasHydrated) return null;
@@ -99,12 +127,22 @@ export default function PeoplePage() {
   const urlIsValid = (vanitySlug ?? "").trim().length > 0;
   const canContinue = bioIsValid && urlIsValid;
 
-  const handleNext = () => {
-    // ✅ hard guard
+  const handleNext = async () => {
+    setBioTouched(true);
+    setUrlTouched(true);
     if (!canContinue) return;
 
-    // Store is already updated on add/delete, so just navigate
-    router.push("/create-project/payment");
+    setSaving(true);
+    try {
+      const campaignId = await saveDraftToBackend();
+      router.push(`/create-project/payment?draft=${campaignId}`);
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      const existingDraft = searchParams.get("draft");
+      router.push(`/create-project/payment${existingDraft ? `?draft=${existingDraft}` : ""}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -127,32 +165,27 @@ export default function PeoplePage() {
             <div className="flex items-start gap-6">
               <div className="relative">
                 <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
-                  <Image
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200"
-                    alt="Profile"
-                    width={96}
-                    height={96}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#8BC34A] rounded-full flex items-center justify-center text-white hover:bg-[#7CB342] transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  {user?.imageUrl ? (
+                    <Image
+                      src={user.imageUrl}
+                      alt="Profile"
+                      width={96}
+                      height={96}
+                      className="object-cover w-full h-full"
                     />
-                  </svg>
-                </button>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1">
                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  Your Name
+                  {user?.fullName || user?.firstName || "Your Name"}
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Creator • 0 projects created
@@ -170,14 +203,27 @@ export default function PeoplePage() {
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Short Bio{" "}
               </label>
-              <textarea
-                value={bio ?? ""}
-                onChange={(e) => setPeople({ bio: e.target.value })}
-                onBlur={() => setBioTouched(true)}
-                placeholder="Tell backers a bit about yourself..."
-                rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent resize-none bg-white"
-              />
+              {bioEditing ? (
+                <textarea
+                  value={bio ?? ""}
+                  onChange={(e) => setPeople({ bio: e.target.value })}
+                  onBlur={() => setBioTouched(true)}
+                  placeholder="Tell backers a bit about yourself..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent resize-none bg-white"
+                />
+              ) : (
+                <p className="w-full py-1 text-gray-700 whitespace-pre-wrap">
+                  {(bio ?? "").trim() || <span className="text-gray-400">No bio yet.</span>}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setBioEditing(!bioEditing)}
+                className="mt-2 text-sm text-[#8BC34A] font-medium hover:underline"
+              >
+                {bioEditing ? "Done" : "Edit"}
+              </button>
               {bioTouched && !bioIsValid && (
                 <p className="mt-2 text-sm text-red-500">
                   Please enter a short bio to continue.
@@ -320,21 +366,20 @@ export default function PeoplePage() {
         </div>
 
         {/* Save & Continue */}
-        <div className="mt-12 flex justify-end">
+        <div className="mt-12 flex justify-between">
+          <Link
+            href={`/create-project/story${searchParams.get("draft") ? `?draft=${searchParams.get("draft")}` : ""}`}
+            className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            Back
+          </Link>
           <button
             type="button"
             onClick={handleNext}
-            disabled={!canContinue}
-            className={[
-              "bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium transition-colors",
-              canContinue
-                ? "hover:bg-[#7CB342]"
-                : "opacity-50 cursor-not-allowed",
-            ].join(" ")}
-            aria-disabled={!canContinue}
-            title={!canContinue ? "Please fill out the short bio and URL to continue." : undefined}
+            disabled={saving}
+            className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-60"
           >
-            Save &amp; Continue
+            {saving ? "Saving..." : "Save & Continue"}
           </button>
         </div>
       </div>

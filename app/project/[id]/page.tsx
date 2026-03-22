@@ -10,7 +10,7 @@ import Header from "../../components/Header";
 // Constants
 // ═══════════════════════════════════════════════════════════════
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 const PRESET_AMOUNTS = ["10", "25", "50", "100"];
 
@@ -412,6 +412,9 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
 
+  // Share button state
+  const [copied, setCopied] = useState(false);
+
   // Donation form state
   const [pledgeAmount, setPledgeAmount] = useState("10");
   const [donorName, setDonorName] = useState("");
@@ -426,10 +429,42 @@ export default function ProjectDetail() {
     if (!campaignIdOrSlug) return;
     async function load() {
       try {
-        const res = await fetch(`${API_BASE}/api/campaigns/${campaignIdOrSlug}`);
+        const res = await fetch(`${API_BASE}/api/campaign-page/${campaignIdOrSlug}`);
         if (!res.ok) throw new Error("Campaign not found");
         const data = await res.json();
-        setCampaign(data);
+        const c = data.campaign;
+        const goalCents = c.funding_goal_cents || 0;
+        const raisedCents = c.amount_raised_cents || 0;
+        const goal = goalCents / 100;
+        const raised = raisedCents / 100;
+        const pct = goal > 0 ? Math.round((raised / goal) * 1000) / 10 : 0;
+        let daysLeft = null;
+        if (c.end_date) {
+          const diff = new Date(c.end_date).getTime() - Date.now();
+          daysLeft = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+        }
+        const creatorName = data.creator
+          ? [data.creator.name, data.creator.last_name].filter(Boolean).join(" ")
+          : null;
+        setCampaign({
+          ...c,
+          id: String(c.campaign_id),
+          slug: c.url,
+          description: c.description_html,
+          goal_amount: goal,
+          raised_amount: raised,
+          donors_count: c.backers || 0,
+          funding_percentage: pct,
+          days_left: daysLeft,
+          creator_name: creatorName,
+          creator_id: c.creator_id,
+          image_url: data.photos?.[0]?.image_url || null,
+          video_url: null,
+          is_featured: false,
+          status: c.status,
+          title: c.title,
+          created_at: c.time_created,
+        });
       } catch (err: unknown) {
         setFetchError(err instanceof Error ? err.message : "Failed to load campaign");
       } finally {
@@ -537,7 +572,7 @@ export default function ProjectDetail() {
           {campaign.title.toUpperCase()}
         </h1>
         <p className="text-gray-600 mb-8 max-w-2xl">
-          {campaign.short_description || campaign.description.slice(0, 250)}
+          {(campaign.description || "").replace(/<[^>]*>/g, "").slice(0, 250)}
         </p>
 
         {/* Two Column Layout */}
@@ -724,6 +759,25 @@ export default function ProjectDetail() {
                   </p>
                 </div>
               )}
+
+            </div>
+
+            {/* Share Button */}
+            <div className="flex justify-end mt-4">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2 bg-[#8BC34A] text-white rounded-lg text-sm font-medium hover:bg-[#7CB342] transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              {copied ? "Link Copied!" : "Share"}
+            </button>
             </div>
           </div>
         </div>

@@ -1,19 +1,25 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCampaignDraft } from "@/app/create-project/store/useCampaignDraft";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useCampaignDraft, saveDraftToBackend } from "@/app/create-project/store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
 export default function BasicsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
   const draft = useCampaignDraft((s) => s.draft);
   const setBasics = useCampaignDraft((s) => s.setBasics);
+  const [saving, setSaving] = useState(false);
 
   // ✅ touched flags (show validation UI only after interaction)
   const [titleTouched, setTitleTouched] = useState(false);
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [locationTouched, setLocationTouched] = useState(false);
+  const [imageTouched, setImageTouched] = useState(false);
   const [fundingTouched, setFundingTouched] = useState(false);
   const [durationTouched, setDurationTouched] = useState(false);
 
@@ -35,6 +41,9 @@ export default function BasicsPage() {
 
   // ✅ REQUIRED FIELDS
   const titleValid = draft.title.trim().length > 0;
+  const categoryValid = (draft.category ?? "").trim().length > 0;
+  const locationValid = (draft.location ?? "").trim().length > 0;
+  const imageValid = projectImages.length > 0;
   const fundingValid = (draft.funding_goal_cents ?? 0) > 0;
 
   const durationNum = draft.duration_days ?? 0;
@@ -47,7 +56,7 @@ export default function BasicsPage() {
   const durationEmpty = durationInput.trim() === "";
   const durationValid = !durationEmpty && durationNum >= 1 && durationNum <= 365;
 
-  const basicsValid = titleValid && fundingValid && durationValid;
+  const basicsValid = titleValid && categoryValid && locationValid && fundingValid && durationValid;
 
   const addFiles = (files: FileList | File[]) => {
     const incoming = Array.from(files).filter((f) => f.type.startsWith("image/"));
@@ -92,14 +101,30 @@ export default function BasicsPage() {
     setProjectImagePreviewUrls([]);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // mark touched so validation UI shows if user tries to continue
     setTitleTouched(true);
+    setCategoryTouched(true);
+    setLocationTouched(true);
+    setImageTouched(true);
     setFundingTouched(true);
     setDurationTouched(true);
 
     if (!basicsValid) return;
-    router.push("/create-project/rewards");
+
+    setSaving(true);
+    try {
+      const campaignId = await saveDraftToBackend();
+      const draftParam = `?draft=${campaignId}`;
+      router.push(`/create-project/rewards${draftParam}`);
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      // Still navigate even if save fails — localStorage has the data
+      const existingDraft = searchParams.get("draft");
+      router.push(`/create-project/rewards${existingDraft ? `?draft=${existingDraft}` : ""}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const categories = [
@@ -162,11 +187,12 @@ export default function BasicsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
-              Category (optional)
+              Category
             </label>
             <select
               value={draft.category}
               onChange={(e) => setBasics({ category: e.target.value })}
+              onBlur={() => setCategoryTouched(true)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
             >
               <option value="">Select a category</option>
@@ -176,19 +202,30 @@ export default function BasicsPage() {
                 </option>
               ))}
             </select>
+            {categoryTouched && !categoryValid && (
+              <p className="mt-2 text-sm text-red-500">
+                Please select a category to continue.
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
-              Project Location (optional)
+              Project Location
             </label>
             <input
               type="text"
               value={draft.location}
               onChange={(e) => setBasics({ location: e.target.value })}
+              onBlur={() => setLocationTouched(true)}
               placeholder="Enter your city"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
             />
+            {locationTouched && !locationValid && (
+              <p className="mt-2 text-sm text-red-500">
+                Please enter a project location to continue.
+              </p>
+            )}
           </div>
         </div>
 
@@ -382,11 +419,13 @@ export default function BasicsPage() {
       </div>
 
       <div className="mt-12 flex justify-end">
-        <Link
-          href="/create-project/rewards"
-          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={saving}
+          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-60"
         >
-          Save & Continue
+          {saving ? "Saving..." : "Save & Continue"}
         </button>
       </div>
 

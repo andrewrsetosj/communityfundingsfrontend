@@ -294,9 +294,12 @@ export default function PaymentPage() {
 
       {/* Submit Button */}
       <div className="mt-12 flex justify-between items-center">
-        <p className="text-sm text-gray-500">
-          You can edit your project until you launch.
-        </p>
+        <Link
+          href="/create-project/people"
+          className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+        >
+          Back
+        </Link>
         <button className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors">
           Submit for Review
         </button>
