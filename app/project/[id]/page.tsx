@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 
 type Campaign = {
   campaign_id: number;

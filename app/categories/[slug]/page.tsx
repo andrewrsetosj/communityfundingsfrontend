@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 
 const categoryNames: Record<string, string> = {
   "comics-illustration": "Comics & Illustration",
@@ -11,6 +12,17 @@ const categoryNames: Record<string, string> = {
   "game": "Game",
   "music": "Music",
   "publishing": "Publishing",
+};
+
+const categoryDescriptions: Record<string, string> = {
+  "comics-illustration": "From webcomics and graphic novels to illustrated children's books, this is the home for visual storytelling. Back independent artists bringing their characters and worlds to life.",
+  "design-tech": "Apps, hardware, software tools, and innovative tech products built by makers and developers. Support the next big idea before it hits the market.",
+  "food-craft": "Artisan food brands, handmade goods, recipe books, and small-batch culinary ventures. Discover makers who put passion into every product.",
+  "arts": "Paintings, sculptures, photography, printmaking, and mixed-media works by independent artists seeking support to create and exhibit their work.",
+  "film": "Short films, feature-length independents, documentaries, and animation projects. Help filmmakers bring their stories to the screen.",
+  "game": "Tabletop games, card games, video games, and interactive experiences crafted by indie creators. Back the next game you can't stop thinking about.",
+  "music": "Albums, EPs, tours, music videos, and recording projects from independent musicians across every genre. Support the artists you love directly.",
+  "publishing": "Books, poetry collections, journals, and print publications seeking readers and backers. Help independent writers get their words into the world.",
 };
 
 const projects = [
@@ -35,6 +47,7 @@ export default async function CategoryPage({
 }) {
   const { slug } = await params;
   const categoryName = categoryNames[slug] || "Category";
+  const categoryDescription = categoryDescriptions[slug] || "";
 
   return (
     <div className="min-h-screen bg-white">
@@ -73,8 +86,7 @@ export default async function CategoryPage({
 
           {/* Description */}
           <p className="text-gray-600 max-w-xl mb-6">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+            {categoryDescription}
           </p>
 
           {/* CTA Button */}
@@ -174,45 +186,7 @@ export default async function CategoryPage({
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <span className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
-                Community Fundings
-              </span>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2022 community funding ltd is registered in england and wales no. 07831511.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
