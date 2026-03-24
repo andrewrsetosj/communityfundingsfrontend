@@ -51,8 +51,8 @@ export default function DraftsPage() {
     setDeleting(campaignId);
     const token = localStorage.getItem("cf_backend_token");
     try {
-      const res = await fetch(`${API_URL}/api/campaigns/${campaignId}/cancel`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/api/campaigns/drafts/${campaignId}`, {
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       if (res.ok) {
