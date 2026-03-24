@@ -15,10 +15,11 @@ export default function AuthSync() {
       if (existing && syncedEmail === user.primaryEmailAddress?.emailAddress) return;
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/clerk-sync`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/auth/clerk-sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            clerk_id: user.id,
             email: user.primaryEmailAddress?.emailAddress,
             name: user.fullName || user.firstName || "User",
           }),

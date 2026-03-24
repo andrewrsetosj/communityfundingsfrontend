@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { useCampaignDraft } from "./store/useCampaignDraft"; // ✅ adjust path if needed
+import { useUser } from "@clerk/nextjs";
+import { useCampaignDraft } from "./store/useCampaignDraft";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 const steps = [
   { number: "01", label: "Basics", path: "/create-project/basics" },
@@ -19,22 +23,38 @@ export default function CreateProjectLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user } = useUser();
 
-  // ✅ Zustand reset-on-entry (Option A)
   const reset = useCampaignDraft((s) => s.reset);
+  const loadDraft = useCampaignDraft((s) => s.loadDraft);
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
-  const didResetRef = useRef(false);
+  const didInitRef = useRef(false);
 
   useEffect(() => {
-    // Wait for persist hydration, otherwise old persisted state can “win” after reset
     if (!hasHydrated) return;
+    if (didInitRef.current) return;
+    didInitRef.current = true;
 
-    // Prevent double reset in React Strict Mode (dev)
-    if (didResetRef.current) return;
-    didResetRef.current = true;
-
-    reset();
-  }, [hasHydrated, reset]);
+    const draftId = searchParams.get("draft");
+    if (draftId) {
+      // Load existing draft from DB
+      const token = localStorage.getItem("cf_backend_token");
+      if (token) {
+        fetch(`${API_URL}/api/campaigns/drafts/${draftId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data) loadDraft(data);
+          })
+          .catch((err) => console.error("Failed to load draft:", err));
+      }
+    } else {
+      // Fresh campaign — reset store
+      reset();
+    }
+  }, [hasHydrated, reset, loadDraft, searchParams]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -56,59 +76,40 @@ export default function CreateProjectLayout({
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Verification + Progress Warning Banner */}
-      <div className="bg-[#FFF8E1] border-b border-[#FFE082] px-6 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          
-          {/* Left: icons + text */}
-          <div className="flex items-center gap-3">
-            {/* Warning icon */}
-            <div className="w-8 h-8 bg-[#FFD54F] rounded-full flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-[#F57F17]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-            </div>
-
-            {/* Text */}
-            <div className="text-sm text-[#5D4037] leading-tight">
-              <div>
-                Please verify your email address to continue with project creation.
-              </div>
-              <div className="text-[#8D6E63]">
-                ⚠️ Refreshing or leaving this page will reset your campaign progress.
-              </div>
-            </div>
-          </div>
-
-    {/* Right: action */}
-    <button className="text-sm text-[#8BC34A] font-medium hover:underline whitespace-nowrap">
-      Resend verification
-    </button>
-  </div>
-</div>
-
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
             Community Fundings
           </Link>
+          {user?.imageUrl ? (
+            <Image
+              src={user.imageUrl}
+              alt="Profile"
+              width={36}
+              height={36}
+              className="rounded-full cursor-pointer"
+            />
+          ) : (
+            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Green Header Section with Stepper */}
+      <div className="bg-gradient-to-b from-[#F5F9F0] to-white px-6 pt-8 pb-12">
+        <div className="max-w-7xl mx-auto">
+          {/* Back Button */}
           <Link
             href="/"
-            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-[#8BC34A] transition-colors mb-6"
           >
             <svg
-              className="w-5 h-5 text-gray-600"
+              className="w-4 h-4 mr-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -117,58 +118,11 @@ export default function CreateProjectLayout({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                d="M15 19l-7-7 7-7"
               />
             </svg>
+            Back to Home Page
           </Link>
-        </div>
-      </header>
-
-      {/* Green Header Section with Stepper */}
-      <div className="bg-gradient-to-b from-[#F5F9F0] to-white px-6 pt-8 pb-12">
-        <div className="max-w-7xl mx-auto">
-          {/* Back Button */}
-          {currentStepIndex > 0 ? (
-            <Link
-              href={steps[currentStepIndex - 1].path}
-              className="inline-flex items-center text-sm text-gray-600 hover:text-[#8BC34A] transition-colors mb-6"
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back
-            </Link>
-          ) : (
-            <Link
-              href="/"
-              className="inline-flex items-center text-sm text-gray-600 hover:text-[#8BC34A] transition-colors mb-6"
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back to Home
-            </Link>
-          )}
 
           {/* Stepper */}
           <div className="flex items-center justify-center gap-4 md:gap-8">

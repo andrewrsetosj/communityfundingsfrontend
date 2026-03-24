@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCampaignDraft } from "../store/useCampaignDraft";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCampaignDraft, saveDraftToBackend } from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
 type FAQ = {
@@ -12,7 +13,9 @@ type FAQ = {
 
 export default function StoryPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { draft, setStory } = useCampaignDraft();
+  const [saving, setSaving] = useState(false);
 
   // ---- Prefill from draft (so back/forward keeps content) ----
   const initialDescription = draft.description_html ?? "";
@@ -123,7 +126,8 @@ export default function StoryPage() {
   const canContinue = descriptionIsValid;
 
   // ---- Save into draft + navigate ----
-  const handleNext = () => {
+  const handleNext = async () => {
+    setDescriptionTouched(true);
     if (!canContinue) return;
 
     setStory({
@@ -135,7 +139,17 @@ export default function StoryPage() {
       })),
     });
 
-    router.push("/create-project/people");
+    setSaving(true);
+    try {
+      const campaignId = await saveDraftToBackend();
+      router.push(`/create-project/people?draft=${campaignId}`);
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      const existingDraft = searchParams.get("draft");
+      router.push(`/create-project/people${existingDraft ? `?draft=${existingDraft}` : ""}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -297,17 +311,20 @@ export default function StoryPage() {
         </div>
 
         {/* Save */}
-        <div className="flex justify-end">
-          <button
-            onClick={handleNext}
-            disabled={!canContinue}
-            className={`px-8 py-3 rounded-full font-medium transition-colors
-              ${canContinue
-                ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
-                : "bg-[#8BC34A] text-white opacity-50 cursor-not-allowed"}
-            `}
+        <div className="flex justify-between">
+          <Link
+            href={`/create-project/rewards${searchParams.get("draft") ? `?draft=${searchParams.get("draft")}` : ""}`}
+            className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
           >
-            Save & Continue
+            Back
+          </Link>
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={saving}
+            className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save & Continue"}
           </button>
         </div>
       </div>
