@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import ProjectCarousel from "./components/ProjectCarousel";
 import HomeStretchSection from "./components/HomeStretchSection";
 import CommunityFavoritesSection from "./components/CommunityFavoritesSection";
@@ -270,72 +271,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-            {/* Logo */}
-            <div>
-              <span className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
-                Community Fundings
-              </span>
-            </div>
-
-            {/* Links Column 1 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-
-            {/* Links Column 2 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-
-            {/* Links Column 3 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-
-            {/* Links Column 4 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2022 community funding ltd is registered in england and wales no. 07831511.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
