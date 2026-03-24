@@ -25,6 +25,7 @@ export default function ProjectsNearYouSection() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [locationResolved, setLocationResolved] = useState(false);
 
   const fetchCampaigns = useCallback(async (location: string) => {
     setLoading(true);
@@ -46,12 +47,14 @@ export default function ProjectsNearYouSection() {
     const saved = localStorage.getItem("userCity");
     if (saved) {
       setCity(saved);
+      setLocationResolved(true);
       fetchCampaigns(saved);
       return;
     }
 
     if (!navigator.geolocation) {
       setLocationDenied(true);
+      setLocationResolved(true);
       setLoading(false);
       return;
     }
@@ -74,18 +77,22 @@ export default function ProjectsNearYouSection() {
           if (detected) {
             setCity(detected);
             localStorage.setItem("userCity", detected);
+            setLocationResolved(true);
             fetchCampaigns(detected);
           } else {
             setLocationDenied(true);
+            setLocationResolved(true);
             setLoading(false);
           }
         } catch {
           setLocationDenied(true);
+          setLocationResolved(true);
           setLoading(false);
         }
       },
       () => {
         setLocationDenied(true);
+        setLocationResolved(true);
         setLoading(false);
       }
     );
@@ -107,35 +114,12 @@ export default function ProjectsNearYouSection() {
     setEditing(true);
   };
 
-  // No city yet and location was denied — show input
+  // Hide until geolocation prompt is resolved
+  if (!locationResolved) return null;
+
+  // No city and location denied/unavailable — hide the section entirely
   if ((locationDenied || (!city && !loading)) && !editing) {
-    return (
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-serif font-bold text-gray-900 mb-3">
-            Campaigns Near You
-          </h2>
-          <p className="text-gray-600 max-w-xl mx-auto mb-6">
-            Enter your city to discover campaigns in your area.
-          </p>
-          <form onSubmit={handleCitySubmit} className="flex justify-center gap-3 max-w-md mx-auto">
-            <input
-              type="text"
-              value={cityInput}
-              onChange={(e) => setCityInput(e.target.value)}
-              placeholder="Enter your city"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-            />
-            <button
-              type="submit"
-              className="bg-[#8BC34A] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#7CB342] transition-colors"
-            >
-              Search
-            </button>
-          </form>
-        </div>
-      </section>
-    );
+    return null;
   }
 
   // Editing city
