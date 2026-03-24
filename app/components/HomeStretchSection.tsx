@@ -91,7 +91,7 @@ export default function HomeStretchSection() {
             <Link
               key={campaign.id}
               href={`/project/${campaign.slug || campaign.id}`}
-              className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block"
+              className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] min-w-[270px] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block"
             >
               <div className="relative h-36 bg-gray-200 flex items-center justify-center text-gray-400">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">

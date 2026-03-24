@@ -66,7 +66,7 @@ export default function ProjectCarousel({
       {/* Scrollable Container */}
       <div
         ref={scrollRef}
-        className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+        className="flex-1 min-w-0 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory py-2"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {children}
@@ -74,7 +74,7 @@ export default function ProjectCarousel({
         {/* See More Card */}
         <Link
           href={seeMoreHref}
-          className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-3 hover:border-[#8BC34A] hover:bg-[#8BC34A]/5 transition-colors min-h-[280px]"
+          className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start rounded-lg flex flex-col items-center justify-center gap-3 hover:bg-[#8BC34A]/5 transition-colors min-h-[280px]"
         >
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
             <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

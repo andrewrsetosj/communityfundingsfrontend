@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCampaignDraft, saveDraftToBackend } from "@/app/create-project/store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
+import LocationAutocomplete from "@/app/create-project/component/LocationAutocomplete";
 
 export default function BasicsPage() {
   const router = useRouter();
@@ -53,6 +54,12 @@ export default function BasicsPage() {
     const v = draft.duration_days ?? 0;
     return v >= 1 && v <= 365 ? String(v) : "";
   });
+  // Sync durationInput when store resets (e.g., new campaign)
+  useEffect(() => {
+    const v = draft.duration_days ?? 0;
+    setDurationInput(v >= 1 && v <= 365 ? String(v) : "");
+  }, [draft.duration_days]);
+
   const durationEmpty = durationInput.trim() === "";
   const durationValid = !durationEmpty && durationNum >= 1 && durationNum <= 365;
 
@@ -209,24 +216,12 @@ export default function BasicsPage() {
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Project Location
-            </label>
-            <input
-              type="text"
-              value={draft.location}
-              onChange={(e) => setBasics({ location: e.target.value })}
-              onBlur={() => setLocationTouched(true)}
-              placeholder="Enter your city"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-            />
-            {locationTouched && !locationValid && (
-              <p className="mt-2 text-sm text-red-500">
-                Please enter a project location to continue.
-              </p>
-            )}
-          </div>
+          <LocationAutocomplete
+            value={draft.location}
+            onChange={(val) => setBasics({ location: val })}
+            onBlur={() => setLocationTouched(true)}
+            error={locationTouched && !locationValid ? "Please enter a project location to continue." : undefined}
+          />
         </div>
 
         {/* Project Image */}
