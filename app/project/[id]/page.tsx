@@ -15,7 +15,7 @@ type Campaign = {
   time_created: string;
   url: string;
   updated_at: string;
-  description: string;
+  description_html: string;
   category: string;
   location: string;
   funding_goal_cents: number;
@@ -41,7 +41,7 @@ type Faq = {
 type Reward = {
   reward_id: number;
   title: string;
-  description: string;
+  description_html: string;
   required_amount_cents: number;
 };
 
@@ -101,7 +101,7 @@ const [copied, setCopied] = useState(false);
     (async () => {
       try {
         setError(null);
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
   cache: "no-store",
@@ -179,7 +179,7 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
               {campaign.title}
             </h1>
             <p className="text-gray-600 mb-8 max-w-2xl">
-              {campaign.description}
+              {campaign.description_html}
             </p>
 
             {/* Two Column Layout */}
@@ -361,7 +361,7 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
                               <p className="font-semibold text-gray-900">{r.title}</p>
                               <p className="text-sm text-gray-700">{formatUSD(r.required_amount_cents)}</p>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">{r.description}</p>
+                            <p className="text-sm text-gray-600 mt-1">{r.description_html}</p>
                           </div>
                         ))}
                       </div>
@@ -375,7 +375,7 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
             <section className="mb-12">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Story</h2>
               <p className="text-gray-600 mb-8 max-w-3xl">
-                {campaign.description}
+                {campaign.description_html}
               </p>
 
               <button className="px-6 py-2 border border-gray-300 rounded-full text-sm text-gray-600 hover:bg-gray-50 transition-colors">
