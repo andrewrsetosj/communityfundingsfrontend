@@ -291,14 +291,18 @@ export default function Header() {
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                        <div className="px-4 py-2 border-b border-gray-100">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {user?.fullName || user?.firstName || "User"}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user?.primaryEmailAddress?.emailAddress}
-                          </p>
-                        </div>
+                        <Link
+                        href={`/profile/${user?.id}`}
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="block px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                        {user?.fullName || user?.firstName || "User"}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                        {user?.primaryEmailAddress?.emailAddress}
+                        </p>
+                        </Link>
                         <Link
                           href="/settings"
                           onClick={() => setIsDropdownOpen(false)}
