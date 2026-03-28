@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useCampaignDraft, saveDraftToBackend, type RewardDraft } from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
@@ -52,6 +53,7 @@ function rewardDraftToUI(r: RewardDraft, idx: number): RewardUI {
 export default function RewardsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useUser();
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
   const draftRewards = useCampaignDraft((s) => s.draft.rewards);
   const setRewards = useCampaignDraft((s) => s.setRewards);
@@ -112,7 +114,7 @@ export default function RewardsPage() {
   const handleNext = async () => {
     setSaving(true);
     try {
-      const campaignId = await saveDraftToBackend();
+      const campaignId = await saveDraftToBackend(user ?? undefined);
       router.push(`/create-project/story?draft=${campaignId}`);
     } catch (err) {
       console.error("Failed to save draft:", err);

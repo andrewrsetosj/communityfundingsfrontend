@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useCampaignDraft, saveDraftToBackend } from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
@@ -14,6 +15,7 @@ type FAQ = {
 export default function StoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useUser();
   const { draft, setStory } = useCampaignDraft();
   const [saving, setSaving] = useState(false);
 
@@ -141,7 +143,7 @@ export default function StoryPage() {
 
     setSaving(true);
     try {
-      const campaignId = await saveDraftToBackend();
+      const campaignId = await saveDraftToBackend(user ?? undefined);
       router.push(`/create-project/people?draft=${campaignId}`);
     } catch (err) {
       console.error("Failed to save draft:", err);

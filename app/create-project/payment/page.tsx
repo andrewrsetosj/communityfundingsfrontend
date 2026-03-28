@@ -1,26 +1,143 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import {
+  useCampaignDraft,
+  saveDraftToBackend,
+} from "@/app/create-project/store/useCampaignDraft";
+import { photosPayloadForApi } from "@/app/create-project/lib/campaignPhotoUpload";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export default function PaymentPage() {
+  const router = useRouter();
+  const { user, isLoaded: userLoaded } = useUser();
+
+  const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
+  const setPayment = useCampaignDraft((s) => s.setPayment);
+
   const [contactEmail, setContactEmail] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
-  const [accountType, setAccountType] = useState("individual");
+  const [accountType, setAccountType] = useState<"individual" | "business">(
+    "individual",
+  );
   const [accountHolderName, setAccountHolderName] = useState("");
   const [routingNumber, setRoutingNumber] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [confirmAccountNumber, setConfirmAccountNumber] = useState("");
+  const [routingTouched, setRoutingTouched] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const hydratedPaymentOnce = useRef(false);
+  useEffect(() => {
+    if (!hasHydrated || hydratedPaymentOnce.current) return;
+    hydratedPaymentOnce.current = true;
+    const p = useCampaignDraft.getState().draft.payment;
+    setAccountType(p.account_type === "business" ? "business" : "individual");
+    setAccountHolderName(p.account_holder_name);
+    setRoutingNumber(p.routing_number.replace(/\D/g, "").slice(0, 9));
+    setAccountNumber(p.account_number);
+    setConfirmAccountNumber(p.confirm_account_number);
+  }, [hasHydrated]);
+
+  const routingValid = routingNumber.length === 9;
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim());
+  const accountsMatch =
+    accountNumber.length > 0 && confirmAccountNumber === accountNumber;
+
+  const canSubmit = useMemo(() => {
+    if (!userLoaded || !hasHydrated) return false;
+    if (!user?.id) return false;
+    return (
+      emailVerified &&
+      emailOk &&
+      accountHolderName.trim().length > 0 &&
+      routingValid &&
+      accountNumber.length > 0 &&
+      accountsMatch &&
+      termsAccepted
+    );
+  }, [
+    userLoaded,
+    hasHydrated,
+    user?.id,
+    emailVerified,
+    emailOk,
+    accountHolderName,
+    routingValid,
+    accountNumber.length,
+    accountsMatch,
+    termsAccepted,
+  ]);
 
   const handleVerifyEmail = () => {
-    if (contactEmail) {
+    if (contactEmail && emailOk) {
       setEmailVerified(true);
     }
   };
 
-  useState(() => {
-    checkConnectStatus();
-  });
+  const handleSubmitForReview = async () => {
+    if (!canSubmit || submitting) return;
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      setPayment({
+        account_type: accountType,
+        account_holder_name: accountHolderName.trim(),
+        routing_number: routingNumber,
+        account_number: accountNumber,
+        confirm_account_number: confirmAccountNumber,
+      });
+
+      if (!user?.id) {
+        throw new Error("You must be signed in to submit your campaign.");
+      }
+
+      await saveDraftToBackend(user);
+
+      const { draft: d } = useCampaignDraft.getState();
+      if (!d.campaign_id) {
+        throw new Error("Could not save your draft. Please try again.");
+      }
+
+      const res = await fetch(`${API_URL}/api/campaigns/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creator_id: user.id,
+          campaign_id: d.campaign_id,
+          title: d.title,
+          vanity_slug: d.vanity_slug,
+          category: d.category,
+          location: d.location,
+          funding_goal_cents: d.funding_goal_cents,
+          duration_days: d.duration_days,
+          description_html: d.description_html,
+          bio: d.bio,
+          faqs: d.faqs,
+          rewards: d.rewards,
+          co_creators: d.co_creators,
+          photos: photosPayloadForApi(d.photos),
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Submission failed");
+      }
+
+      router.push("/create-project/submitted");
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
@@ -129,7 +246,9 @@ export default function PaymentPage() {
                     name="accountType"
                     value="individual"
                     checked={accountType === "individual"}
-                    onChange={(e) => setAccountType(e.target.value)}
+                    onChange={(e) =>
+                      setAccountType(e.target.value as "individual" | "business")
+                    }
                     className="w-4 h-4 text-[#8BC34A] focus:ring-[#8BC34A]"
                   />
                   <span className="text-sm text-gray-700">Individual</span>
@@ -140,7 +259,9 @@ export default function PaymentPage() {
                     name="accountType"
                     value="business"
                     checked={accountType === "business"}
-                    onChange={(e) => setAccountType(e.target.value)}
+                    onChange={(e) =>
+                      setAccountType(e.target.value as "individual" | "business")
+                    }
                     className="w-4 h-4 text-[#8BC34A] focus:ring-[#8BC34A]"
                   />
                   <span className="text-sm text-gray-700">Business</span>
@@ -172,6 +293,7 @@ export default function PaymentPage() {
                   type="text"
                   value={routingNumber}
                   onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  onBlur={() => setRoutingTouched(true)}
                   placeholder="9 digits"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent pr-12"
                 />
@@ -275,6 +397,8 @@ export default function PaymentPage() {
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
               className="w-5 h-5 mt-0.5 text-[#8BC34A] rounded focus:ring-[#8BC34A]"
             />
             <span className="text-sm text-gray-700">
@@ -292,16 +416,36 @@ export default function PaymentPage() {
         </div>
       </div>
 
+      {submitError && (
+        <p className="mt-6 text-sm text-red-600" role="alert">
+          {submitError}
+        </p>
+      )}
+
       {/* Submit Button */}
-      <div className="mt-12 flex justify-between items-center">
+      <div className="mt-12 flex justify-between items-center gap-4 flex-wrap">
         <Link
           href="/create-project/people"
           className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
         >
           Back
         </Link>
-        <button className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors">
-          Submit for Review
+        <button
+          type="button"
+          disabled={!canSubmit || submitting}
+          onClick={handleSubmitForReview}
+          title={
+            !canSubmit && userLoaded && hasHydrated
+              ? "Complete email verification, bank details, and accept the terms to submit."
+              : undefined
+          }
+          className={`px-8 py-3 rounded-full font-medium transition-colors ${
+            !canSubmit || submitting
+              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+          }`}
+        >
+          {submitting ? "Submitting…" : "Submit for Review"}
         </button>
       </div>
     </div>

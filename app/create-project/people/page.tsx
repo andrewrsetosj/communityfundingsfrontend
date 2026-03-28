@@ -1,14 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import { useCampaignDraft, saveDraftToBackend } from "../store/useCampaignDraft";
+import { useRouter } from "next/navigation";
+import { useCampaignDraft } from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface CollaboratorUI {
   key: string; // stable key for rendering
@@ -17,11 +14,20 @@ interface CollaboratorUI {
   status: "pending" | "verified";
 }
 
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 export default function PeoplePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user } = useUser();
-  const [saving, setSaving] = useState(false);
 
   // Store selectors (hooks)
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
@@ -33,12 +39,44 @@ export default function PeoplePage() {
   // Local state (hooks)
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
-  const [bioEditing, setBioEditing] = useState(false);
-  const [bioLoaded, setBioLoaded] = useState(false);
 
   // ✅ NEW: touched flags (only show required UI after interaction)
   const [bioTouched, setBioTouched] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
+
+  // Slug availability check
+  const [slugCheckLoading, setSlugCheckLoading] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+
+  // Debounced slug check
+  const checkSlugDebounced = useCallback(
+    debounce(async (slug: string) => {
+      if (!slug || !slug.trim()) {
+        setSlugAvailable(null);
+        return;
+      }
+
+      setSlugCheckLoading(true);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(slug)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setSlugAvailable(data.available);
+      } catch (err) {
+        console.error("Slug check failed:", err);
+        setSlugAvailable(null); // Reset on error
+      } finally {
+        setSlugCheckLoading(false);
+      }
+    }, 500), // 500ms debounce
+    []
+  );
+
+  // Effect to trigger check when slug changes
+  useEffect(() => {
+    checkSlugDebounced(vanitySlug || "");
+  }, [vanitySlug, checkSlugDebounced]);
 
   // Derived state (hook)
   const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
@@ -56,26 +94,6 @@ export default function PeoplePage() {
     setAgreedToTerms(false);
   }, []);
 
-  // Fetch creator bio from DB and pre-populate if bio is empty
-  useEffect(() => {
-    if (!user?.id || bioLoaded) return;
-
-    async function fetchCreatorBio() {
-      try {
-        const res = await fetch(`${API_URL}/api/users/${user!.id}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.bio && !(bio ?? "").trim()) {
-          setPeople({ bio: data.bio });
-        }
-        setBioLoaded(true);
-      } catch (err) {
-        console.error("Error fetching creator bio:", err);
-      }
-    }
-    fetchCreatorBio();
-  }, [user?.id, bioLoaded, bio, setPeople]);
-
   // ✅ Now it's safe to return early (after hooks)
   if (!hasHydrated) return null;
 
@@ -83,6 +101,8 @@ export default function PeoplePage() {
     const sanitized = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
     // write immediately to store so Back works even without Next
     setPeople({ vanity_slug: sanitized });
+    // Reset slug check when changing
+    setSlugAvailable(null);
   };
 
   const handleAddCollaborator = () => {
@@ -122,27 +142,21 @@ export default function PeoplePage() {
     newCollaboratorEmail.trim()
   );
 
-  // ✅ REQUIRED FIELDS: bio + vanitySlug
-  const bioIsValid = (bio ?? "").trim().length > 0;
-  const urlIsValid = (vanitySlug ?? "").trim().length > 0;
-  const canContinue = bioIsValid && urlIsValid;
+  const BIO_LIMIT = 500;
+  const bioLength = (bio ?? "").length;
 
-  const handleNext = async () => {
-    setBioTouched(true);
-    setUrlTouched(true);
+  // ✅ REQUIRED FIELDS: bio + vanitySlug (bio within limit)
+  const bioIsValid =
+    (bio ?? "").trim().length > 0 && bioLength <= BIO_LIMIT;
+  const urlIsValid = (vanitySlug ?? "").trim().length > 0;
+  const canContinue = bioIsValid && urlIsValid && slugAvailable === true;
+
+  const handleNext = () => {
+    // ✅ hard guard
     if (!canContinue) return;
 
-    setSaving(true);
-    try {
-      const campaignId = await saveDraftToBackend();
-      router.push(`/create-project/payment?draft=${campaignId}`);
-    } catch (err) {
-      console.error("Failed to save draft:", err);
-      const existingDraft = searchParams.get("draft");
-      router.push(`/create-project/payment${existingDraft ? `?draft=${existingDraft}` : ""}`);
-    } finally {
-      setSaving(false);
-    }
+    // Store is already updated on add/delete, so just navigate
+    router.push("/create-project/payment");
   };
 
   return (
@@ -165,27 +179,32 @@ export default function PeoplePage() {
             <div className="flex items-start gap-6">
               <div className="relative">
                 <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
-                  {user?.imageUrl ? (
-                    <Image
-                      src={user.imageUrl}
-                      alt="Profile"
-                      width={96}
-                      height={96}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                  )}
+                  <Image
+                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200"
+                    alt="Profile"
+                    width={96}
+                    height={96}
+                    className="object-cover w-full h-full"
+                  />
                 </div>
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#8BC34A] rounded-full flex items-center justify-center text-white hover:bg-[#7CB342] transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                </button>
               </div>
 
               <div className="flex-1">
                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  {user?.fullName || user?.firstName || "Your Name"}
+                  Your Name
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Creator • 0 projects created
@@ -200,33 +219,34 @@ export default function PeoplePage() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Short Bio{" "}
-              </label>
-              {bioEditing ? (
-                <textarea
-                  value={bio ?? ""}
-                  onChange={(e) => setPeople({ bio: e.target.value })}
-                  onBlur={() => setBioTouched(true)}
-                  placeholder="Tell backers a bit about yourself..."
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent resize-none bg-white"
-                />
-              ) : (
-                <p className="w-full py-1 text-gray-700 whitespace-pre-wrap">
-                  {(bio ?? "").trim() || <span className="text-gray-400">No bio yet.</span>}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={() => setBioEditing(!bioEditing)}
-                className="mt-2 text-sm text-[#8BC34A] font-medium hover:underline"
-              >
-                {bioEditing ? "Done" : "Edit"}
-              </button>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Short Bio{" "}
+                </label>
+                <span
+                  className={`text-sm ${
+                    bioLength > BIO_LIMIT ? "text-red-500" : "text-gray-500"
+                  }`}
+                >
+                  {bioLength}/{BIO_LIMIT}
+                </span>
+              </div>
+              <textarea
+                maxLength={BIO_LIMIT}
+                value={bio ?? ""}
+                onChange={(e) =>
+                  setPeople({ bio: e.target.value.slice(0, BIO_LIMIT) })
+                }
+                onBlur={() => setBioTouched(true)}
+                placeholder="Tell backers a bit about yourself..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent resize-none bg-white"
+              />
               {bioTouched && !bioIsValid && (
                 <p className="mt-2 text-sm text-red-500">
-                  Please enter a short bio to continue.
+                  {bioLength > BIO_LIMIT
+                    ? `Please reduce the bio to ${BIO_LIMIT} characters or fewer.`
+                    : "Please enter a short bio to continue."}
                 </p>
               )}
             </div>
@@ -259,6 +279,19 @@ export default function PeoplePage() {
             <p className="mt-2 text-sm text-red-500">
               Please enter a URL to continue.
             </p>
+          )}
+
+          {/* Slug Availability Status */}
+          {vanitySlug && vanitySlug.trim() && (
+            <div className="mt-2">
+              {slugCheckLoading ? (
+                <p className="text-sm text-gray-500">Checking availability...</p>
+              ) : slugAvailable === true ? (
+                <p className="text-sm text-green-600">✓ This URL is available!</p>
+              ) : slugAvailable === false ? (
+                <p className="text-sm text-red-600">✗ This URL is already taken.</p>
+              ) : null}
+            </div>
           )}
         </div>
 
@@ -366,20 +399,21 @@ export default function PeoplePage() {
         </div>
 
         {/* Save & Continue */}
-        <div className="mt-12 flex justify-between">
-          <Link
-            href={`/create-project/story${searchParams.get("draft") ? `?draft=${searchParams.get("draft")}` : ""}`}
-            className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
-          >
-            Back
-          </Link>
+        <div className="mt-12 flex justify-end">
           <button
             type="button"
             onClick={handleNext}
-            disabled={saving}
-            className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-60"
+            disabled={!canContinue}
+            className={[
+              "bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium transition-colors",
+              canContinue
+                ? "hover:bg-[#7CB342]"
+                : "opacity-50 cursor-not-allowed",
+            ].join(" ")}
+            aria-disabled={!canContinue}
+            title={!canContinue ? "Please fill out the short bio, enter a valid and available URL to continue." : undefined}
           >
-            {saving ? "Saving..." : "Save & Continue"}
+            Save &amp; Continue
           </button>
         </div>
       </div>
