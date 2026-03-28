@@ -2,25 +2,37 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { useCampaignDraft, saveDraftToBackend } from "@/app/create-project/store/useCampaignDraft";
+import { useUser } from "@clerk/nextjs";
+import {
+  useCampaignDraft,
+  saveDraftToBackend,
+} from "@/app/create-project/store/useCampaignDraft";
+import {
+  displayUrlForPhoto,
+  photosPayloadForApi,
+  uploadCampaignFilesToS3,
+} from "@/app/create-project/lib/campaignPhotoUpload";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 import LocationAutocomplete from "@/app/create-project/component/LocationAutocomplete";
 
 export default function BasicsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useUser();
 
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
   const draft = useCampaignDraft((s) => s.draft);
   const setBasics = useCampaignDraft((s) => s.setBasics);
+  const setPhotos = useCampaignDraft((s) => s.setPhotos);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ✅ touched flags (show validation UI only after interaction)
   const [titleTouched, setTitleTouched] = useState(false);
   const [categoryTouched, setCategoryTouched] = useState(false);
   const [locationTouched, setLocationTouched] = useState(false);
-  const [imageTouched, setImageTouched] = useState(false);
   const [fundingTouched, setFundingTouched] = useState(false);
   const [durationTouched, setDurationTouched] = useState(false);
 
@@ -44,7 +56,6 @@ export default function BasicsPage() {
   const titleValid = draft.title.trim().length > 0;
   const categoryValid = (draft.category ?? "").trim().length > 0;
   const locationValid = (draft.location ?? "").trim().length > 0;
-  const imageValid = projectImages.length > 0;
   const fundingValid = (draft.funding_goal_cents ?? 0) > 0;
 
   const durationNum = draft.duration_days ?? 0;
@@ -69,7 +80,8 @@ export default function BasicsPage() {
     const incoming = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (incoming.length === 0) return;
 
-    const remaining = MAX_IMAGES - projectImages.length;
+    const total = draft.photos.length + projectImages.length;
+    const remaining = MAX_IMAGES - total;
     if (remaining <= 0) return;
 
     const accepted = incoming.slice(0, remaining);
@@ -106,6 +118,11 @@ export default function BasicsPage() {
     projectImagePreviewUrls.forEach((u) => URL.revokeObjectURL(u));
     setProjectImages([]);
     setProjectImagePreviewUrls([]);
+    setPhotos([]);
+  };
+
+  const removeSavedPhoto = (idx: number) => {
+    setPhotos(draft.photos.filter((_, i) => i !== idx));
   };
 
   const handleNext = async () => {
@@ -113,22 +130,66 @@ export default function BasicsPage() {
     setTitleTouched(true);
     setCategoryTouched(true);
     setLocationTouched(true);
-    setImageTouched(true);
     setFundingTouched(true);
     setDurationTouched(true);
 
     if (!basicsValid) return;
 
+    setSaveError(null);
     setSaving(true);
     try {
-      const campaignId = await saveDraftToBackend();
-      const draftParam = `?draft=${campaignId}`;
-      router.push(`/create-project/rewards${draftParam}`);
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("cf_backend_token")
+          : null;
+      if (!token) {
+        setSaveError("Sign in and wait a moment for account sync, then try again.");
+        return;
+      }
+
+      const campaignId = await saveDraftToBackend(user ?? undefined);
+
+      const stored = useCampaignDraft.getState().draft;
+      const uploaded =
+        projectImages.length > 0
+          ? await uploadCampaignFilesToS3(campaignId, projectImages, token)
+          : [];
+
+      const mergedDisplay = [...stored.photos, ...uploaded].map((p, i) => ({
+        ...p,
+        sort_order: i,
+        is_primary: i === 0,
+      }));
+
+      const photoRes = await fetch(
+        `${API_URL}/api/campaigns/drafts/${campaignId}/photos`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            photos: photosPayloadForApi(mergedDisplay),
+          }),
+        },
+      );
+      if (!photoRes.ok) {
+        const t = await photoRes.text();
+        throw new Error(t || "Failed to save photo metadata");
+      }
+
+      setPhotos(mergedDisplay);
+      projectImagePreviewUrls.forEach((u) => URL.revokeObjectURL(u));
+      setProjectImages([]);
+      setProjectImagePreviewUrls([]);
+
+      router.push(`/create-project/rewards?draft=${campaignId}`);
     } catch (err) {
       console.error("Failed to save draft:", err);
-      // Still navigate even if save fails — localStorage has the data
-      const existingDraft = searchParams.get("draft");
-      router.push(`/create-project/rewards${existingDraft ? `?draft=${existingDraft}` : ""}`);
+      setSaveError(
+        err instanceof Error ? err.message : "Something went wrong while saving.",
+      );
     } finally {
       setSaving(false);
     }
@@ -255,11 +316,11 @@ export default function BasicsPage() {
                 Upload up to {MAX_IMAGES} images
               </p>
               <p className="text-sm text-gray-500">
-                {projectImages.length}/{MAX_IMAGES}
+                {draft.photos.length + projectImages.length}/{MAX_IMAGES}
               </p>
             </div>
 
-            {projectImages.length === 0 ? (
+            {draft.photos.length === 0 && projectImages.length === 0 ? (
               <div className="text-center">
                 <p className="text-gray-600 mb-2">
                   Drag and drop images, or{" "}
@@ -268,18 +329,55 @@ export default function BasicsPage() {
                   </span>
                 </p>
                 <p className="text-sm text-gray-400">
-                  Recommended: 1024 x 576 pixels (16:9)
+                  Recommended: 1024 x 576 pixels (16:9). Images are sent when you
+                  save and continue.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {draft.photos.map((p, idx) => {
+                  const src = displayUrlForPhoto(p);
+                  return (
+                    <div key={`saved-${p.s3_key}-${idx}`} className="relative">
+                      {src ? (
+                        <img
+                          src={src}
+                          alt={`Project ${idx + 1}`}
+                          className="h-28 w-full object-cover rounded-md border"
+                        />
+                      ) : (
+                        <div className="h-28 w-full rounded-md border bg-gray-100 flex items-center justify-center text-xs text-gray-500">
+                          Image
+                        </div>
+                      )}
+                      {idx === 0 && (
+                        <span className="absolute bottom-2 left-2 text-[10px] font-medium bg-black/60 text-white px-1.5 py-0.5 rounded">
+                          Primary
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSavedPhoto(idx);
+                        }}
+                        className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-800 rounded-full px-2 py-1 text-xs border"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
                 {projectImagePreviewUrls.map((url, idx) => (
                   <div key={url} className="relative">
                     <img
                       src={url}
-                      alt={`Preview ${idx + 1}`}
-                      className="h-28 w-full object-cover rounded-md border"
+                      alt={`New ${idx + 1}`}
+                      className="h-28 w-full object-cover rounded-md border border-dashed border-[#8BC34A]"
                     />
+                    <span className="absolute bottom-2 left-2 text-[10px] font-medium bg-[#8BC34A]/90 text-white px-1.5 py-0.5 rounded">
+                      New
+                    </span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -295,7 +393,7 @@ export default function BasicsPage() {
               </div>
             )}
 
-            {projectImages.length > 0 && (
+            {draft.photos.length + projectImages.length > 0 && (
               <div className="mt-4 flex gap-3">
                 <button
                   type="button"
@@ -323,6 +421,11 @@ export default function BasicsPage() {
           <p className="mt-2 text-sm text-gray-500">
             Great photos bring your project to life and help backers connect with it.
           </p>
+          {saveError && (
+            <p className="mt-2 text-sm text-red-600" role="alert">
+              {saveError}
+            </p>
+          )}
         </div>
 
         {/* Funding Goal */}
