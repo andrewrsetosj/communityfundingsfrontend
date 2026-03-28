@@ -84,16 +84,19 @@ export default function Home() {
                 Recommended for you
               </h2>
               <p className="text-gray-600 mb-4">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+                Discover campaigns tailored to your passions. Based on the interests
+                you selected, we&apos;ll show you projects in categories you care about most.
               </p>
               <p className="text-gray-600 mb-6">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+                Update your interests anytime in your profile settings to refine
+                your recommendations.
               </p>
-              <button className="bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors">
+              <Link
+                href="/recommended"
+                className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+              >
                 See Recommended Projects
-              </button>
+              </Link>
             </div>
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-200">
               <Image

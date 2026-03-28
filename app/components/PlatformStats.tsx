@@ -33,7 +33,7 @@ export default function PlatformStats() {
           <p className="text-3xl md:text-4xl font-bold text-gray-900">
             {projectsFunded.toLocaleString()}
           </p>
-          <p className="text-gray-500 text-sm">Campaigns funded</p>
+          <p className="text-gray-500 text-sm">Campaigns Funded</p>
         </div>
         <div className="text-center border-x border-gray-200">
           <p className="text-3xl md:text-4xl font-bold text-gray-900">

@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { useUser } from "@clerk/nextjs";
+import Header from "../components/Header";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -85,29 +85,7 @@ export default function DraftsPage() {
 
   return (
     <>
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/">
-            <span className="text-[#8BC34A] font-bold tracking-widest text-lg uppercase">
-              Community Fundings
-            </span>
-          </Link>
-          <Link href="/" className="flex items-center">
-            {user?.imageUrl ? (
-              <Image
-                src={user.imageUrl}
-                alt="Profile"
-                width={40}
-                height={40}
-                className="rounded-full hover:ring-2 hover:ring-[#8BC34A] transition-all"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 hover:ring-2 hover:ring-[#8BC34A] transition-all" />
-            )}
-          </Link>
-        </div>
-      </header>
+      <Header />
 
     <div className="max-w-4xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-8">

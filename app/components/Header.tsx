@@ -111,8 +111,8 @@ export default function Header() {
       </div>
 
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-100 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <nav className="bg-white border-b border-gray-100 px-20 py-4">
+        <div className="mx-auto flex items-center justify-between">
           {isSearchOpen ? (
             /* Search Bar (replaces nav content) */
             <div ref={searchRef} className="flex items-center gap-3 w-full">
@@ -158,7 +158,7 @@ export default function Header() {
             /* Normal nav content */
             <>
               {/* Left Nav Links */}
-              <div className="hidden md:flex items-center space-x-6 text-sm text-gray-700 flex-1">
+              <div className="hidden md:flex items-center space-x-10 text-md text-gray-700 flex-1">
                   <Link href="/about-us" className="hover:text-[#8BC34A] transition-colors">
                   About Us
                 </Link>
@@ -237,7 +237,7 @@ export default function Header() {
               </Link>
 
               {/* Right Side */}
-              <div className="flex items-center space-x-4 flex-1 justify-end">
+              <div className="flex items-center space-x-10 flex-1 justify-end">
                 {/* Search Icon */}
                 <button
                   onClick={() => setIsSearchOpen(true)}
@@ -245,7 +245,7 @@ export default function Header() {
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
+                    className="h-7 w-7"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -279,12 +279,12 @@ export default function Header() {
                         <Image
                           src={user.imageUrl}
                           alt="Profile"
-                          width={36}
-                          height={36}
+                          width={50}
+                          height={50}
                           className="rounded-full"
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
                       )}
                     </button>
 
