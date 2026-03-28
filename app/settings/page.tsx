@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
 import Footer from "../components/Footer";
+import Header from "../components/Header";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -12,7 +13,8 @@ type TabType = "account" | "edit-profile" | "payment-methods";
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser();
-  const [activeTab, setActiveTab] = useState<TabType>("account");
+  const [activeTab, setActiveTab] = useState<TabType>("edit-profile");
+  const [isDirty, setIsDirty] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [oldPassword, setOldPassword] = useState("");
@@ -32,6 +34,16 @@ export default function SettingsPage() {
   const [aboutYou, setAboutYou] = useState("");
   const [privacyOption1, setPrivacyOption1] = useState(true);
   const [privacyOption2, setPrivacyOption2] = useState(false);
+
+  // Interests state
+  const allInterests = [
+    "Art", "Comics", "Crafts", "Dance", "Design",
+    "Fashion", "Film & Video", "Food", "Games",
+    "Journalism", "Music", "Photography", "Publishing",
+    "Technology", "Theater",
+  ];
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const MAX_INTERESTS = 5;
 
   // Payment Methods state
   const [nameOnCard, setNameOnCard] = useState("");
@@ -88,7 +100,57 @@ export default function SettingsPage() {
       }
     }
     fetchCreator();
+
+    // Fetch user's interests
+    const token = localStorage.getItem("cf_backend_token");
+    if (token) {
+      fetch(`${API_URL}/api/users/me/interests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: { name: string }[]) => setSelectedInterests(data.map((d) => d.name)))
+        .catch((err) => console.error("Error fetching interests:", err));
+    }
   }, [isLoaded, user?.id]);
+
+  const toggleInterest = (name: string) => {
+    setSelectedInterests((prev) => {
+      if (prev.includes(name)) return prev.filter((i) => i !== name);
+      if (prev.length >= MAX_INTERESTS) return prev;
+      return [...prev, name];
+    });
+    setIsDirty(true);
+  };
+
+  // Warn user before leaving with unsaved changes (tab close / external nav)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  // Warn user before in-app navigation with unsaved changes
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("http") || href.startsWith("#")) return;
+      if (!confirm("Are you sure you want to leave? All changes will be lost.")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [isDirty]);
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -108,8 +170,21 @@ export default function SettingsPage() {
         }),
       });
       if (!res.ok) throw new Error("Failed to save profile");
-      alert("Settings saved!");
-      window.location.reload();
+
+      // Save interests
+      const token = localStorage.getItem("cf_backend_token");
+      if (token) {
+        await fetch(`${API_URL}/api/users/me/interests`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ interest_names: selectedInterests }),
+        });
+      }
+
+      setIsDirty(false);
     } catch (err) {
       console.error("Error saving profile:", err);
       alert("Failed to save. Please try again.");
@@ -119,35 +194,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      {/* Top Banner */}
-      <div className="bg-[#F5F5DC] text-gray-700 text-center py-3 text-sm">
-        Check your inbox so you can quickly complete your verification.
-      </div>
-
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/">
-            <span className="text-[#8BC34A] font-bold tracking-widest text-lg uppercase">
-              Community Fundings
-            </span>
-          </Link>
-          <Link href="/" className="flex items-center">
-            {user?.imageUrl ? (
-              <Image
-                src={user.imageUrl}
-                alt="Profile"
-                width={40}
-                height={40}
-                className="rounded-full hover:ring-2 hover:ring-[#8BC34A] transition-all"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 hover:ring-2 hover:ring-[#8BC34A] transition-all" />
-            )}
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col bg-white" onInput={() => setIsDirty(true)}>
+      <Header />
 
       {/* Settings Header with green background */}
       <div className="bg-[#F5F9F0]">
@@ -157,16 +205,6 @@ export default function SettingsPage() {
           {/* Tabs */}
           <div className="border-b border-[#8BC34A]/30">
             <nav className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab("account")}
-                className={`pb-4 text-sm font-medium transition-colors ${
-                  activeTab === "account"
-                    ? "text-gray-900 border-b-2 border-[#8BC34A]"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Account
-              </button>
               <button
                 onClick={() => setActiveTab("edit-profile")}
                 className={`pb-4 text-sm font-medium transition-colors ${
@@ -194,96 +232,6 @@ export default function SettingsPage() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-8">
-
-        {/* Account Tab Content */}
-        {activeTab === "account" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Full Name */}
-              <div>
-                <label
-                  htmlFor="fullName"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Full Name
-                </label>
-                <input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Thomas.D"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="info@gmail.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                />
-              </div>
-
-              {/* Old Password */}
-              <div>
-                <label
-                  htmlFor="oldPassword"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Old Password
-                </label>
-                <input
-                  id="oldPassword"
-                  type="password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                />
-              </div>
-
-              {/* New Password */}
-              <div>
-                <label
-                  htmlFor="newPassword"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  New Password
-                </label>
-                <input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                />
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Edit Profile Tab Content */}
         {activeTab === "edit-profile" && (
@@ -539,6 +487,76 @@ export default function SettingsPage() {
                 <p className="mt-2 text-xs text-gray-500">
                   We suggest a short bio. If it&apos;s 300 characters or less it&apos;ll look great on your profile.
                 </p>
+              </div>
+
+              {/* Interests */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Your Interests</h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Select up to {MAX_INTERESTS} interests. {selectedInterests.length} of {MAX_INTERESTS} selected.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {allInterests.map((interest) => {
+                    const isSelected = selectedInterests.includes(interest);
+                    const isDisabled = !isSelected && selectedInterests.length >= MAX_INTERESTS;
+                    return (
+                      <button
+                        key={interest}
+                        type="button"
+                        onClick={() => toggleInterest(interest)}
+                        disabled={isDisabled}
+                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                          isSelected
+                            ? "bg-[#8BC34A] text-white border-[#8BC34A]"
+                            : isDisabled
+                              ? "bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed"
+                              : "bg-white text-gray-700 border-gray-300 hover:border-[#8BC34A] hover:text-[#8BC34A]"
+                        }`}
+                      >
+                        {isSelected ? `${interest} ×` : interest}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Password Reset */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label
+                      htmlFor="oldPassword"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Old Password
+                    </label>
+                    <input
+                      id="oldPassword"
+                      type="password"
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="newPassword"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      New Password
+                    </label>
+                    <input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Privacy */}
