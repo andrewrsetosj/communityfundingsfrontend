@@ -123,6 +123,13 @@ export default function PaymentPage() {
           rewards: d.rewards,
           co_creators: d.co_creators,
           photos: photosPayloadForApi(d.photos),
+          payment: {
+            account_type: accountType,
+            account_holder_name: accountHolderName.trim(),
+            routing_number: routingNumber,
+            account_number: accountNumber,
+            contact_email: contactEmail.trim(),
+          },
         }),
       });
 
