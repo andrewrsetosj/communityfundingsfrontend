@@ -10,6 +10,14 @@ export function displayUrlForPhoto(p: CampaignPhotoRef): string {
   return `https://${p.s3_bucket}.s3.${fallbackRegion}.amazonaws.com/${p.s3_key}`;
 }
 
+/** True when stored `content_type` is a video (e.g. video/mp4). */
+export function isVideoContentType(
+  contentType: string | undefined | null,
+): boolean {
+  if (!contentType) return false;
+  return contentType.trim().toLowerCase().startsWith("video/");
+}
+
 export function photosPayloadForApi(photos: CampaignPhotoRef[]): Array<{
   s3_bucket: string;
   s3_key: string;
@@ -34,7 +42,15 @@ export async function uploadCampaignFilesToS3(
   const out: CampaignPhotoRef[] = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    const contentType = file.type || "image/jpeg";
+    const contentType =
+      file.type ||
+      (/\.(mp4)$/i.test(file.name)
+        ? "video/mp4"
+        : /\.(webm)$/i.test(file.name)
+          ? "video/webm"
+          : /\.(mov)$/i.test(file.name)
+            ? "video/quicktime"
+            : "image/jpeg");
     const form = new FormData();
     form.append("file", file);
 
@@ -47,7 +63,7 @@ export async function uploadCampaignFilesToS3(
       },
     );
     if (!res.ok) {
-      throw new Error((await res.text()) || "Image upload failed");
+      throw new Error((await res.text()) || "File upload failed");
     }
     const data = (await res.json()) as {
       public_url: string;

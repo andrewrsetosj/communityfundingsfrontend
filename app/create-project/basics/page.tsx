@@ -9,6 +9,7 @@ import {
 } from "@/app/create-project/store/useCampaignDraft";
 import {
   displayUrlForPhoto,
+  isVideoContentType,
   photosPayloadForApi,
   uploadCampaignFilesToS3,
 } from "@/app/create-project/lib/campaignPhotoUpload";
@@ -48,7 +49,7 @@ export default function BasicsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectImages, setProjectImages] = useState<File[]>([]);
   const [projectImagePreviewUrls, setProjectImagePreviewUrls] = useState<string[]>([]);
-  const MAX_IMAGES = 5;
+  const MAX_MEDIA = 5;
 
   const openFilePicker = () => fileInputRef.current?.click();
 
@@ -77,11 +78,17 @@ export default function BasicsPage() {
   const basicsValid = titleValid && categoryValid && locationValid && fundingValid && durationValid;
 
   const addFiles = (files: FileList | File[]) => {
-    const incoming = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    const incoming = Array.from(files).filter((f) => {
+      const t = f.type;
+      if (t.startsWith("image/") || t.startsWith("video/")) return true;
+      // Some browsers omit MIME on drag-and-drop; allow common extensions.
+      if (!t && /\.(jpe?g|png|gif|webp|mp4|webm|mov)$/i.test(f.name)) return true;
+      return false;
+    });
     if (incoming.length === 0) return;
 
     const total = draft.photos.length + projectImages.length;
-    const remaining = MAX_IMAGES - total;
+    const remaining = MAX_MEDIA - total;
     if (remaining <= 0) return;
 
     const accepted = incoming.slice(0, remaining);
@@ -288,13 +295,13 @@ export default function BasicsPage() {
         {/* Project Image */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            Project Image (optional)
+            Project images & video (optional)
           </label>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
             multiple
             className="hidden"
             onChange={onFileChange}
@@ -313,41 +320,52 @@ export default function BasicsPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <p className="text-gray-700 font-medium">
-                Upload up to {MAX_IMAGES} images
+                Upload up to {MAX_MEDIA} images or videos
               </p>
               <p className="text-sm text-gray-500">
-                {draft.photos.length + projectImages.length}/{MAX_IMAGES}
+                {draft.photos.length + projectImages.length}/{MAX_MEDIA}
               </p>
             </div>
 
             {draft.photos.length === 0 && projectImages.length === 0 ? (
               <div className="text-center">
                 <p className="text-gray-600 mb-2">
-                  Drag and drop images, or{" "}
+                  Drag and drop images or videos, or{" "}
                   <span className="text-[#8BC34A] font-medium underline">
                     browse
                   </span>
                 </p>
                 <p className="text-sm text-gray-400">
-                  Recommended: 1024 x 576 pixels (16:9). Images are sent when you
-                  save and continue.
+                  Images: JPG, PNG, WebP, GIF (max 12MB). Videos: MP4, WebM, MOV
+                  (max 100MB). Recommended image size 1024×576 (16:9). Files upload
+                  when you save and continue.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {draft.photos.map((p, idx) => {
                   const src = displayUrlForPhoto(p);
+                  const isVid = isVideoContentType(p.content_type);
                   return (
                     <div key={`saved-${p.s3_key}-${idx}`} className="relative">
                       {src ? (
-                        <img
-                          src={src}
-                          alt={`Project ${idx + 1}`}
-                          className="h-28 w-full object-cover rounded-md border"
-                        />
+                        isVid ? (
+                          <video
+                            src={src}
+                            controls
+                            playsInline
+                            className="h-28 w-full object-cover rounded-md border bg-black"
+                          />
+                        ) : (
+                          <img
+                            src={src}
+                            alt={`Project ${idx + 1}`}
+                            className="h-28 w-full object-cover rounded-md border"
+                          />
+                        )
                       ) : (
                         <div className="h-28 w-full rounded-md border bg-gray-100 flex items-center justify-center text-xs text-gray-500">
-                          Image
+                          Media
                         </div>
                       )}
                       {idx === 0 && (
@@ -368,13 +386,25 @@ export default function BasicsPage() {
                     </div>
                   );
                 })}
-                {projectImagePreviewUrls.map((url, idx) => (
+                {projectImagePreviewUrls.map((url, idx) => {
+                  const file = projectImages[idx];
+                  const isVid = file?.type?.startsWith("video/");
+                  return (
                   <div key={url} className="relative">
-                    <img
-                      src={url}
-                      alt={`New ${idx + 1}`}
-                      className="h-28 w-full object-cover rounded-md border border-dashed border-[#8BC34A]"
-                    />
+                    {isVid ? (
+                      <video
+                        src={url}
+                        controls
+                        playsInline
+                        className="h-28 w-full object-cover rounded-md border border-dashed border-[#8BC34A] bg-black"
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt={`New ${idx + 1}`}
+                        className="h-28 w-full object-cover rounded-md border border-dashed border-[#8BC34A]"
+                      />
+                    )}
                     <span className="absolute bottom-2 left-2 text-[10px] font-medium bg-[#8BC34A]/90 text-white px-1.5 py-0.5 rounded">
                       New
                     </span>
@@ -389,7 +419,8 @@ export default function BasicsPage() {
                       Remove
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -419,7 +450,7 @@ export default function BasicsPage() {
             )}
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            Great photos bring your project to life and help backers connect with it.
+            Strong images and short videos help backers connect with your project.
           </p>
           {saveError && (
             <p className="mt-2 text-sm text-red-600" role="alert">

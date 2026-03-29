@@ -121,8 +121,11 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
   const campaign = data?.campaign;
   const creator = data?.creator;
 
+  const currentPhoto = data?.photos?.[currentPhotoIndex];
+  const heroIsVideo =
+    (currentPhoto?.content_type ?? "").toLowerCase().startsWith("video/");
   const heroImage =
-    data?.photos?.[currentPhotoIndex]?.image_url ??
+    currentPhoto?.image_url ??
     "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800";
 
       const totalPhotos = data?.photos?.length ?? 0;
@@ -186,14 +189,24 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
               {/* Left Column - Media */}
               <div className="lg:col-span-2">
-                {/* Main Video/Image (still placeholder image) */}
+                {/* Main video or hero image */}
 <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
-  <Image
-    src={heroImage}
-    alt={campaign.title}
-    fill
-    className="object-cover"
-  />
+  {totalPhotos > 0 && heroIsVideo ? (
+    <video
+      key={heroImage}
+      src={heroImage}
+      controls
+      playsInline
+      className="absolute inset-0 w-full h-full object-cover"
+    />
+  ) : (
+    <Image
+      src={heroImage}
+      alt={campaign.title}
+      fill
+      className="object-cover"
+    />
+  )}
 
   {totalPhotos > 1 && (
     <>

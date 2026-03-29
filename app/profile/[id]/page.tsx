@@ -31,6 +31,7 @@ type ProfileCampaign = {
   amount_raised_cents: number;
   backers: number;
   image_url?: string | null;
+  content_type?: string | null;
 };
 
 type ProfilePageData = {
@@ -232,6 +233,10 @@ export default function ProfilePage() {
                         const imageSrc =
                           campaign.image_url ||
                           "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800";
+                        const thumbIsVideo =
+                          (campaign.content_type ?? "")
+                            .toLowerCase()
+                            .startsWith("video/");
 
                         return (
                           <Link
@@ -240,12 +245,22 @@ export default function ProfilePage() {
                             className="group block"
                           >
                             <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
-                              <Image
-                                src={imageSrc}
-                                alt={campaign.title}
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
+                              {thumbIsVideo ? (
+                                <video
+                                  src={imageSrc}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              ) : (
+                                <Image
+                                  src={imageSrc}
+                                  alt={campaign.title}
+                                  fill
+                                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              )}
                             </div>
 
                             <div>
