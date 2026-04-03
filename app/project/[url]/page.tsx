@@ -88,9 +88,8 @@ function formatUSD(cents?: number) {
 export default function ProjectDetail() {
   const { user } = useUser();
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const id = params?.id;
-
+const params = useParams<{ url: string }>();
+const url = params?.url;
 const [data, setData] = useState<CampaignPageData | null>(null);
 const [error, setError] = useState<string | null>(null);
 
@@ -98,14 +97,14 @@ const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!url) return;
 
     (async () => {
       try {
         setError(null);
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
+const res = await fetch(`${API_BASE}/api/campaign-page/${url}`, {
   cache: "no-store",
 });
 
@@ -118,7 +117,7 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
         setError(e?.message ?? "Unknown error");
       }
     })();
-  }, [id]);
+  }, [url]);
 
   const campaign = data?.campaign;
   const creator = data?.creator;
@@ -196,9 +195,6 @@ const creatorInitial =
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
               {campaign.title}
             </h1>
-            <p className="text-gray-600 mb-8 max-w-2xl">
-              {campaign.description_html}
-            </p>
 
             {/* Two Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
@@ -288,7 +284,13 @@ const creatorInitial =
                     <p className="text-sm text-gray-600">Status: <span className="font-medium">{campaign.status?.charAt(0).toUpperCase() + campaign.status?.slice(1)}</span></p>
                   </div>
                 </div>
-
+ {/* Story Section (reusing campaign.description for now, will change obvi) */}
+<section className="mb-10">
+  <h2 className="text-2xl font-bold text-gray-900 mb-4">Story</h2>
+  <p className="text-gray-600 mb-8">
+    {campaign.description_html}
+  </p>
+</section>
                 {/* FAQs */}
                 <section className="mb-10">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">FAQs</h2>
@@ -430,19 +432,11 @@ const creatorInitial =
                 </div>
               </div>
             </div>
-
-            {/* Story Section (reusing campaign.description for now, will change obvi) */}
-            <section className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Story</h2>
-              <p className="text-gray-600 mb-8 max-w-3xl">
-                {campaign.description_html}
-              </p>
-
-              <button className="px-6 py-2 border border-gray-300 rounded-full text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                Report this project to CF
-              </button>
-            </section>
-
+<div className="flex justify-center mb-12">
+  <button className="px-6 py-2 border border-gray-300 rounded-full text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+    Report this project to CF
+  </button>
+</div>
             {/* We Also Recommend (unchanged) */}
             <section className="mb-12">
               <h2 className="text-xl font-bold text-gray-900 mb-6 uppercase tracking-wide">
