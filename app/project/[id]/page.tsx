@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useParams, useRouter } from "next/navigation";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
@@ -85,6 +86,7 @@ function formatUSD(cents?: number) {
 }
 
 export default function ProjectDetail() {
+  const { user } = useUser();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id;
@@ -120,6 +122,19 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
 
   const campaign = data?.campaign;
   const creator = data?.creator;
+  const isOwnCreatorProfile =
+  !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
+
+const creatorImage = isOwnCreatorProfile && user?.imageUrl ? user.imageUrl : null;
+
+const creatorFullName = creator
+  ? [creator.name, creator.last_name].filter(Boolean).join(" ").trim()
+  : "Unknown";
+
+const creatorInitial =
+  creator?.name?.[0]?.toUpperCase() ||
+  creator?.last_name?.[0]?.toUpperCase() ||
+  "U";
 
   const currentPhoto = data?.photos?.[currentPhotoIndex];
   const heroIsVideo =
@@ -270,7 +285,7 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h18M3 6h18M3 18h18" />
                       </svg>
                     </div>
-                    <p className="text-sm text-gray-600">Status: <span className="font-medium">{campaign.status}</span></p>
+                    <p className="text-sm text-gray-600">Status: <span className="font-medium">{campaign.status?.charAt(0).toUpperCase() + campaign.status?.slice(1)}</span></p>
                   </div>
                 </div>
 
@@ -323,25 +338,57 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
                   </div>
 
                   {/* Creator Info */}
-                  <div className="border-t border-gray-200 pt-6 mb-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-[#8BC34A]" />
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {creator ? `${creator.name} ${creator.last_name}` : "Unknown"}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {creator?.creator_id ?? ""}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {creator?.bio ?? "No bio yet."}{" "}
-                      <Link href="#" className="text-[#8BC34A] hover:underline">
-                        Read More
-                      </Link>
-                    </p>
-                  </div>
+<div className="border-t border-gray-200 pt-6 mb-6">
+  {creator ? (
+    <Link
+      href={`/profile/${creator.creator_id}`}
+      className="flex items-center gap-3 mb-3 group"
+    >
+      <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+        {creatorImage ? (
+          <Image
+            src={creatorImage}
+            alt={creatorFullName}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold">
+            {creatorInitial}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="font-semibold text-gray-900 group-hover:text-[#8BC34A] transition-colors">
+          {creatorFullName}
+        </p>
+        <p className="text-xs text-gray-500">
+          {creator.creator_id}
+        </p>
+      </div>
+    </Link>
+  ) : (
+    <div className="flex items-center gap-3 mb-3">
+      <div className="w-12 h-12 rounded-full bg-gray-200" />
+      <div>
+        <p className="font-semibold text-gray-900">Unknown</p>
+      </div>
+    </div>
+  )}
+
+  <p className="text-sm text-gray-600 mb-2">
+    {creator?.bio ?? "No bio yet."}{" "}
+    {creator && (
+      <Link
+        href={`/profile/${creator.creator_id}`}
+        className="text-[#8BC34A] hover:underline"
+      >
+        Read More
+      </Link>
+    )}
+  </p>
+</div>
 
                   {/* Share Button */}
                   <div className="flex justify-end mb-6">
@@ -458,53 +505,7 @@ const res = await fetch(`${API_BASE}/api/campaign-page/${id}`, {
           </>
         )}
       </main>
-
-      {/* Footer (unchanged) */}
-      <footer className="bg-white border-t border-gray-100 py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <span className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
-                Community Fundings
-              </span>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">About</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">About Us</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Our Charter</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Stats</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Press</p>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Support</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Help Center</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Our Rules</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Creator Resources</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Brand Assets</p>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">More</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Newsletter</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Community Guidelines</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Privacy Policy</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">Terms of Use</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2026 Community Fundings, PBC. All rights reserved.
-          </div>
-        </div>
-      </footer>
+<Footer />
     </div>
   );
 }

@@ -14,8 +14,10 @@ type ProfileCreator = {
   name: string;
   last_name?: string | null;
   bio?: string | null;
+  website?: string | null;
   time_creation: string;
 };
+
 
 type ProfileCampaign = {
   campaign_id: number;
@@ -36,11 +38,12 @@ type ProfileCampaign = {
 
 type ProfilePageData = {
   creator: ProfileCreator;
+  interests: string[];
   campaigns: ProfileCampaign[];
 };
 
 function formatUserType(userType?: number) {
-  return userType === 1 ? "Individual" : "Organization";
+  return userType === 1 ? "Individual" : "Business";
 }
 
 function formatJoinedDate(dateString?: string) {
@@ -112,8 +115,9 @@ export default function ProfilePage() {
     })();
   }, [id]);
 
-  const creator = data?.creator;
-  const campaigns = data?.campaigns ?? [];
+const creator = data?.creator;
+const interests = data?.interests ?? [];
+const campaigns = data?.campaigns ?? [];
 
   const isOwnProfile = useMemo(() => {
     return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
@@ -211,6 +215,53 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </section>
+
+<section className="mb-10">
+  <h2 className="text-2xl font-bold text-gray-900 mb-4">Details</h2>
+  <div className="border border-gray-200 rounded-2xl p-6 bg-white space-y-6">
+    {creator?.website?.trim() ? (
+      <div>
+        <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+          Website
+        </p>
+        <a
+          href={
+            creator.website.startsWith("http://") || creator.website.startsWith("https://")
+              ? creator.website
+              : `https://${creator.website}`
+          }
+          target="_blank"
+          rel="noreferrer"
+          className="text-[#8BC34A] hover:underline break-all"
+        >
+          {creator.website}
+        </a>
+      </div>
+    ) : null}
+
+    {interests.length > 0 ? (
+      <div>
+        <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">
+          Interests
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {interests.map((interest) => (
+            <span
+              key={interest}
+              className="px-3 py-1.5 rounded-full text-sm font-medium bg-[#F5F9F0] text-[#6E9E36] border border-[#8BC34A]/20"
+            >
+              {interest}
+            </span>
+          ))}
+        </div>
+      </div>
+    ) : null}
+
+    {!creator?.website?.trim() && interests.length === 0 ? (
+      <p className="text-gray-600">No website</p>
+    ) : null}
+  </div>
+</section>
 
                 <section className="mb-8">
                   <div className="flex items-center justify-between mb-6">
@@ -340,7 +391,7 @@ export default function ProfilePage() {
               <div className="lg:col-span-1">
                 <div className="sticky top-8 space-y-6">
                   <section className="border border-gray-200 rounded-2xl p-6 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Details</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Basics</h3>
 
                     <div className="space-y-4">
                       <div>
