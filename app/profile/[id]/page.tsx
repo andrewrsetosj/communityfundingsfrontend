@@ -18,7 +18,6 @@ type ProfileCreator = {
   time_creation: string;
 };
 
-
 type ProfileCampaign = {
   campaign_id: number;
   creator_id: string;
@@ -40,6 +39,20 @@ type ProfilePageData = {
   creator: ProfileCreator;
   interests: string[];
   campaigns: ProfileCampaign[];
+};
+
+type FollowSummary = {
+  creator_id: string;
+  followers_count: number;
+  following_count: number;
+};
+
+type FollowRelationship = {
+  viewer_creator_id: string | null;
+  is_self: boolean;
+  is_following: boolean;
+  follows_you: boolean;
+  is_friend: boolean;
 };
 
 function formatUserType(userType?: number) {
@@ -87,14 +100,104 @@ export default function ProfilePage() {
   const [data, setData] = useState<ProfilePageData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [followSummary, setFollowSummary] = useState<FollowSummary | null>(null);
+  const [followRelationship, setFollowRelationship] = useState<FollowRelationship | null>(null);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+
+  const token = localStorage.getItem("cf_backend_token");
+  if (!token) return {};
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+  async function refreshFollowData(profileCreatorId: string) {
+    const summaryRes = await fetch(`${API_BASE}/api/follows/${profileCreatorId}/summary`, {
+      cache: "no-store",
+    });
+
+    if (summaryRes.ok) {
+      const summaryJson = (await summaryRes.json()) as FollowSummary;
+      setFollowSummary(summaryJson);
+    }
+
+    const relationshipRes = await fetch(
+      `${API_BASE}/api/follows/${profileCreatorId}/relationship`,
+      {
+        cache: "no-store",
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (relationshipRes.ok) {
+      const relationshipJson = (await relationshipRes.json()) as FollowRelationship;
+      setFollowRelationship(relationshipJson);
+    }
+  }
+
+  const creator = data?.creator;
+  const interests = data?.interests ?? [];
+  const campaigns = data?.campaigns ?? [];
+
+  const isOwnProfile = useMemo(() => {
+    return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
+  }, [user?.id, creator?.creator_id]);
+
+  async function handleFollowClick() {
+    if (!creator || !user?.id || isOwnProfile) return;
+
+    try {
+      setIsFollowLoading(true);
+
+      const headers = {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      };
+
+      if (followRelationship?.is_following) {
+        const message = followRelationship.is_friend
+          ? `Are you sure you want to unfollow ${getFullName(creator)}? You will no longer be friends on Community Fundings.`
+          : `Are you sure you want to unfollow ${getFullName(creator)}?`;
+
+        const confirmed = window.confirm(message);
+        if (!confirmed) return;
+
+        const res = await fetch(`${API_BASE}/api/follows/${creator.creator_id}`, {
+          method: "DELETE",
+          headers,
+        });
+
+        if (!res.ok) throw new Error("Failed to unfollow");
+      } else {
+        const res = await fetch(`${API_BASE}/api/follows/${creator.creator_id}`, {
+          method: "POST",
+          headers,
+        });
+
+        if (!res.ok) throw new Error("Failed to follow");
+      }
+
+      await refreshFollowData(creator.creator_id);
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setIsFollowLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!id) return;
 
     (async () => {
       try {
         setError(null);
-
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
         const res = await fetch(`${API_BASE}/api/profile-page/${id}`, {
           cache: "no-store",
@@ -109,19 +212,12 @@ export default function ProfilePage() {
 
         const json = (await res.json()) as ProfilePageData;
         setData(json);
+        await refreshFollowData(json.creator.creator_id);
       } catch (e: any) {
         setError(e?.message ?? "Unknown error");
       }
     })();
   }, [id]);
-
-const creator = data?.creator;
-const interests = data?.interests ?? [];
-const campaigns = data?.campaigns ?? [];
-
-  const isOwnProfile = useMemo(() => {
-    return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
-  }, [user?.id, creator?.creator_id]);
 
   const profileImage = isOwnProfile && user?.imageUrl ? user.imageUrl : null;
 
@@ -168,9 +264,18 @@ const campaigns = data?.campaigns ?? [];
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#8BC34A] mb-2">
                     User Profile
                   </p>
-                  <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                    {getFullName(creator)}
-                  </h1>
+<div className="flex items-center gap-3 mb-3">
+  <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+    {getFullName(creator)}
+  </h1>
+
+  {!isOwnProfile && followRelationship?.follows_you && (
+    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+      Follows you
+    </span>
+  )}
+</div>
+
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-[#8BC34A]" />
@@ -190,18 +295,49 @@ const campaigns = data?.campaigns ?? [];
                       </span>
                     </div>
                   </div>
+
+                  <div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
+                    <span className="hover:text-[#8BC34A] transition-colors cursor-default">
+                      <span className="font-semibold text-gray-900">
+                        {followSummary?.followers_count ?? 0}
+                      </span>{" "}
+                      Followers
+                    </span>
+                    <span className="hover:text-[#8BC34A] transition-colors cursor-default">
+                      <span className="font-semibold text-gray-900">
+                        {followSummary?.following_count ?? 0}
+                      </span>{" "}
+                      Following
+                    </span>
+                  </div>
                 </div>
 
-                {isOwnProfile && (
-                  <div className="md:self-start">
+                <div className="md:self-start">
+                  {isOwnProfile ? (
                     <Link
                       href="/settings"
                       className="inline-flex items-center justify-center px-5 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] transition-colors"
                     >
                       Edit Profile
                     </Link>
-                  </div>
-                )}
+                  ) : (
+                    <button
+                      onClick={handleFollowClick}
+                      disabled={isFollowLoading}
+                      className={`inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium transition-colors ${
+                        followRelationship?.is_following
+                          ? "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
+                          : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                      } disabled:opacity-50`}
+                    >
+                      {isFollowLoading
+                        ? "Loading..."
+                        : followRelationship?.is_following
+                        ? "Following"
+                        : "Follow"}
+                    </button>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -216,52 +352,52 @@ const campaigns = data?.campaigns ?? [];
                   </div>
                 </section>
 
-<section className="mb-10">
-  <h2 className="text-2xl font-bold text-gray-900 mb-4">Details</h2>
-  <div className="border border-gray-200 rounded-2xl p-6 bg-white space-y-6">
-    {creator?.website?.trim() ? (
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-          Website
-        </p>
-        <a
-          href={
-            creator.website.startsWith("http://") || creator.website.startsWith("https://")
-              ? creator.website
-              : `https://${creator.website}`
-          }
-          target="_blank"
-          rel="noreferrer"
-          className="text-[#8BC34A] hover:underline break-all"
-        >
-          {creator.website}
-        </a>
-      </div>
-    ) : null}
+                <section className="mb-10">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Details</h2>
+                  <div className="border border-gray-200 rounded-2xl p-6 bg-white space-y-6">
+                    {creator?.website?.trim() ? (
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                          Website
+                        </p>
+                        <a
+                          href={
+                            creator.website.startsWith("http://") || creator.website.startsWith("https://")
+                              ? creator.website
+                              : `https://${creator.website}`
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#8BC34A] hover:underline break-all"
+                        >
+                          {creator.website}
+                        </a>
+                      </div>
+                    ) : null}
 
-    {interests.length > 0 ? (
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">
-          Interests
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {interests.map((interest) => (
-            <span
-              key={interest}
-              className="px-3 py-1.5 rounded-full text-sm font-medium bg-[#F5F9F0] text-[#6E9E36] border border-[#8BC34A]/20"
-            >
-              {interest}
-            </span>
-          ))}
-        </div>
-      </div>
-    ) : null}
+                    {interests.length > 0 ? (
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">
+                          Interests
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {interests.map((interest) => (
+                            <span
+                              key={interest}
+                              className="px-3 py-1.5 rounded-full text-sm font-medium bg-[#F5F9F0] text-[#6E9E36] border border-[#8BC34A]/20"
+                            >
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
 
-    {!creator?.website?.trim() && interests.length === 0 ? (
-      <p className="text-gray-600">No website</p>
-    ) : null}
-  </div>
-</section>
+                    {!creator?.website?.trim() && interests.length === 0 ? (
+                      <p className="text-gray-600">No website</p>
+                    ) : null}
+                  </div>
+                </section>
 
                 <section className="mb-8">
                   <div className="flex items-center justify-between mb-6">
