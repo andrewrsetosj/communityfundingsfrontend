@@ -296,20 +296,27 @@ function getAuthHeaders(): Record<string, string> {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
-                    <span className="hover:text-[#8BC34A] transition-colors cursor-default">
-                      <span className="font-semibold text-gray-900">
-                        {followSummary?.followers_count ?? 0}
-                      </span>{" "}
-                      Followers
-                    </span>
-                    <span className="hover:text-[#8BC34A] transition-colors cursor-default">
-                      <span className="font-semibold text-gray-900">
-                        {followSummary?.following_count ?? 0}
-                      </span>{" "}
-                      Following
-                    </span>
-                  </div>
+<div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
+  <Link
+    href={`/profile/${creator.creator_id}/followers`}
+    className="hover:text-[#8BC34A] transition-colors"
+  >
+    <span className="font-semibold text-gray-900">
+      {followSummary?.followers_count ?? 0}
+    </span>{" "}
+    Followers
+  </Link>
+
+  <Link
+    href={`/profile/${creator.creator_id}/following`}
+    className="hover:text-[#8BC34A] transition-colors"
+  >
+    <span className="font-semibold text-gray-900">
+      {followSummary?.following_count ?? 0}
+    </span>{" "}
+    Following
+  </Link>
+</div>
                 </div>
 
                 <div className="md:self-start">
