@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 const interests = [
   { name: "Arts", icon: "🎨" },
@@ -48,8 +49,22 @@ export default function OnboardingPage() {
     });
   };
 
-  const handleContinue = () => {
-    // TODO: save selected interests to user profile
+  const handleContinue = async () => {
+    const token = localStorage.getItem("cf_backend_token");
+    if (token && selected.length > 0) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/users/me/interests`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ interest_names: selected }),
+        });
+      } catch (err) {
+        console.error("Failed to save interests:", err);
+      }
+    }
     router.push("/");
   };
 

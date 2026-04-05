@@ -66,7 +66,7 @@ export default function ProjectCarousel({
       {/* Scrollable Container */}
       <div
         ref={scrollRef}
-        className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+        className="flex-1 min-w-0 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory py-2"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {children}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 const allCategories = [
   { name: "Arts", slug: "arts" },
@@ -125,45 +126,7 @@ export default function CategoriesPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12 px-6 mt-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <span className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
-                Community Fundings
-              </span>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer">lorem ipsum dolor</p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2022 community funding ltd is registered in england and wales no. 07831511.
-          </div>
-        </div>
-      </footer>
+     <Footer />
     </div>
   );
 }

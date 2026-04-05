@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 interface ProjectCardProps {
+  slug: string;
   image: string;
   title: string;
   creator: string;
@@ -13,6 +15,7 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({
+  slug,
   image,
   title,
   creator,
@@ -24,7 +27,7 @@ export default function ProjectCard({
   const isSmall = size === "small";
 
   return (
-    <div className="bg-white rounded-lg overflow-hidden group">
+    <Link href={`/project/${slug}`} className="bg-white rounded-lg overflow-hidden group block">
       {/* Image */}
       <div
         className={`relative overflow-hidden ${
@@ -73,6 +76,6 @@ export default function ProjectCard({
           {daysLeft !== undefined && <span>&gt; {daysLeft}d</span>}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

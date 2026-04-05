@@ -1,19 +1,39 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCampaignDraft } from "@/app/create-project/store/useCampaignDraft";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import {
+  useCampaignDraft,
+  saveDraftToBackend,
+} from "@/app/create-project/store/useCampaignDraft";
+import {
+  displayUrlForPhoto,
+  isVideoContentType,
+  photosPayloadForApi,
+  uploadCampaignFilesToS3,
+} from "@/app/create-project/lib/campaignPhotoUpload";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
+import LocationAutocomplete from "@/app/create-project/component/LocationAutocomplete";
 
 export default function BasicsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useUser();
 
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
   const draft = useCampaignDraft((s) => s.draft);
   const setBasics = useCampaignDraft((s) => s.setBasics);
+  const setPhotos = useCampaignDraft((s) => s.setPhotos);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ✅ touched flags (show validation UI only after interaction)
   const [titleTouched, setTitleTouched] = useState(false);
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [locationTouched, setLocationTouched] = useState(false);
   const [fundingTouched, setFundingTouched] = useState(false);
   const [durationTouched, setDurationTouched] = useState(false);
 
@@ -29,12 +49,14 @@ export default function BasicsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectImages, setProjectImages] = useState<File[]>([]);
   const [projectImagePreviewUrls, setProjectImagePreviewUrls] = useState<string[]>([]);
-  const MAX_IMAGES = 5;
+  const MAX_MEDIA = 5;
 
   const openFilePicker = () => fileInputRef.current?.click();
 
   // ✅ REQUIRED FIELDS
   const titleValid = draft.title.trim().length > 0;
+  const categoryValid = (draft.category ?? "").trim().length > 0;
+  const locationValid = (draft.location ?? "").trim().length > 0;
   const fundingValid = (draft.funding_goal_cents ?? 0) > 0;
 
   const durationNum = draft.duration_days ?? 0;
@@ -44,16 +66,29 @@ export default function BasicsPage() {
     const v = draft.duration_days ?? 0;
     return v >= 1 && v <= 365 ? String(v) : "";
   });
+  // Sync durationInput when store resets (e.g., new campaign)
+  useEffect(() => {
+    const v = draft.duration_days ?? 0;
+    setDurationInput(v >= 1 && v <= 365 ? String(v) : "");
+  }, [draft.duration_days]);
+
   const durationEmpty = durationInput.trim() === "";
   const durationValid = !durationEmpty && durationNum >= 1 && durationNum <= 365;
 
-  const basicsValid = titleValid && fundingValid && durationValid;
+  const basicsValid = titleValid && categoryValid && locationValid && fundingValid && durationValid;
 
   const addFiles = (files: FileList | File[]) => {
-    const incoming = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    const incoming = Array.from(files).filter((f) => {
+      const t = f.type;
+      if (t.startsWith("image/") || t.startsWith("video/")) return true;
+      // Some browsers omit MIME on drag-and-drop; allow common extensions.
+      if (!t && /\.(jpe?g|png|gif|webp|mp4|webm|mov)$/i.test(f.name)) return true;
+      return false;
+    });
     if (incoming.length === 0) return;
 
-    const remaining = MAX_IMAGES - projectImages.length;
+    const total = draft.photos.length + projectImages.length;
+    const remaining = MAX_MEDIA - total;
     if (remaining <= 0) return;
 
     const accepted = incoming.slice(0, remaining);
@@ -90,16 +125,81 @@ export default function BasicsPage() {
     projectImagePreviewUrls.forEach((u) => URL.revokeObjectURL(u));
     setProjectImages([]);
     setProjectImagePreviewUrls([]);
+    setPhotos([]);
   };
 
-  const handleNext = () => {
+  const removeSavedPhoto = (idx: number) => {
+    setPhotos(draft.photos.filter((_, i) => i !== idx));
+  };
+
+  const handleNext = async () => {
     // mark touched so validation UI shows if user tries to continue
     setTitleTouched(true);
+    setCategoryTouched(true);
+    setLocationTouched(true);
     setFundingTouched(true);
     setDurationTouched(true);
 
     if (!basicsValid) return;
-    router.push("/create-project/rewards");
+
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("cf_backend_token")
+          : null;
+      if (!token) {
+        setSaveError("Sign in and wait a moment for account sync, then try again.");
+        return;
+      }
+
+      const campaignId = await saveDraftToBackend(user ?? undefined);
+
+      const stored = useCampaignDraft.getState().draft;
+      const uploaded =
+        projectImages.length > 0
+          ? await uploadCampaignFilesToS3(campaignId, projectImages, token)
+          : [];
+
+      const mergedDisplay = [...stored.photos, ...uploaded].map((p, i) => ({
+        ...p,
+        sort_order: i,
+        is_primary: i === 0,
+      }));
+
+      const photoRes = await fetch(
+        `${API_URL}/api/campaigns/drafts/${campaignId}/photos`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            photos: photosPayloadForApi(mergedDisplay),
+          }),
+        },
+      );
+      if (!photoRes.ok) {
+        const t = await photoRes.text();
+        throw new Error(t || "Failed to save photo metadata");
+      }
+
+      setPhotos(mergedDisplay);
+      projectImagePreviewUrls.forEach((u) => URL.revokeObjectURL(u));
+      setProjectImages([]);
+      setProjectImagePreviewUrls([]);
+
+      router.push(`/create-project/rewards?draft=${campaignId}`);
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      setSaveError(
+        err instanceof Error ? err.message : "Something went wrong while saving.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const categories = [
@@ -149,11 +249,12 @@ export default function BasicsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
-              Category (optional)
+              Category
             </label>
             <select
               value={draft.category}
               onChange={(e) => setBasics({ category: e.target.value })}
+              onBlur={() => setCategoryTouched(true)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent bg-white"
             >
               <option value="">Select a category</option>
@@ -163,32 +264,31 @@ export default function BasicsPage() {
                 </option>
               ))}
             </select>
+            {categoryTouched && !categoryValid && (
+              <p className="mt-2 text-sm text-red-500">
+                Please select a category to continue.
+              </p>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Project Location (optional)
-            </label>
-            <input
-              type="text"
-              value={draft.location}
-              onChange={(e) => setBasics({ location: e.target.value })}
-              placeholder="Enter your city"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-            />
-          </div>
+          <LocationAutocomplete
+            value={draft.location}
+            onChange={(val) => setBasics({ location: val })}
+            onBlur={() => setLocationTouched(true)}
+            error={locationTouched && !locationValid ? "Please enter a project location to continue." : undefined}
+          />
         </div>
 
         {/* Project Image */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
-            Project Image (optional)
+            Project images & video (optional)
           </label>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
             multiple
             className="hidden"
             onChange={onFileChange}
@@ -207,34 +307,94 @@ export default function BasicsPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <p className="text-gray-700 font-medium">
-                Upload up to {MAX_IMAGES} images
+                Upload up to {MAX_MEDIA} images or videos
               </p>
               <p className="text-sm text-gray-500">
-                {projectImages.length}/{MAX_IMAGES}
+                {draft.photos.length + projectImages.length}/{MAX_MEDIA}
               </p>
             </div>
 
-            {projectImages.length === 0 ? (
+            {draft.photos.length === 0 && projectImages.length === 0 ? (
               <div className="text-center">
                 <p className="text-gray-600 mb-2">
-                  Drag and drop images, or{" "}
+                  Drag and drop images or videos, or{" "}
                   <span className="text-[#8BC34A] font-medium underline">
                     browse
                   </span>
                 </p>
                 <p className="text-sm text-gray-400">
-                  Recommended: 1024 x 576 pixels (16:9)
+                  Images: JPG, PNG, WebP, GIF (max 12MB). Videos: MP4, WebM, MOV
+                  (max 100MB). Recommended image size 1024×576 (16:9). Files upload
+                  when you save and continue.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {projectImagePreviewUrls.map((url, idx) => (
+                {draft.photos.map((p, idx) => {
+                  const src = displayUrlForPhoto(p);
+                  const isVid = isVideoContentType(p.content_type);
+                  return (
+                    <div key={`saved-${p.s3_key}-${idx}`} className="relative">
+                      {src ? (
+                        isVid ? (
+                          <video
+                            src={src}
+                            controls
+                            playsInline
+                            className="h-28 w-full object-cover rounded-md border bg-black"
+                          />
+                        ) : (
+                          <img
+                            src={src}
+                            alt={`Project ${idx + 1}`}
+                            className="h-28 w-full object-cover rounded-md border"
+                          />
+                        )
+                      ) : (
+                        <div className="h-28 w-full rounded-md border bg-gray-100 flex items-center justify-center text-xs text-gray-500">
+                          Media
+                        </div>
+                      )}
+                      {idx === 0 && (
+                        <span className="absolute bottom-2 left-2 text-[10px] font-medium bg-black/60 text-white px-1.5 py-0.5 rounded">
+                          Primary
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSavedPhoto(idx);
+                        }}
+                        className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-800 rounded-full px-2 py-1 text-xs border"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+                {projectImagePreviewUrls.map((url, idx) => {
+                  const file = projectImages[idx];
+                  const isVid = file?.type?.startsWith("video/");
+                  return (
                   <div key={url} className="relative">
-                    <img
-                      src={url}
-                      alt={`Preview ${idx + 1}`}
-                      className="h-28 w-full object-cover rounded-md border"
-                    />
+                    {isVid ? (
+                      <video
+                        src={url}
+                        controls
+                        playsInline
+                        className="h-28 w-full object-cover rounded-md border border-dashed border-[#8BC34A] bg-black"
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt={`New ${idx + 1}`}
+                        className="h-28 w-full object-cover rounded-md border border-dashed border-[#8BC34A]"
+                      />
+                    )}
+                    <span className="absolute bottom-2 left-2 text-[10px] font-medium bg-[#8BC34A]/90 text-white px-1.5 py-0.5 rounded">
+                      New
+                    </span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -246,11 +406,12 @@ export default function BasicsPage() {
                       Remove
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
-            {projectImages.length > 0 && (
+            {draft.photos.length + projectImages.length > 0 && (
               <div className="mt-4 flex gap-3">
                 <button
                   type="button"
@@ -276,8 +437,13 @@ export default function BasicsPage() {
             )}
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            Great photos bring your project to life and help backers connect with it.
+            Strong images and short videos help backers connect with your project.
           </p>
+          {saveError && (
+            <p className="mt-2 text-sm text-red-600" role="alert">
+              {saveError}
+            </p>
+          )}
         </div>
 
         {/* Funding Goal */}
@@ -369,11 +535,13 @@ export default function BasicsPage() {
       </div>
 
       <div className="mt-12 flex justify-end">
-        <Link
-          href="/create-project/rewards"
-          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={saving}
+          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-60"
         >
-          Save & Continue
+          {saving ? "Saving..." : "Save & Continue"}
         </button>
       </div>
 

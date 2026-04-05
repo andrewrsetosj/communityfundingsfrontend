@@ -2,6 +2,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import {
+  backendJwtExpired,
+  syncClerkToBackendToken,
+  type ClerkLikeUser,
+} from "@/lib/backendToken";
 
 export type RewardDraft = {
   title: string;
@@ -29,13 +34,26 @@ export type PaymentDraft = {
   confirm_account_number: string;
 };
 
+export type CampaignPhotoRef = {
+  s3_bucket: string;
+  s3_key: string;
+  content_type: string;
+  is_primary: boolean;
+  sort_order: number;
+  image_url?: string | null;
+};
+
 export type CampaignDraft = {
+  // DB tracking
+  campaign_id: number | null;
+
   // Basics
   title: string;
   category: string;
   location: string;
   funding_goal_cents: number;
   duration_days: number;
+  photos: CampaignPhotoRef[];
 
   // Rewards
   rewards: RewardDraft[];
@@ -54,11 +72,14 @@ export type CampaignDraft = {
 };
 
 export const emptyDraft: CampaignDraft = {
+  campaign_id: null,
+
   title: "",
   category: "",
   location: "",
   funding_goal_cents: 0,
   duration_days: 0,
+  photos: [],
 
   rewards: [],
   description_html: "",
@@ -76,6 +97,8 @@ export const emptyDraft: CampaignDraft = {
     confirm_account_number: "",
   },
 };
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 type DraftStore = {
   draft: CampaignDraft;
@@ -101,8 +124,84 @@ type DraftStore = {
 
   setPayment: (patch: Partial<PaymentDraft>) => void;
 
+  setCampaignId: (id: number) => void;
+  setPhotos: (photos: CampaignPhotoRef[]) => void;
+  loadDraft: (data: Omit<CampaignDraft, "payment"> & { campaign_id: number }) => void;
+
   reset: () => void;
 };
+
+/**
+ * Save the current draft to the backend. Returns the campaign_id.
+ * Pass `clerkUser` from `useUser()` so we can refresh an expired backend JWT before saving.
+ */
+export async function saveDraftToBackend(
+  clerkUser?: ClerkLikeUser | null,
+): Promise<number> {
+  const { draft } = useCampaignDraft.getState();
+
+  let token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("cf_backend_token")
+      : null;
+
+  if (clerkUser && (!token || backendJwtExpired(token))) {
+    const ok = await syncClerkToBackendToken(clerkUser);
+    if (!ok) throw new Error("Could not refresh session with the server.");
+    token = localStorage.getItem("cf_backend_token");
+  }
+
+  if (!token) throw new Error("Not authenticated");
+
+  const payload: Record<string, unknown> = {
+    title: draft.title,
+    category: draft.category,
+    location: draft.location,
+    funding_goal_cents: draft.funding_goal_cents,
+    duration_days: draft.duration_days,
+    description_html: draft.description_html,
+    bio: draft.bio,
+    vanity_slug: draft.vanity_slug,
+    faqs: draft.faqs,
+    rewards: draft.rewards,
+    co_creators: draft.co_creators,
+  };
+
+  if (draft.campaign_id) {
+    payload.campaign_id = draft.campaign_id;
+  }
+
+  const doPut = (bearer: string) =>
+    fetch(`${API_URL}/api/campaigns/drafts`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${bearer}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+  let res = await doPut(token);
+
+  if (res.status === 401 && clerkUser) {
+    const ok = await syncClerkToBackendToken(clerkUser);
+    const t2 = ok ? localStorage.getItem("cf_backend_token") : null;
+    if (t2) res = await doPut(t2);
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to save draft: ${text}`);
+  }
+
+  const result = await res.json();
+  const campaignId = result.campaign_id as number;
+
+  // Update store with the campaign_id
+  useCampaignDraft.getState().setCampaignId(campaignId);
+
+  return campaignId;
+}
 
 export const useCampaignDraft = create<DraftStore>()(
   persist(
@@ -125,20 +224,53 @@ export const useCampaignDraft = create<DraftStore>()(
           },
         })),
 
-      reset: () => set({ draft: emptyDraft }),
+      setCampaignId: (id) =>
+        set((s) => ({ draft: { ...s.draft, campaign_id: id } })),
+
+      setPhotos: (photos) =>
+        set((s) => ({ draft: { ...s.draft, photos } })),
+
+      loadDraft: (data) =>
+        set((s) => ({
+          draft: {
+            ...s.draft,
+            campaign_id: data.campaign_id,
+            title: data.title,
+            category: data.category,
+            location: data.location,
+            funding_goal_cents: data.funding_goal_cents,
+            duration_days: data.duration_days,
+            photos: data.photos ?? [],
+            rewards: data.rewards,
+            description_html: data.description_html,
+            faqs: data.faqs,
+            bio: data.bio,
+            vanity_slug: data.vanity_slug,
+            co_creators: data.co_creators,
+          },
+        })),
+
+      reset: () => set({ draft: { ...emptyDraft } }),
     }),
     {
       name: "campaign-create-draft-v1",
-      version: 3,
-      migrate: (persisted: any) => {
-        const state = persisted?.state ?? persisted ?? {};
-        const draft = state?.draft ?? {};
+      version: 5,
+      migrate: (persisted: unknown) => {
+        const state =
+          (persisted as { state?: Record<string, unknown> })?.state ??
+          (persisted as Record<string, unknown>) ??
+          {};
+        const draft = (state?.draft as Record<string, unknown>) ?? {};
         return {
           ...state,
           draft: {
             ...emptyDraft,
             ...draft,
-            payment: { ...emptyDraft.payment, ...(draft.payment ?? {}) },
+            photos: Array.isArray(draft.photos) ? draft.photos : [],
+            payment: {
+              ...emptyDraft.payment,
+              ...(draft.payment as Partial<PaymentDraft>),
+            },
           },
         };
       },

@@ -2,11 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import ProjectCarousel from "./components/ProjectCarousel";
 import HomeStretchSection from "./components/HomeStretchSection";
+import ProjectsNearYouSection from "./components/ProjectsNearYouSection";
 import CommunityFavoritesSection from "./components/CommunityFavoritesSection";
-import FeaturedSection from "./components/FeaturedSection";
-import StatsSection from "./components/StatsSection";
+import FeaturedCampaignSection from "./components/FeaturedCampaignSection";
+import PlatformStats from "./components/PlatformStats";
 
 
 export default function Home() {
@@ -66,12 +68,12 @@ export default function Home() {
           </div>
 
           {/* Stats */}
-          <StatsSection />
+          <PlatformStats />
         </div>
       </section>
 
-      {/* Featured Business or Project */}
-      <FeaturedSection />
+      {/* Featured Campaign */}
+      <FeaturedCampaignSection />
 
       {/* Recommended for you */}
       <section className="bg-gray-50 py-16">
@@ -82,16 +84,19 @@ export default function Home() {
                 Recommended for you
               </h2>
               <p className="text-gray-600 mb-4">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+                Discover campaigns tailored to your passions. Based on the interests
+                you selected, we&apos;ll show you projects in categories you care about most.
               </p>
               <p className="text-gray-600 mb-6">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
+                Update your interests anytime in your profile settings to refine
+                your recommendations.
               </p>
-              <button className="bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors">
+              <Link
+                href="/recommended"
+                className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+              >
                 See Recommended Projects
-              </button>
+              </Link>
             </div>
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-200">
               <Image
@@ -105,60 +110,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Project Near you */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-serif font-bold text-gray-900 mb-3">
-            Project Near you
-          </h2>
-          <p className="text-gray-600 max-w-xl mx-auto">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-          </p>
-        </div>
-
-        <ProjectCarousel seeMoreHref="/projects-near-you" seeMoreLabel="See More Projects">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
-            <Link key={item} href="/project/1" className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block">
-              <div className="relative h-40 bg-gray-200">
-                <Image
-                  src={`https://images.unsplash.com/photo-150633263${item}355-506871c6b6c4?w=400`}
-                  alt="Project"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  Cost of Living Crisis
-                </h3>
-                <p className="text-xs text-gray-500 mb-2">
-                  Funded 1/10 Project By: <span className="font-medium">JOEL PEDERSON</span>
-                </p>
-                <p className="text-xs text-gray-500 mb-3">Funders: $60</p>
-                <div className="w-full bg-gray-200 rounded-full h-1 mb-2">
-                  <div className="bg-[#8BC34A] h-1 rounded-full w-1/3" />
-                </div>
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    Save
-                  </span>
-                  <span>0 Fund</span>
-                  <span>&gt; Mty</span>
-                </div>
-              </div>
-              <div className="px-4 pb-4">
-                <span className="w-full py-2 border border-[#8BC34A] text-[#8BC34A] rounded-full text-sm font-medium hover:bg-[#8BC34A] hover:text-white transition-colors block text-center">
-                  Lorem ipsum
-                </span>
-              </div>
-            </Link>
-          ))}
-        </ProjectCarousel>
-      </section>
+      {/* Campaigns Near You */}
+      <ProjectsNearYouSection />
 
       {/* Community Favorites */}
       <CommunityFavoritesSection />
@@ -270,72 +223,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-            {/* Logo */}
-            <div>
-              <span className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
-                Community Fundings
-              </span>
-            </div>
-
-            {/* Links Column 1 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-
-            {/* Links Column 2 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-
-            {/* Links Column 3 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-
-            {/* Links Column 4 */}
-            <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-sm">Lorem Ipsum</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-                <p className="hover:text-[#8BC34A] cursor-pointer transition-colors">lorem ipsum dolor</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            &copy; 2011-2022 community funding ltd is registered in england and wales no. 07831511.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

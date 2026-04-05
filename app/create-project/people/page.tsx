@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,18 @@ interface CollaboratorUI {
   email: string;
   role: "co-creator";
   status: "pending" | "verified";
+}
+
+// Debounce utility
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
 }
 
 export default function PeoplePage() {
@@ -31,6 +43,40 @@ export default function PeoplePage() {
   // ✅ NEW: touched flags (only show required UI after interaction)
   const [bioTouched, setBioTouched] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
+
+  // Slug availability check
+  const [slugCheckLoading, setSlugCheckLoading] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+
+  // Debounced slug check
+  const checkSlugDebounced = useCallback(
+    debounce(async (slug: string) => {
+      if (!slug || !slug.trim()) {
+        setSlugAvailable(null);
+        return;
+      }
+
+      setSlugCheckLoading(true);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(slug)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setSlugAvailable(data.available);
+      } catch (err) {
+        console.error("Slug check failed:", err);
+        setSlugAvailable(null); // Reset on error
+      } finally {
+        setSlugCheckLoading(false);
+      }
+    }, 500), // 500ms debounce
+    []
+  );
+
+  // Effect to trigger check when slug changes
+  useEffect(() => {
+    checkSlugDebounced(vanitySlug || "");
+  }, [vanitySlug, checkSlugDebounced]);
 
   // Derived state (hook)
   const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
@@ -55,6 +101,8 @@ export default function PeoplePage() {
     const sanitized = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
     // write immediately to store so Back works even without Next
     setPeople({ vanity_slug: sanitized });
+    // Reset slug check when changing
+    setSlugAvailable(null);
   };
 
   const handleAddCollaborator = () => {
@@ -94,10 +142,14 @@ export default function PeoplePage() {
     newCollaboratorEmail.trim()
   );
 
-  // ✅ REQUIRED FIELDS: bio + vanitySlug
-  const bioIsValid = (bio ?? "").trim().length > 0;
+  const BIO_LIMIT = 500;
+  const bioLength = (bio ?? "").length;
+
+  // ✅ REQUIRED FIELDS: bio + vanitySlug (bio within limit)
+  const bioIsValid =
+    (bio ?? "").trim().length > 0 && bioLength <= BIO_LIMIT;
   const urlIsValid = (vanitySlug ?? "").trim().length > 0;
-  const canContinue = bioIsValid && urlIsValid;
+  const canContinue = bioIsValid && urlIsValid && slugAvailable === true;
 
   const handleNext = () => {
     // ✅ hard guard
@@ -167,12 +219,24 @@ export default function PeoplePage() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Short Bio{" "}
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Short Bio{" "}
+                </label>
+                <span
+                  className={`text-sm ${
+                    bioLength > BIO_LIMIT ? "text-red-500" : "text-gray-500"
+                  }`}
+                >
+                  {bioLength}/{BIO_LIMIT}
+                </span>
+              </div>
               <textarea
+                maxLength={BIO_LIMIT}
                 value={bio ?? ""}
-                onChange={(e) => setPeople({ bio: e.target.value })}
+                onChange={(e) =>
+                  setPeople({ bio: e.target.value.slice(0, BIO_LIMIT) })
+                }
                 onBlur={() => setBioTouched(true)}
                 placeholder="Tell backers a bit about yourself..."
                 rows={3}
@@ -180,7 +244,9 @@ export default function PeoplePage() {
               />
               {bioTouched && !bioIsValid && (
                 <p className="mt-2 text-sm text-red-500">
-                  Please enter a short bio to continue.
+                  {bioLength > BIO_LIMIT
+                    ? `Please reduce the bio to ${BIO_LIMIT} characters or fewer.`
+                    : "Please enter a short bio to continue."}
                 </p>
               )}
             </div>
@@ -213,6 +279,19 @@ export default function PeoplePage() {
             <p className="mt-2 text-sm text-red-500">
               Please enter a URL to continue.
             </p>
+          )}
+
+          {/* Slug Availability Status */}
+          {vanitySlug && vanitySlug.trim() && (
+            <div className="mt-2">
+              {slugCheckLoading ? (
+                <p className="text-sm text-gray-500">Checking availability...</p>
+              ) : slugAvailable === true ? (
+                <p className="text-sm text-green-600">✓ This URL is available!</p>
+              ) : slugAvailable === false ? (
+                <p className="text-sm text-red-600">✗ This URL is already taken.</p>
+              ) : null}
+            </div>
           )}
         </div>
 
@@ -332,7 +411,7 @@ export default function PeoplePage() {
                 : "opacity-50 cursor-not-allowed",
             ].join(" ")}
             aria-disabled={!canContinue}
-            title={!canContinue ? "Please fill out the short bio and URL to continue." : undefined}
+            title={!canContinue ? "Please fill out the short bio, enter a valid and available URL to continue." : undefined}
           >
             Save &amp; Continue
           </button>

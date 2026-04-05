@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCampaignDraft, type RewardDraft } from "../store/useCampaignDraft";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { useCampaignDraft, saveDraftToBackend, type RewardDraft } from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
 interface RewardUI {
@@ -50,9 +52,12 @@ function rewardDraftToUI(r: RewardDraft, idx: number): RewardUI {
 
 export default function RewardsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useUser();
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
   const draftRewards = useCampaignDraft((s) => s.draft.rewards);
   const setRewards = useCampaignDraft((s) => s.setRewards);
+  const [saving, setSaving] = useState(false);
 
   // Rewards shown in UI come from the store
   const rewardsUI: RewardUI[] = useMemo(() => {
@@ -106,9 +111,18 @@ export default function RewardsPage() {
     setRewards(next);
   };
 
-  const handleNext = () => {
-    // Store is already updated on add/delete, so just navigate
-    router.push("/create-project/story");
+  const handleNext = async () => {
+    setSaving(true);
+    try {
+      const campaignId = await saveDraftToBackend(user ?? undefined);
+      router.push(`/create-project/story?draft=${campaignId}`);
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      const existingDraft = searchParams.get("draft");
+      router.push(`/create-project/story${existingDraft ? `?draft=${existingDraft}` : ""}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
    // Avoid rendering before persist rehydrates (prevents empty flash)
@@ -288,13 +302,20 @@ export default function RewardsPage() {
         </button>
       )}
 
-      <div className="mt-12 flex justify-end">
+      <div className="mt-12 flex justify-between">
+        <Link
+          href={`/create-project/basics${searchParams.get("draft") ? `?draft=${searchParams.get("draft")}` : ""}`}
+          className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+        >
+          Back
+        </Link>
         <button
           type="button"
           onClick={handleNext}
-          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+          disabled={saving}
+          className="bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-60"
         >
-          Save & Continue
+          {saving ? "Saving..." : "Save & Continue"}
         </button>
       </div>
 

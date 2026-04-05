@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 
 const categoryNames: Record<string, string> = {
   "arts": "Arts",
@@ -25,17 +26,31 @@ const categoryNames: Record<string, string> = {
   "technology": "Technology",
 };
 
-interface Campaign {
-  id: string;
-  title: string;
-  slug: string;
-  goal_amount: number;
-  raised_amount: number;
-  funding_percentage: number;
-  days_left: number | null;
-  creator_name: string | null;
-  image_url: string | null;
-}
+const categoryDescriptions: Record<string, string> = {
+  "comics-illustration": "From webcomics and graphic novels to illustrated children's books, this is the home for visual storytelling. Back independent artists bringing their characters and worlds to life.",
+  "design-tech": "Apps, hardware, software tools, and innovative tech products built by makers and developers. Support the next big idea before it hits the market.",
+  "food-craft": "Artisan food brands, handmade goods, recipe books, and small-batch culinary ventures. Discover makers who put passion into every product.",
+  "arts": "Paintings, sculptures, photography, printmaking, and mixed-media works by independent artists seeking support to create and exhibit their work.",
+  "film": "Short films, feature-length independents, documentaries, and animation projects. Help filmmakers bring their stories to the screen.",
+  "game": "Tabletop games, card games, video games, and interactive experiences crafted by indie creators. Back the next game you can't stop thinking about.",
+  "music": "Albums, EPs, tours, music videos, and recording projects from independent musicians across every genre. Support the artists you love directly.",
+  "publishing": "Books, poetry collections, journals, and print publications seeking readers and backers. Help independent writers get their words into the world.",
+};
+
+const projects = [
+  { id: 1, image: "photo-1558618666-fcd25c85cd64" },
+  { id: 2, image: "photo-1493225457124-a3eb161ffa5f" },
+  { id: 3, image: "photo-1514525253161-7a46d19cd819" },
+  { id: 4, image: "photo-1506905925346-21bda4d32df4" },
+  { id: 5, image: "photo-1485846234645-a62644f84728" },
+  { id: 6, image: "photo-1493225457124-a3eb161ffa5f" },
+  { id: 7, image: "photo-1550751827-4bd374c3f58b" },
+  { id: 8, image: "photo-1518837695005-2083093ee35b" },
+  { id: 9, image: "photo-1532012197267-da84d127e765" },
+  { id: 10, image: "photo-1511632765486-a01980e01a18" },
+  { id: 11, image: "photo-1497436072909-60f360e1d4b1" },
+  { id: 12, image: "photo-1469474968028-56623f02e42e" },
+];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -43,6 +58,7 @@ export default function CategoryPage() {
   const params = useParams();
   const slug = params.slug as string;
   const categoryName = categoryNames[slug] || "Category";
+  const categoryDescription = categoryDescriptions[slug] || "";
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,8 +118,7 @@ export default function CategoryPage() {
 
           {/* Description */}
           <p className="text-gray-600 max-w-xl mb-6">
-            Explore projects in {categoryName}. Find creative work that inspires
-            you and support the creators behind them.
+            {categoryDescription}
           </p>
 
           {/* CTA Button */}
@@ -228,6 +243,8 @@ export default function CategoryPage() {
           </>
         )}
       </section>
+
+      <Footer />
     </div>
   );
 }
