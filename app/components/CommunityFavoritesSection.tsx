@@ -84,8 +84,8 @@ export default function CommunityFavoritesSection() {
         <ProjectCarousel seeMoreHref="/community-favorites" seeMoreLabel="See More Favorites">
           {campaigns.map((campaign) => (
             <Link
-              key={campaign.campaign_id}
-              href={`/project/${campaign.slug || campaign.campaign_id}`}
+              key={campaign.id}
+              href={`/project/${campaign.slug || campaign.id}`}
               className="flex-shrink-0 w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] snap-start bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block"
             >
               <div className="relative h-36 bg-gray-200">

@@ -375,7 +375,7 @@ function CommentsSection({ campaignId }: { campaignId: string }) {
                       </span>
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-line break-words leading-relaxed">
-                      {comment.content}
+                      {comment.comment_text}
                     </p>
 
                     {/* Delete action (own comment only) */}
