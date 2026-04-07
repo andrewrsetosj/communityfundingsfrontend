@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -11,6 +12,7 @@ type FollowListUser = {
   name: string;
   last_name?: string | null;
   user_type?: number | null;
+  avatar_url?: string | null;
   follows_you: boolean;
   is_friend: boolean;
   is_you: boolean;
@@ -101,9 +103,19 @@ export default function FollowersPage() {
                   href={`/profile/${person.creator_id}`}
                   className="flex items-center gap-4 p-5 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                    {person.name?.[0]?.toUpperCase() ?? "U"}
-                  </div>
+                  {person.avatar_url ? (
+                    <Image
+                      src={person.avatar_url}
+                      alt={getFullName(person)}
+                      width={56}
+                      height={56}
+                      className="w-14 h-14 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                      {person.name?.[0]?.toUpperCase() ?? "U"}
+                    </div>
+                  )}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">

@@ -15,6 +15,7 @@ type ProfileCreator = {
   last_name?: string | null;
   bio?: string | null;
   website?: string | null;
+  avatar_url?: string | null;
   time_creation: string;
 };
 
@@ -106,16 +107,16 @@ export default function ProfilePage() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
+  function getAuthHeaders(): Record<string, string> {
+    if (typeof window === "undefined") return {};
 
-  const token = localStorage.getItem("cf_backend_token");
-  if (!token) return {};
+    const token = localStorage.getItem("cf_backend_token");
+    if (!token) return {};
 
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  }
 
   async function refreshFollowData(profileCreatorId: string) {
     const summaryRes = await fetch(`${API_BASE}/api/follows/${profileCreatorId}/summary`, {
@@ -219,7 +220,7 @@ function getAuthHeaders(): Record<string, string> {
     })();
   }, [id]);
 
-  const profileImage = isOwnProfile && user?.imageUrl ? user.imageUrl : null;
+  const profileImage = creator?.avatar_url || (isOwnProfile ? user?.imageUrl : null);
 
   return (
     <div className="min-h-screen bg-white">
@@ -264,17 +265,17 @@ function getAuthHeaders(): Record<string, string> {
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#8BC34A] mb-2">
                     User Profile
                   </p>
-<div className="flex items-center gap-3 mb-3">
-  <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-    {getFullName(creator)}
-  </h1>
+                  <div className="flex items-center gap-3 mb-3">
+                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                      {getFullName(creator)}
+                    </h1>
 
-  {!isOwnProfile && followRelationship?.follows_you && (
-    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-      Follows you
-    </span>
-  )}
-</div>
+                    {!isOwnProfile && followRelationship?.follows_you && (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                        Follows you
+                      </span>
+                    )}
+                  </div>
 
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
@@ -296,27 +297,27 @@ function getAuthHeaders(): Record<string, string> {
                     </div>
                   </div>
 
-<div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
-  <Link
-    href={`/profile/${creator.creator_id}/followers`}
-    className="hover:text-[#8BC34A] transition-colors"
-  >
-    <span className="font-semibold text-gray-900">
-      {followSummary?.followers_count ?? 0}
-    </span>{" "}
-    Followers
-  </Link>
+                  <div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
+                    <Link
+                      href={`/profile/${creator.creator_id}/followers`}
+                      className="hover:text-[#8BC34A] transition-colors"
+                    >
+                      <span className="font-semibold text-gray-900">
+                        {followSummary?.followers_count ?? 0}
+                      </span>{" "}
+                      Followers
+                    </Link>
 
-  <Link
-    href={`/profile/${creator.creator_id}/following`}
-    className="hover:text-[#8BC34A] transition-colors"
-  >
-    <span className="font-semibold text-gray-900">
-      {followSummary?.following_count ?? 0}
-    </span>{" "}
-    Following
-  </Link>
-</div>
+                    <Link
+                      href={`/profile/${creator.creator_id}/following`}
+                      className="hover:text-[#8BC34A] transition-colors"
+                    >
+                      <span className="font-semibold text-gray-900">
+                        {followSummary?.following_count ?? 0}
+                      </span>{" "}
+                      Following
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="md:self-start">

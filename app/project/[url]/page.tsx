@@ -31,6 +31,7 @@ type Creator = {
   last_name: string;
   email: string;
   bio?: string;
+  avatar_url?: string | null;
 };
 
 type Faq = {
@@ -54,6 +55,7 @@ type Comment = {
   parent_comment_id?: number | null;
   name?: string;
   last_name?: string;
+  avatar_url?: string | null;
   time_created: string;
   replies: Comment[];
   reply_count: number;
@@ -135,6 +137,42 @@ function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem("cf_backend_token");
   if (!token || token === "undefined" || token === "null") return {};
   return { Authorization: `Bearer ${token}` };
+}
+
+function Avatar({
+  name,
+  avatarUrl,
+  size = "md",
+}: {
+  name?: string | null;
+  avatarUrl?: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  const sizeClasses =
+    size === "sm"
+      ? "w-9 h-9 text-xs"
+      : size === "lg"
+      ? "w-12 h-12 text-base"
+      : "w-11 h-11 text-sm";
+
+  if (avatarUrl) {
+    const pixelSize = size === "sm" ? 36 : size === "lg" ? 48 : 44;
+    return (
+      <Image
+        src={avatarUrl}
+        alt={name || "User"}
+        width={pixelSize}
+        height={pixelSize}
+        className={`${sizeClasses} rounded-full object-cover flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${sizeClasses} rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold flex-shrink-0`}>
+      {name?.[0]?.toUpperCase() ?? "U"}
+    </div>
+  );
 }
 
 function CommentBadges({ comment }: { comment: Comment }) {
@@ -447,19 +485,9 @@ export default function ProjectDetail() {
   const campaign = data?.campaign;
   const creator = data?.creator;
 
-  const isOwnCreatorProfile =
-    !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
-
-  const creatorImage = isOwnCreatorProfile && user?.imageUrl ? user.imageUrl : null;
-
   const creatorFullName = creator
     ? [creator.name, creator.last_name].filter(Boolean).join(" ").trim()
     : "Unknown";
-
-  const creatorInitial =
-    creator?.name?.[0]?.toUpperCase() ||
-    creator?.last_name?.[0]?.toUpperCase() ||
-    "U";
 
   const currentPhoto = data?.photos?.[currentPhotoIndex];
   const heroIsVideo =
@@ -671,9 +699,11 @@ export default function ProjectDetail() {
                         {data.comments.map((comment) => (
                           <div key={comment.comment_id} className="border border-gray-200 rounded-2xl p-5 bg-white">
                             <div className="flex items-start gap-3">
-                              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                                {comment.name?.[0]?.toUpperCase() ?? "U"}
-                              </div>
+                              <Avatar
+                                name={comment.name}
+                                avatarUrl={comment.avatar_url}
+                                size="md"
+                              />
 
                               <div className="min-w-0 flex-1">
                                 <CommentHeader comment={comment} />
@@ -747,9 +777,11 @@ export default function ProjectDetail() {
                                     {comment.replies.map((reply) => (
                                       <div key={reply.comment_id} className="bg-gray-50 rounded-xl p-4">
                                         <div className="flex items-start gap-3">
-                                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                                            {reply.name?.[0]?.toUpperCase() ?? "U"}
-                                          </div>
+                                          <Avatar
+                                            name={reply.name}
+                                            avatarUrl={reply.avatar_url}
+                                            size="sm"
+                                          />
 
                                           <div className="min-w-0 flex-1">
                                             <CommentHeader comment={reply} compact />
@@ -854,20 +886,11 @@ export default function ProjectDetail() {
                         href={`/profile/${creator.creator_id}`}
                         className="flex items-center gap-3 mb-3 group"
                       >
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white border border-gray-200 flex-shrink-0">
-                          {creatorImage ? (
-                            <Image
-                              src={creatorImage}
-                              alt={creatorFullName}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold">
-                              {creatorInitial}
-                            </div>
-                          )}
-                        </div>
+                        <Avatar
+                          name={creatorFullName}
+                          avatarUrl={creator.avatar_url}
+                          size="lg"
+                        />
 
                         <div>
                           <p className="font-semibold text-gray-900 group-hover:text-[#8BC34A] transition-colors">
