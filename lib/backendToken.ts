@@ -19,6 +19,7 @@ export type ClerkLikeUser = {
   primaryEmailAddress?: { emailAddress?: string } | null;
   fullName?: string | null;
   firstName?: string | null;
+  imageUrl?: string | null;
 };
 
 /** POST /api/auth/clerk-sync — stores cf_backend_token for API calls. */
@@ -31,6 +32,7 @@ export async function syncClerkToBackendToken(user: ClerkLikeUser): Promise<bool
         clerk_id: user.id,
         email: user.primaryEmailAddress?.emailAddress,
         name: user.fullName || user.firstName || "User",
+        image_url: user.imageUrl, 
       }),
     });
     if (!res.ok) return false;
