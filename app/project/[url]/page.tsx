@@ -27,6 +27,7 @@ type Campaign = {
 
 type Creator = {
   creator_id: string;
+  username?: string | null;
   name: string;
   last_name: string;
   email: string;
@@ -52,6 +53,7 @@ type Comment = {
   comment_id: number;
   comment_text: string;
   creator_id: string;
+  username?: string | null;
   campaign_id: number;
   parent_comment_id?: number | null;
   reply_to_comment_id?: number | null;
@@ -165,7 +167,13 @@ function getEditedLabel(comment: Comment) {
 }
 
 function getCommentAuthor(comment: Comment) {
-  return [comment.name, comment.last_name].filter(Boolean).join(" ").trim() || comment.creator_id || "Unknown User";
+  return [comment.name, comment.last_name].filter(Boolean).join(" ").trim() || comment.username || comment.creator_id || "Unknown User";
+}
+
+function getProfileHref(person?: { username?: string | null; creator_id?: string | null }) {
+  if (person?.username) return `/profile/${person.username}`;
+  if (person?.creator_id) return `/profile/${person.creator_id}`;
+  return "#";
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -247,7 +255,7 @@ function CommentHeader({ comment, compact = false }: { comment: Comment; compact
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <Link
-            href={`/profile/${comment.creator_id}`}
+            href={getProfileHref(comment)}
             className={`font-semibold text-gray-900 hover:text-[#8BC34A] transition-colors ${compact ? "text-sm" : ""}`}
           >
             {getCommentAuthor(comment)}
@@ -255,10 +263,10 @@ function CommentHeader({ comment, compact = false }: { comment: Comment; compact
           <CommentBadges comment={comment} />
         </div>
         <Link
-          href={`/profile/${comment.creator_id}`}
+          href={getProfileHref(comment)}
           className="text-xs text-gray-500 hover:text-[#8BC34A] transition-colors block w-fit"
         >
-          {comment.creator_id}
+          {comment.username ? `@${comment.username}` : comment.creator_id}
         </Link>
       </div>
 
@@ -1266,7 +1274,7 @@ export default function ProjectDetail() {
                   <div className="border-t border-gray-200 pt-6 mb-6">
                     {creator ? (
                       <Link
-                        href={`/profile/${creator.creator_id}`}
+                        href={getProfileHref(creator)}
                         className="flex items-center gap-3 mb-3 group"
                       >
                         <Avatar
@@ -1280,7 +1288,7 @@ export default function ProjectDetail() {
                             {creatorFullName}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {creator.creator_id}
+                            {creator.username}
                           </p>
                         </div>
                       </Link>
@@ -1297,7 +1305,7 @@ export default function ProjectDetail() {
                       {creator?.bio ?? "No bio yet."}{" "}
                       {creator && (
                         <Link
-                          href={`/profile/${creator.creator_id}`}
+                          href={getProfileHref(creator)}
                           className="text-[#8BC34A] hover:underline"
                         >
                           Read More

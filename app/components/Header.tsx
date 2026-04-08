@@ -54,6 +54,7 @@ export default function Header() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,6 +103,34 @@ export default function Header() {
   const handleSignOut = () => {
     signOut({ redirectUrl: "/" });
   };
+
+
+useEffect(() => {
+  if (!user?.id) {
+    setProfileUsername(null);
+    return;
+  }
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!cancelled) setProfileUsername(json.username || json.id || null);
+    } catch (err) {
+      console.error("Error fetching username:", err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id]);
+
+const profileHref = profileUsername ? `/profile/${profileUsername}` : user?.id ? `/profile/${user.id}` : "#";
 
   return (
     <header className="w-full">
@@ -292,7 +321,7 @@ export default function Header() {
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                         <Link
-                        href={`/profile/${user?.id}`}
+                        href={profileHref}
                         onClick={() => setIsDropdownOpen(false)}
                         className="block px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
                         >

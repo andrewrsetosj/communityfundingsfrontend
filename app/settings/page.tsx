@@ -5,9 +5,48 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 import { syncClerkToBackendToken } from "@/lib/backendToken";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const USERNAME_MAX_LENGTH = 30;
+
+const BANNED_WORD_PATTERNS = [
+  /\bfuck(?:ing|er|ed|s)?\b/i,
+  /\bshit(?:ty|s)?\b/i,
+  /\bbitch(?:es)?\b/i,
+  /\basshole(?:s)?\b/i,
+  /\bdamn\b/i,
+];
+
+function normalizeForProfanityCheck(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function containsBlockedWords(value: string) {
+  const normalized = normalizeForProfanityCheck(value);
+  return BANNED_WORD_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeUsernameInput(value: string) {
+  return value.toLowerCase().replace(/[^a-z_]/g, "").replace(/\s+/g, "");
+}
+
+function normalizeWebsiteInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidWebsite(value: string) {
+  if (!value) return true;
+  try {
+    const withProtocol = /^https?:\/\//.test(value) ? value : `https://${value}`;
+    const url = new URL(withProtocol);
+    return !!url.hostname && url.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
 
 type TabType = "account" | "edit-profile" | "payment-methods";
 
@@ -33,6 +72,7 @@ export default function SettingsPage() {
   const [country, setCountry] = useState("United States");
   const [timeZone, setTimeZone] = useState("");
   const [website, setWebsite] = useState("");
+  const [username, setUsername] = useState("");
   const [aboutYou, setAboutYou] = useState("");
   const [privacyOption1, setPrivacyOption1] = useState(true);
   const [privacyOption2, setPrivacyOption2] = useState(false);
@@ -91,6 +131,8 @@ export default function SettingsPage() {
         if (data.state) setState(data.state);
         if (data.time_zone) setTimeZone(data.time_zone);
         if (data.website) setWebsite(data.website);
+        if (data.username) setUsername(data.username);
+        else if (user?.id) setUsername(user.id);
       } catch (err) {
         console.error("Error fetching creator profile:", err);
       }
@@ -176,18 +218,54 @@ export default function SettingsPage() {
     setIsSaving(true);
 
     try {
+      const normalizedUsername = normalizeUsernameInput(username);
+      const normalizedWebsite = normalizeWebsiteInput(website);
+
+      const valuesToFilter = [
+        { label: "First name", value: profileFirstName },
+        { label: "Last name", value: profileLastName },
+        { label: "Username", value: normalizedUsername },
+        { label: "Contact number", value: contactNumber },
+        { label: "Address", value: address },
+        { label: "State", value: state },
+        { label: "Time zone", value: timeZone },
+        { label: "Website", value: normalizedWebsite },
+        { label: "About you", value: aboutYou },
+      ];
+
+      const blockedField = valuesToFilter.find((item) => item.value && containsBlockedWords(item.value));
+      if (blockedField) {
+        throw new Error(`Please remove profanity from ${blockedField.label.toLowerCase()} and try again.`);
+      }
+
+      if (normalizedUsername && !/^[a-z_]+$/.test(normalizedUsername)) {
+        throw new Error("Username can only contain lowercase letters and underscores.");
+      }
+
+      if (normalizedUsername.includes(" ")) {
+        throw new Error("Username cannot contain spaces.");
+      }
+
+      if (normalizedWebsite && !isValidWebsite(normalizedWebsite)) {
+        throw new Error("Link is invalid.");
+      }
+
+      setUsername(normalizedUsername);
+      setWebsite(normalizedWebsite);
+
       const res = await fetch(`${API_URL}/api/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: profileFirstName,
           last_name: profileLastName,
+          username: normalizedUsername,
           bio: aboutYou,
           phone_number: contactNumber,
           address,
           state,
           time_zone: timeZone,
-          website,
+          website: normalizedWebsite,
         }),
       });
       if (!res.ok) throw new Error("Failed to save profile");
@@ -207,7 +285,7 @@ export default function SettingsPage() {
       setIsDirty(false);
     } catch (err) {
       console.error("Error saving profile:", err);
-      alert("Failed to save. Please try again.");
+      alert(err instanceof Error ? err.message : "Failed to save. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -355,6 +433,26 @@ export default function SettingsPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
                 </div>
+                <div>
+                  <label
+                    htmlFor="username"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(normalizeUsernameInput(e.target.value))}
+                    placeholder="username"
+                    maxLength={USERNAME_MAX_LENGTH}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Used in your public profile URL. Lowercase letters and underscores only. Max 30 characters.
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -369,7 +467,9 @@ export default function SettingsPage() {
                     id="contactNumber"
                     type="tel"
                     value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
+                    onChange={(e) =>
+                    setContactNumber(e.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="Phone number"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
@@ -475,22 +575,14 @@ export default function SettingsPage() {
                     >
                       Website
                     </label>
-                    <div className="flex gap-3">
-                      <input
-                        id="website"
-                        type="url"
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        placeholder=""
-                        className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                      />
-                      <button
-                        type="button"
-                        className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
+                    <input
+                      id="website"
+                      type="url"
+                      value={website}
+                      onChange={(e) => setWebsite(normalizeWebsiteInput(e.target.value))}
+                      placeholder="https://example.com"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                    />
                   </div>
                 </div>
               </div>
@@ -582,38 +674,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4">Privacy</h3>
-                <div className="space-y-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={privacyOption1}
-                      onChange={(e) => setPrivacyOption1(e.target.checked)}
-                      className="mt-0.5 w-5 h-5 rounded border-gray-300 text-[#8BC34A] focus:ring-[#8BC34A]"
-                    />
-                    <span className="text-sm text-gray-600">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={privacyOption2}
-                      onChange={(e) => setPrivacyOption2(e.target.checked)}
-                      className="mt-0.5 w-5 h-5 rounded border-gray-300 text-[#8BC34A] focus:ring-[#8BC34A]"
-                    />
-                    <span className="text-sm text-gray-600">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                    </span>
-                  </label>
-                </div>
-              </div>
-
               <div className="flex justify-end items-center gap-4 pt-4">
                 <Link
-                  href={user?.id ? `/profile/${user.id}` : "#"}
+                  href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
                   className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
                   >
                 View Profile
@@ -865,7 +928,7 @@ export default function SettingsPage() {
 
               <div className="flex justify-end items-center gap-4 pt-8">
                 <Link
-                  href={user?.id ? `/profile/${user.id}` : "#"}
+                  href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
                   className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
                   >
                 View Profile
@@ -883,25 +946,8 @@ export default function SettingsPage() {
         )}
       </main>
 
-      <footer className="border-t border-gray-200 py-6 px-6 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">
-          <div className="flex items-center text-sm text-gray-500 mb-4 md:mb-0">
-            <span className="text-[#8BC34A] font-bold mr-2">CF</span>
-            Community Funding, PBC © 2022
-          </div>
-          <div className="flex items-center space-x-6 text-sm text-gray-500">
-            <Link href="#" className="hover:text-[#8BC34A] transition-colors">
-              Trust and Safety
-            </Link>
-            <Link href="#" className="hover:text-[#8BC34A] transition-colors">
-              Lorem ipsum
-            </Link>
-            <Link href="#" className="hover:text-[#8BC34A] transition-colors">
-              Lorem ipsum
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
     </div>
   );
 }
