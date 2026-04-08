@@ -12,6 +12,7 @@ import {
   photosPayloadForApi,
   uploadCampaignFilesToS3,
 } from "../../create-project/lib/campaignPhotoUpload";
+import LocationAutocomplete from "../../create-project/component/LocationAutocomplete";
 
 type Reward = {
   reward_id?: number;
@@ -40,6 +41,7 @@ type CampaignData = {
     location?: string | null;
     funding_goal_cents: number;
     duration_days?: number | null;
+    backers: number;
   };
   rewards: Reward[];
   faqs: Faq[];
@@ -55,6 +57,24 @@ type CampaignData = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const MAX_DURATION_DAYS = 365;
+const CATEGORY_OPTIONS = [
+    "Art",
+    "Comics",
+    "Crafts",
+    "Dance",
+    "Design",
+    "Fashion",
+    "Film & Video",
+    "Food",
+    "Games",
+    "Journalism",
+    "Music",
+    "Photography",
+    "Publishing",
+    "Technology",
+    "Theater",
+];
 
 function getAuthHeaders(): Record<string,string> {
   if (typeof window === "undefined") return {};
@@ -79,6 +99,31 @@ function formatStatusLabel(status: string) {
     .join(" ");
 }
 
+function isValidCategory(value: string) {
+  return CATEGORY_OPTIONS.includes(value);
+}
+
+function getMissingRequiredFields(params: {
+  title: string;
+  descriptionHtml: string;
+  category: string;
+  location: string;
+  goalAmount: string;
+  durationDays: string;
+}) {
+  const missing: string[] = [];
+  if (!params.title.trim()) missing.push("title");
+  if (!params.descriptionHtml.trim()) missing.push("description");
+  if (!params.category.trim() || !isValidCategory(params.category.trim())) missing.push("category");
+  if (!params.location.trim()) missing.push("location");
+  if (centsFromDollars(params.goalAmount) <= 0) missing.push("funding goal");
+  const durationNum = Number(params.durationDays);
+  if (!params.durationDays.trim() || !Number.isInteger(durationNum) || durationNum < 1 || durationNum > MAX_DURATION_DAYS) {
+    missing.push("duration");
+  }
+  return missing;
+}
+
 export default function EditCampaignPage() {
   const { user } = useUser();
   const router = useRouter();
@@ -88,6 +133,7 @@ export default function EditCampaignPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [data, setData] = useState<CampaignData | null>(null);
 
@@ -102,6 +148,7 @@ export default function EditCampaignPage() {
   const [photos, setPhotos] = useState<CampaignData["photos"]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingPreviewUrls, setPendingPreviewUrls] = useState<string[]>([]);
+  const [primaryMediaSelection, setPrimaryMediaSelection] = useState<{ kind: "existing" | "pending"; index: number } | null>(null);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [faqs, setFaqs] = useState<Faq[]>([]);
 
@@ -129,6 +176,8 @@ export default function EditCampaignPage() {
         setRewards((data.rewards || []).map((r, idx) => ({ ...r, display_order: idx, description: r.description || "" })));
         setFaqs((data.faqs || []).map((f, idx) => ({ ...f, display_order: idx })));
         setPhotos(data.photos || []);
+        const existingPrimaryIndex = (data.photos || []).findIndex((p) => p.is_primary);
+        setPrimaryMediaSelection((data.photos || []).length > 0 ? { kind: "existing", index: existingPrimaryIndex >= 0 ? existingPrimaryIndex : 0 } : null);
       } catch (e:any) {
         setError(e?.message || "Could not load campaign");
       } finally {
@@ -147,11 +196,26 @@ export default function EditCampaignPage() {
   const updateFaq = (idx:number, patch: Partial<Faq>) => setFaqs((prev) => prev.map((f,i) => i===idx ? { ...f, ...patch } : f));
   const removeFaq = (idx:number) => setFaqs((prev) => prev.filter((_,i)=>i!==idx).map((f,i)=>({ ...f, display_order:i })));
 
-  const canSave = useMemo(() => {
-    return !!title.trim() && !!descriptionHtml.trim() && centsFromDollars(goalAmount) > 0;
-  }, [title, descriptionHtml, goalAmount]);
+  const missingRequiredFields = useMemo(() => {
+    return getMissingRequiredFields({
+      title,
+      descriptionHtml,
+      category,
+      location,
+      goalAmount,
+      durationDays,
+    });
+  }, [title, descriptionHtml, category, location, goalAmount, durationDays]);
+
+  const canSave = missingRequiredFields.length === 0;
+  const durationNumber = Number(durationDays);
+  const durationError =
+    durationDays.trim() && (!Number.isInteger(durationNumber) || durationNumber < 1 || durationNumber > MAX_DURATION_DAYS)
+      ? `Duration must be a whole number between 1 and ${MAX_DURATION_DAYS} days.`
+      : "";
 
   const isDraft = status === "draft";
+  const hasBackers = (data?.campaign?.backers || 0) > 0;
 
   function addFiles(files: FileList | File[]) {
     const incoming = Array.from(files).filter((f) => {
@@ -171,7 +235,21 @@ export default function EditCampaignPage() {
   }
 
   function removeExistingPhoto(idx: number) {
-    setPhotos((prev) => prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, sort_order: i, is_primary: i === 0 })));
+    setPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, sort_order: i }));
+      setPrimaryMediaSelection((current) => {
+        if (!next.length) {
+          return pendingFiles.length > 0 ? { kind: "pending", index: 0 } : null;
+        }
+        if (!current) return { kind: "existing", index: 0 };
+        if (current.kind === "existing") {
+          if (current.index === idx) return { kind: "existing", index: 0 };
+          if (current.index > idx) return { kind: "existing", index: current.index - 1 };
+        }
+        return current;
+      });
+      return next;
+    });
   }
 
   function removePendingPhoto(idx: number) {
@@ -181,6 +259,42 @@ export default function EditCampaignPage() {
       if (url) URL.revokeObjectURL(url);
       return prev.filter((_, i) => i !== idx);
     });
+    setPrimaryMediaSelection((current) => {
+      const nextPendingCount = pendingFiles.length - 1;
+      if (!current) {
+        if (photos.length > 0) return { kind: "existing", index: 0 };
+        return nextPendingCount > 0 ? { kind: "pending", index: 0 } : null;
+      }
+      if (current.kind === "pending") {
+        if (current.index === idx) {
+          if (photos.length > 0) return { kind: "existing", index: 0 };
+          return nextPendingCount > 0 ? { kind: "pending", index: 0 } : null;
+        }
+        if (current.index > idx) return { kind: "pending", index: current.index - 1 };
+      }
+      return current;
+    });
+  }
+
+  function handleSetPrimary(kind: "existing" | "pending", index: number) {
+    setPrimaryMediaSelection({ kind, index });
+  }
+
+  function getPrimaryFlags(existingCount: number, pendingCount: number) {
+    let existingPrimaryIndex = -1
+    let pendingPrimaryIndex = -1
+
+    if (primaryMediaSelection?.kind === "existing" && primaryMediaSelection.index < existingCount) {
+      existingPrimaryIndex = primaryMediaSelection.index
+    } else if (primaryMediaSelection?.kind === "pending" && primaryMediaSelection.index < pendingCount) {
+      pendingPrimaryIndex = primaryMediaSelection.index
+    } else if (existingCount > 0) {
+      existingPrimaryIndex = 0
+    } else if (pendingCount > 0) {
+      pendingPrimaryIndex = 0
+    }
+
+    return { existingPrimaryIndex, pendingPrimaryIndex }
   }
 
   async function handleDeleteDraft() {
@@ -189,6 +303,9 @@ export default function EditCampaignPage() {
     if (!confirmed) return;
 
     try {
+      setSaveError(null);
+      if (!canSave) throw new Error("One or more required fields are missing values.");
+      if (durationError) throw new Error(durationError);
       setSaving(true);
       const res = await fetch(`${API_BASE}/api/campaign-page/${url}`, {
         method: "DELETE",
@@ -227,22 +344,25 @@ export default function EditCampaignPage() {
         ? await uploadCampaignFilesToS3(resolvedCampaignId, pendingFiles, token)
         : [];
 
+      const uploadedPhotoPayload = photosPayloadForApi(uploadedPhotos);
+      const { existingPrimaryIndex, pendingPrimaryIndex } = getPrimaryFlags(photos.length, uploadedPhotoPayload.length);
+
       const mergedPhotos = [
         ...photos.map((p, idx) => ({
           s3_bucket: p.s3_bucket || "",
           s3_key: p.s3_key || "",
           content_type: p.content_type || "image/jpeg",
-          is_primary: idx === 0,
+          is_primary: idx == existingPrimaryIndex,
           sort_order: idx,
         })),
-        ...photosPayloadForApi(uploadedPhotos).map((p, idx) => ({
+        ...uploadedPhotoPayload.map((p, idx) => ({
           ...p,
-          is_primary: false,
+          is_primary: idx == pendingPrimaryIndex,
           sort_order: photos.length + idx,
         })),
       ].map((p, idx) => ({
         ...p,
-        is_primary: idx === 0,
+        is_primary: p.is_primary || (existingPrimaryIndex < 0 && pendingPrimaryIndex < 0 && idx === 0),
         sort_order: idx,
       }));
 
@@ -253,12 +373,12 @@ export default function EditCampaignPage() {
           ...getAuthHeaders(),
         },
         body: JSON.stringify({
-          title: title.trim(),
+          title: hasBackers ? (data?.campaign.title || "").trim() : title.trim(),
           description_html: descriptionHtml,
-          category: category.trim() || null,
-          location: location.trim() || null,
-          funding_goal_cents: centsFromDollars(goalAmount),
-          duration_days: durationDays ? Number(durationDays) : null,
+          category: hasBackers ? (data?.campaign.category || null) : (category.trim() || null),
+          location: hasBackers ? (data?.campaign.location || null) : (location.trim() || null),
+          funding_goal_cents: hasBackers ? (data?.campaign.funding_goal_cents || 0) : centsFromDollars(goalAmount),
+          duration_days: hasBackers ? (data?.campaign.duration_days ?? null) : (durationDays ? Number(durationDays) : null),
           rewards: rewards
             .filter((r) => r.title.trim() && r.required_amount_cents > 0)
             .map((r, idx) => ({
@@ -275,13 +395,25 @@ export default function EditCampaignPage() {
         }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Failed to save: ${res.status}`);
+        let message = `Failed to save: ${res.status}`;
+        try {
+          const errJson = await res.json();
+          if (typeof errJson?.detail === "string" && errJson.detail.trim()) {
+            message = errJson.detail;
+          }
+        } catch {
+          try {
+            const text = await res.text();
+            if (text) message = text;
+          } catch {}
+        }
+        throw new Error(message);
       }
 
       pendingPreviewUrls.forEach((u) => URL.revokeObjectURL(u));
       router.push(`/project/${url}`);
     } catch (e:any) {
+      setSaveError(e?.message || "Could not save campaign.");
       alert(e?.message || "Could not save campaign.");
     } finally {
       setSaving(false);
@@ -306,31 +438,61 @@ export default function EditCampaignPage() {
 
         {!loading && !error && !notOwner && (
           <div className="space-y-8">
+            {hasBackers && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+                Because backers have contributed to your campaign, you are no longer able to edit the title, category, location, funding goal, or duration.
+              </div>
+            )}
             <div className="rounded-2xl border border-gray-200 p-6 bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Project Title</label>
-                  <input value={title} onChange={(e)=>setTitle(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Project Title <span className="text-red-500">*</span></label>
+                  <input value={title} onChange={(e)=>setTitle(e.target.value)} disabled={hasBackers} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                   <input value={formatStatusLabel(status)} disabled className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <input value={category} onChange={(e)=>setCategory(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category <span className="text-red-500">*</span></label>
+                  <select value={category} onChange={(e)=>setCategory(e.target.value)} disabled={hasBackers} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] bg-white disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                    <option value="">Select a category</option>
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  {!category || !isValidCategory(category) ? (
+                    <p className="mt-2 text-sm text-gray-500">Please choose one of the listed categories.</p>
+                  ) : null}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                  <input value={location} onChange={(e)=>setLocation(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]" />
+                <div className={hasBackers ? "pointer-events-none opacity-70" : ""}>
+                <LocationAutocomplete
+                    value={location}
+                    onChange={(value) => setLocation(value)}
+                />
+                </div>
+                  {!location.trim() ? (
+                    <p className="mt-2 text-sm text-gray-500">Please choose a city.</p>
+                  ) : null}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Funding Goal (USD)</label>
-                  <input value={goalAmount} onChange={(e)=>setGoalAmount(e.target.value)} inputMode="decimal" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Funding Goal (USD) <span className="text-red-500">*</span></label>
+                  <input
+                    value={goalAmount}
+                    onChange={(e) => setGoalAmount(e.target.value)}
+                    disabled={hasBackers}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Duration (days)</label>
-                  <input value={durationDays} onChange={(e)=>setDurationDays(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Duration (days) <span className="text-red-500">*</span></label>
+                  <input
+                    value={durationDays}
+                    onChange={(e) => setDurationDays(e.target.value.replace(/[^0-9]/g, ""))}
+                    disabled={hasBackers}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    />
                 </div>
               </div>
             </div>
@@ -411,18 +573,27 @@ export default function EditCampaignPage() {
                         ) : (
                           <img src={displayUrl} alt="Campaign" className="w-full h-32 object-cover rounded-xl border border-gray-200" />
                         )}
-                        {idx === 0 && (
+                        {primaryMediaSelection?.kind === "existing" && primaryMediaSelection.index === idx && (
                           <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-white/90 text-xs font-medium text-gray-700 border border-gray-200">
                             Cover
                           </span>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => removeExistingPhoto(idx)}
-                          className="absolute top-2 right-2 px-2 py-1 rounded-md bg-white/90 border border-gray-200 text-xs text-red-600 hover:bg-red-50"
-                        >
-                          Remove
-                        </button>
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimary("existing", idx)}
+                            className="px-2 py-1 rounded-md bg-white/90 border border-gray-200 text-xs text-gray-700 hover:bg-gray-50"
+                          >
+                            {primaryMediaSelection?.kind === "existing" && primaryMediaSelection.index === idx ? "Primary" : "Set primary"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeExistingPhoto(idx)}
+                            className="px-2 py-1 rounded-md bg-white/90 border border-gray-200 text-xs text-red-600 hover:bg-red-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -437,24 +608,44 @@ export default function EditCampaignPage() {
                         ) : (
                           <img src={previewUrl} alt="New upload" className="w-full h-32 object-cover rounded-xl border border-dashed border-gray-300" />
                         )}
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-white/90 text-xs font-medium text-gray-700 border border-gray-200">
-                          New
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removePendingPhoto(idx)}
-                          className="absolute top-2 right-2 px-2 py-1 rounded-md bg-white/90 border border-gray-200 text-xs text-red-600 hover:bg-red-50"
-                        >
-                          Remove
-                        </button>
+                        <div className="absolute top-2 left-2 flex gap-2">
+                          <span className="px-2 py-0.5 rounded-full bg-white/90 text-xs font-medium text-gray-700 border border-gray-200">
+                            New
+                          </span>
+                          {primaryMediaSelection?.kind === "pending" && primaryMediaSelection.index === idx && (
+                            <span className="px-2 py-0.5 rounded-full bg-white/90 text-xs font-medium text-gray-700 border border-gray-200">
+                              Cover
+                            </span>
+                          )}
+                        </div>
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimary("pending", idx)}
+                            className="px-2 py-1 rounded-md bg-white/90 border border-gray-200 text-xs text-gray-700 hover:bg-gray-50"
+                          >
+                            {primaryMediaSelection?.kind === "pending" && primaryMediaSelection.index === idx ? "Primary" : "Set primary"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removePendingPhoto(idx)}
+                            className="px-2 py-1 rounded-md bg-white/90 border border-gray-200 text-xs text-red-600 hover:bg-red-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              <p className="text-xs text-gray-500 mt-3">The first item will be used as the cover image.</p>
+              <p className="text-xs text-gray-500 mt-3">Choose which photo or video should be the primary cover for your campaign.</p>
             </div>
+
+            {saveError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{saveError}</div>
+            ) : null}
 
             <div className="flex justify-between gap-3">
               <div>
@@ -471,7 +662,7 @@ export default function EditCampaignPage() {
               </div>
               <div className="flex gap-3">
                 <Link href={url ? `/project/${url}` : "#"} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</Link>
-                <button onClick={handleSave} disabled={!canSave || saving} className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] disabled:opacity-50">
+                <button onClick={handleSave} disabled={!canSave || saving} title={!canSave ? "One or more required fields are missing values." : undefined} className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed">
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
