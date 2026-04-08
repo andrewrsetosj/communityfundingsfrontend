@@ -315,13 +315,14 @@ const profileHref =
                       className="flex items-center focus:outline-none"
                     >
                       {user?.imageUrl ? (
-                        <Image
-                          src={user.imageUrl}
-                          alt="Profile"
-                          width={50}
-                          height={50}
-                          className="rounded-full"
-                        />
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden">
+  <Image
+    src={user.imageUrl}
+    alt="Profile"
+    fill
+    className="object-cover"
+  />
+</div>
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
                       )}
