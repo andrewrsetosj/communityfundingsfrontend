@@ -252,7 +252,7 @@ function CommentBadges({ comment }: { comment: Comment }) {
 
       {comment.is_project_owner && (
         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-          Project Owner
+          Campaign Owner
         </span>
       )}
     </>
@@ -948,7 +948,7 @@ export default function ProjectDetail() {
                           <textarea
                             value={commentText}
                             onChange={(e) => setCommentText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
-                            placeholder="Share your thoughts about this project..."
+                            placeholder="Share your thoughts about this campaign..."
                             className="w-full min-h-[120px] border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-y"
                           />
 
@@ -1301,7 +1301,7 @@ export default function ProjectDetail() {
                       : "bg-gray-200 text-gray-500 cursor-not-allowed"
                       }`}
                       >
-                      {isOwner ? "You can't back your own project" : "Back this project"}
+                      {isOwner ? "You can't back your own campaign" : "Back this campaign"}
                     </button>
                     {isOwner && (
                       <Link
@@ -1349,7 +1349,7 @@ export default function ProjectDetail() {
                     )}
 
                     <p className="text-xs text-gray-500">
-                      All or nothing. This project will only be funded if it reaches its goal before the campaign ends.
+                      All or nothing. This campaign will only be funded if it reaches its goal before the campaign ends.
                     </p>
                   </div>
 
@@ -1434,65 +1434,6 @@ export default function ProjectDetail() {
                 </div>
               </div>
             </div>
-
-            <section className="mb-12">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 uppercase tracking-wide">
-                We Also Recommend
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {recommendedProjects.map((project) => (
-                  <Link key={project.id} href={`/project/${project.id}`} className="group cursor-pointer block">
-                    <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
-                      <Image
-                        src={`https://images.unsplash.com/${project.image}?w=400`}
-                        alt="Project thumbnail"
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                        {project.title}
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-1">
-                        {percentFunded}% funded · By:{" "}
-                        <span className="font-semibold text-gray-700">{project.creator}</span>
-                      </p>
-                      <p className="text-xs text-gray-500 mb-2">
-                        Raised: <span className="font-medium">$12,450</span>
-                      </p>
-
-                      <div className="flex items-center text-xs text-gray-500 space-x-4">
-                        <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                          </svg>
-                          Save
-                        </span>
-                        <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                          <span className="mr-1">$</span>
-                          Fund
-                        </span>
-                        <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                          Skip
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              <div className="flex justify-center mt-8">
-                <button className="px-8 py-3 border border-gray-300 rounded-full text-gray-700 font-medium hover:bg-gray-50 transition-colors">
-                  View More
-                </button>
-              </div>
-            </section>
           </>
         )}
       </main>
