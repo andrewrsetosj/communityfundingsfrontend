@@ -10,6 +10,7 @@ import Footer from "../../components/Footer";
 
 type ProfileCreator = {
   creator_id: string;
+  username?: string | null;
   user_type: number;
   name: string;
   last_name?: string | null;
@@ -49,6 +50,7 @@ type ProfileActivity = {
   target_creator_id?: string | null;
   target_name?: string | null;
   target_last_name?: string | null;
+  target_username?: string | null;
 };
 
 type ProfilePageData = {
@@ -107,8 +109,19 @@ function getFullName(creator?: ProfileCreator | null) {
   return [creator.name, creator.last_name].filter(Boolean).join(" ").trim() || "Unknown User";
 }
 
+function getDisplayHandle(creator?: Pick<ProfileCreator, "username" | "creator_id"> | null) {
+  if (!creator) return "";
+  return `@${creator.username || creator.creator_id}`;
+}
+
+function getProfileHref(person?: { username?: string | null; creator_id?: string | null }) {
+  if (person?.username) return `/profile/${person.username}`;
+  if (person?.creator_id) return `/profile/${person.creator_id}`;
+  return "#";
+}
+
 function getActivityTargetName(activity: ProfileActivity) {
-  return [activity.target_name, activity.target_last_name].filter(Boolean).join(" ").trim() || activity.target_creator_id || "another user";
+  return [activity.target_name, activity.target_last_name].filter(Boolean).join(" ").trim() || activity.target_username || activity.target_creator_id || "another user";
 }
 
 function formatUSD(cents?: number) {
@@ -153,7 +166,7 @@ function ActivityItem({ activity }: { activity: ProfileActivity }) {
   }
 
   if (activity.activity_type === "followed") {
-    const href = activity.target_creator_id ? `/profile/${activity.target_creator_id}` : "#";
+    const href = getProfileHref({ username: activity.target_username, creator_id: activity.target_creator_id });
     return (
       <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
         <div className="flex items-start justify-between gap-3 mb-2">
@@ -286,7 +299,7 @@ export default function ProfilePage() {
     try {
       setIsReportLoading(true);
 
-      const res = await fetch(`${API_BASE}/api/profile-page/${creator.creator_id}/report`, {
+      const res = await fetch(`${API_BASE}/api/profile-page/${profilePathId}/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -337,6 +350,7 @@ export default function ProfilePage() {
   }, [id]);
 
   const profileImage = creator?.avatar_url || (isOwnProfile ? user?.imageUrl : null);
+  const profilePathId = creator?.username || creator?.creator_id || id;
 
   return (
     <div className="min-h-screen bg-white">
@@ -385,6 +399,7 @@ export default function ProfilePage() {
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
                       {getFullName(creator)}
                     </h1>
+                    <p className="text-sm text-gray-500">{getDisplayHandle(creator)}</p>
 
                     {!isOwnProfile && followRelationship?.is_friend ? (
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#F5F9F0] text-[#6E9E36] border border-[#8BC34A]/20">
@@ -419,7 +434,7 @@ export default function ProfilePage() {
 
                   <div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
                     <Link
-                      href={`/profile/${creator.creator_id}/followers`}
+                      href={`/profile/${creator.username || creator.creator_id}/followers`}
                       className="hover:text-[#8BC34A] transition-colors"
                     >
                       <span className="font-semibold text-gray-900">
@@ -429,7 +444,7 @@ export default function ProfilePage() {
                     </Link>
 
                     <Link
-                      href={`/profile/${creator.creator_id}/following`}
+                      href={`/profile/${creator.username || creator.creator_id}/following`}
                       className="hover:text-[#8BC34A] transition-colors"
                     >
                       <span className="font-semibold text-gray-900">
