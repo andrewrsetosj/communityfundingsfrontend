@@ -732,6 +732,7 @@ export default function ProjectDetail() {
   const creator = data?.creator;
   const isOwner = Boolean(user?.id && campaign?.creator_id && user.id === campaign.creator_id);
   const isCampaignActive = campaign?.status === "active";
+  const canViewCampaign = Boolean(campaign && (isCampaignActive || isOwner));
 
   const creatorFullName = creator
     ? [creator.name, creator.last_name].filter(Boolean).join(" ").trim()
@@ -790,8 +791,24 @@ export default function ProjectDetail() {
 
         {!data && !error && <p className="text-gray-600">Loading…</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
+        {data && campaign && !canViewCampaign && (
+          <div className="max-w-2xl mx-auto py-16">
+            <div className="border border-gray-200 rounded-2xl bg-white p-8 text-center">
+              <h1 className="text-2xl font-bold text-gray-900 mb-3">You don&apos;t have permission to view this campaign.</h1>
+              <p className="text-gray-600 mb-6">
+                This campaign isn&apos;t public right now.
+              </p>
+              <button
+                onClick={() => router.back()}
+                className="inline-flex items-center justify-center px-5 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] transition-colors"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
+        )}
 
-        {data && campaign && (
+        {data && campaign && canViewCampaign && (
           <>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
               {campaign.title}

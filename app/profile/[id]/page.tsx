@@ -47,6 +47,7 @@ type ProfileActivity = {
   campaign_id?: number | null;
   campaign_url?: string | null;
   campaign_title?: string | null;
+  campaign_status?: string | null;
   target_creator_id?: string | null;
   target_name?: string | null;
   target_last_name?: string | null;
@@ -243,12 +244,19 @@ export default function ProfilePage() {
 
   const creator = data?.creator;
   const interests = data?.interests ?? [];
-  const campaigns = data?.campaigns ?? [];
-  const activities = data?.activities ?? [];
+  const activities = (data?.activities ?? []).filter((activity) => {
+    if (activity.activity_type !== "created_campaign") return true;
+    return activity.campaign_status === "active";
+  });
 
-  const isOwnProfile = useMemo(() => {
-    return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
-  }, [user?.id, creator?.creator_id]);
+const isOwnProfile = useMemo(() => {
+  return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
+}, [user?.id, creator?.creator_id]);
+
+  const campaigns = (data?.campaigns ?? []).filter((campaign) => {
+    if (isOwnProfile) return true;
+    return campaign.status === "active";
+  });
 
   async function handleFollowClick() {
     if (!creator || !user?.id || isOwnProfile) return;
@@ -604,9 +612,17 @@ export default function ProfilePage() {
                             </div>
 
                             <div>
-                              <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                                {campaign.title}
-                              </h3>
+                             <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
+                                  {campaign.title}
+                                </h3>
+
+                            {isOwnProfile && campaign.status !== "active" && (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                Only visible to you
+                              </span>
+                            )}
+                            </div>
 
                               <p className="text-xs text-gray-500 mb-1">
                                 {percentFunded}% funded · By:{" "}
