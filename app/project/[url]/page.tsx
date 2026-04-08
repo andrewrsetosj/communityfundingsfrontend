@@ -1018,13 +1018,15 @@ export default function ProjectDetail() {
                                     </button>
                                   )}
 
-                                  <button
-                                    onClick={() => handleReportComment(comment)}
-                                    disabled={reportingCommentId === comment.comment_id}
-                                    className="text-sm text-gray-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {reportingCommentId === comment.comment_id ? "Reporting..." : "Report"}
-                                  </button>
+                                  {!comment.is_you && (
+                                    <button
+                                      onClick={() => handleReportComment(comment)}
+                                      disabled={reportingCommentId === comment.comment_id}
+                                      className="text-sm text-gray-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {reportingCommentId === comment.comment_id ? "Reporting..." : "Report"}
+                                    </button>
+                                  )}
 
                                   {comment.is_you && (
                                     <>
@@ -1156,13 +1158,15 @@ export default function ProjectDetail() {
                                                 </button>
                                               )}
 
-                                              <button
-                                                onClick={() => handleReportComment(reply)}
-                                                disabled={reportingCommentId === reply.comment_id}
-                                                className="text-sm text-gray-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                              >
-                                                {reportingCommentId === reply.comment_id ? "Reporting..." : "Report"}
-                                              </button>
+                                              {!reply.is_you && (
+                                                <button
+                                                  onClick={() => handleReportComment(reply)}
+                                                  disabled={reportingCommentId === reply.comment_id}
+                                                  className="text-sm text-gray-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                  {reportingCommentId === reply.comment_id ? "Reporting..." : "Report"}
+                                                </button>
+                                              )}
 
                                               {reply.is_you && (
                                                 <>
@@ -1290,16 +1294,15 @@ export default function ProjectDetail() {
                     <p className="text-sm text-gray-500 mb-6">days to go</p>
 
                     <button
-                      disabled={!isCampaignActive}
+                      disabled={!isCampaignActive || isOwner}
                       className={`w-full py-3 rounded-lg font-medium transition-colors mb-3 ${
-                        isCampaignActive
-                          ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
-                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      isCampaignActive && !isOwner
+                      ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
                       }`}
-                    >
-                      Back this project
+                      >
+                      {isOwner ? "You can't back your own project" : "Back this project"}
                     </button>
-
                     {isOwner && (
                       <Link
                         href={`/edit-campaign/${campaign.url || campaign.campaign_id}`}
@@ -1335,13 +1338,15 @@ export default function ProjectDetail() {
                       </button>
                     )}
 
-                    <button
-                      onClick={handleReportCampaign}
-                      disabled={isCampaignReporting}
-                      className="w-full bg-white text-gray-900 py-3 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors mb-3 disabled:opacity-50"
-                    >
-                      {isCampaignReporting ? "Reporting..." : "Report this campaign"}
-                    </button>
+                    {!isOwner && (
+                      <button
+                        onClick={handleReportCampaign}
+                        disabled={isCampaignReporting}
+                        className="w-full bg-white text-gray-900 py-3 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors mb-3 disabled:opacity-50"
+                      >
+                        {isCampaignReporting ? "Reporting..." : "Report this campaign"}
+                      </button>
+                    )}
 
                     <p className="text-xs text-gray-500">
                       All or nothing. This project will only be funded if it reaches its goal before the campaign ends.
