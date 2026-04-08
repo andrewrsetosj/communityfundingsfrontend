@@ -32,6 +32,7 @@ type Creator = {
   email: string;
   bio?: string;
   avatar_url?: string | null;
+  user_type?: number | null;
 };
 
 type Faq = {
@@ -53,10 +54,17 @@ type Comment = {
   creator_id: string;
   campaign_id: number;
   parent_comment_id?: number | null;
+  reply_to_comment_id?: number | null;
+  reply_to_name?: string | null;
   name?: string;
   last_name?: string;
   avatar_url?: string | null;
+  user_type?: number | null;
   time_created: string;
+  updated_at?: string | null;
+  was_edited?: boolean;
+  like_count: number;
+  liked_by_viewer: boolean;
   replies: Comment[];
   reply_count: number;
   has_more_replies: boolean;
@@ -128,6 +136,34 @@ function formatCommentDateTime(dateString?: string) {
   });
 }
 
+function formatTimeAgo(dateString?: string | null) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const seconds = Math.max(1, Math.floor(diffMs / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 30) return `${days}d ago`;
+
+  return formatCommentDate(dateString);
+}
+
+function isEdited(comment: Comment) {
+  if (typeof comment.was_edited === "boolean") return comment.was_edited;
+  if (!comment.updated_at) return false;
+  return new Date(comment.updated_at).getTime() - new Date(comment.time_created).getTime() > 5000;
+}
+
+function getEditedLabel(comment: Comment) {
+  if (!isEdited(comment)) return "";
+  return `Last edited ${formatTimeAgo(comment.updated_at)}`;
+}
+
 function getCommentAuthor(comment: Comment) {
   return [comment.name, comment.last_name].filter(Boolean).join(" ").trim() || comment.creator_id || "Unknown User";
 }
@@ -178,6 +214,12 @@ function Avatar({
 function CommentBadges({ comment }: { comment: Comment }) {
   return (
     <>
+      {comment.user_type === 0 && (
+        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+          Business
+        </span>
+      )}
+
       {comment.is_you && (
         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
           You
@@ -224,10 +266,17 @@ function CommentHeader({ comment, compact = false }: { comment: Comment; compact
         title={formatCommentDateTime(comment.time_created)}
         className="text-xs text-gray-500 whitespace-nowrap cursor-default rounded-md border border-transparent hover:border-gray-200 hover:bg-gray-50 px-2 py-1 transition-colors"
       >
-        {formatCommentDate(comment.time_created)}
+        {formatTimeAgo(comment.time_created)}
       </span>
     </div>
   );
+}
+
+function CommentMeta({ comment }: { comment: Comment }) {
+  const edited = getEditedLabel(comment);
+  if (!edited) return null;
+
+  return <p className="text-xs text-gray-400 mt-2">{edited}</p>;
 }
 
 export default function ProjectDetail() {
@@ -245,21 +294,34 @@ export default function ProjectDetail() {
   const [commentText, setCommentText] = useState("");
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
 
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyingToParentId, setReplyingToParentId] = useState<number | null>(null);
+  const [replyingToComment, setReplyingToComment] = useState<Comment | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isReplySubmitting, setIsReplySubmitting] = useState(false);
 
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
   const [commentPage, setCommentPage] = useState(1);
   const [loadingRepliesFor, setLoadingRepliesFor] = useState<number | null>(null);
+  const [reportingCommentId, setReportingCommentId] = useState<number | null>(null);
+  const [isCampaignReporting, setIsCampaignReporting] = useState(false);
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "most_liked">("newest");
 
-  async function loadCampaignPage(targetPage: number) {
+  async function loadCampaignPage(targetPage: number, targetSortBy: "newest" | "oldest" | "most_liked" = sortBy) {
     if (!url) return;
 
     try {
       setError(null);
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-      const res = await fetch(`${API_BASE}/api/campaign-page/${url}?page=${targetPage}`, {
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        sort_by: targetSortBy,
+      });
+
+      const res = await fetch(`${API_BASE}/api/campaign-page/${url}?${params.toString()}`, {
         cache: "no-store",
         headers: getAuthHeaders(),
       });
@@ -269,6 +331,7 @@ export default function ProjectDetail() {
       const json = (await res.json()) as CampaignPageData;
       setData(json);
       setCommentPage(json.comments_pagination?.page ?? targetPage);
+      setSortBy(targetSortBy);
       setCurrentPhotoIndex(0);
     } catch (e: any) {
       setError(e?.message ?? "Unknown error");
@@ -330,11 +393,13 @@ export default function ProjectDetail() {
         body: JSON.stringify({
           comment_text: replyText.trim(),
           parent_comment_id: parentCommentId,
+          reply_to_comment_id: replyingToComment?.comment_id ?? null,
         }),
       });
 
       if (!res.ok) {
-        throw new Error(`Failed to post reply: ${res.status}`);
+        const text = await res.text();
+        throw new Error(text || `Failed to post reply: ${res.status}`);
       }
 
       const json = (await res.json()) as { comment: Comment };
@@ -358,10 +423,11 @@ export default function ProjectDetail() {
       });
 
       setReplyText("");
-      setReplyingTo(null);
-    } catch (err) {
+      setReplyingToParentId(null);
+      setReplyingToComment(null);
+    } catch (err: any) {
       console.error(err);
-      alert("Could not post reply.");
+      alert(err?.message || "Could not post reply.");
     } finally {
       setIsReplySubmitting(false);
     }
@@ -414,6 +480,168 @@ export default function ProjectDetail() {
     } catch (err) {
       console.error(err);
       alert("Could not delete comment.");
+    }
+  }
+
+  async function handleEditComment(comment: Comment) {
+    setEditingCommentId(comment.comment_id);
+    setEditText(comment.comment_text);
+  }
+
+  async function handleSaveEditedComment(commentId: number) {
+    if (!url || !editText.trim()) return;
+
+    try {
+      setIsEditSubmitting(true);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+      const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments/${commentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ comment_text: editText.trim() }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to edit comment: ${res.status}`);
+      }
+
+      const json = (await res.json()) as { comment: Comment };
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          comments: prev.comments.map((comment) => {
+            if (comment.comment_id === commentId) return { ...comment, ...json.comment };
+            return {
+              ...comment,
+              replies: comment.replies.map((reply) =>
+                reply.comment_id === commentId ? { ...reply, ...json.comment } : reply
+              ),
+            };
+          }),
+        };
+      });
+
+      setEditingCommentId(null);
+      setEditText("");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not edit comment.");
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  }
+
+  async function handleToggleLike(comment: Comment) {
+    if (!url || !user) return;
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    const method = comment.liked_by_viewer ? "DELETE" : "POST";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments/${comment.comment_id}/like`, {
+        method,
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`Failed to toggle like: ${res.status}`);
+
+      const json = (await res.json()) as { liked: boolean; like_count: number; comment_id: number };
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          comments: prev.comments.map((parent) => {
+            if (parent.comment_id === json.comment_id) {
+              return { ...parent, liked_by_viewer: json.liked, like_count: json.like_count };
+            }
+            return {
+              ...parent,
+              replies: parent.replies.map((reply) =>
+                reply.comment_id === json.comment_id
+                  ? { ...reply, liked_by_viewer: json.liked, like_count: json.like_count }
+                  : reply
+              ),
+            };
+          }),
+        };
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Could not update like.");
+    }
+  }
+
+  function handleReplyClick(parentComment: Comment, targetComment?: Comment) {
+    const target = targetComment ?? parentComment;
+    setReplyingToParentId(parentComment.comment_id);
+    setReplyingToComment(target);
+    setReplyText("");
+  }
+
+  async function handleReportComment(comment: Comment) {
+    if (!url || !user) return;
+
+    try {
+      setReportingCommentId(comment.comment_id);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+      const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments/${comment.comment_id}/report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to report comment: ${res.status}`);
+      }
+
+      alert("Comment reported. A snapshot was saved for admin review.");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not report comment.");
+    } finally {
+      setReportingCommentId(null);
+    }
+  }
+
+  async function handleReportCampaign() {
+    if (!url) return;
+
+    try {
+      setIsCampaignReporting(true);
+
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+      const res = await fetch(`${API_BASE}/api/campaign-page/${url}/report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to report campaign: ${res.status}`);
+      }
+
+      alert("Campaign reported. A snapshot was saved for admin review.");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not report campaign.");
+    } finally {
+      setIsCampaignReporting(false);
     }
   }
 
@@ -658,7 +886,23 @@ export default function ProjectDetail() {
                 </section>
 
                 <section className="mb-12">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Comments</h2>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-gray-900">Comments</h2>
+
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="comment-sort" className="text-sm text-gray-600">Sort by</label>
+                      <select
+                        id="comment-sort"
+                        value={sortBy}
+                        onChange={(e) => loadCampaignPage(1, e.target.value as "newest" | "oldest" | "most_liked")}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A]"
+                      >
+                        <option value="newest">Newest</option>
+                        <option value="oldest">Oldest</option>
+                        <option value="most_liked">Most liked</option>
+                      </select>
+                    </div>
+                  </div>
 
                   <div className="border border-gray-200 rounded-2xl p-5 bg-white mb-6">
                     {user ? (
@@ -712,36 +956,92 @@ export default function ProjectDetail() {
                                   {comment.comment_text}
                                 </p>
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex flex-wrap items-center gap-4">
                                   {user && (
                                     <button
-                                      onClick={() =>
-                                        setReplyingTo((prev) =>
-                                          prev === comment.comment_id ? null : comment.comment_id
-                                        )
-                                      }
+                                      onClick={() => handleReplyClick(comment)}
                                       className="text-sm text-[#8BC34A] hover:underline"
                                     >
                                       Reply
                                     </button>
                                   )}
 
-                                  {comment.is_you && (
+                                  {user && (
                                     <button
-                                      onClick={() => handleDeleteComment(comment.comment_id)}
-                                      className="text-sm text-red-600 hover:underline"
+                                      onClick={() => handleToggleLike(comment)}
+                                      className={`text-sm hover:underline ${comment.liked_by_viewer ? "text-blue-600" : "text-gray-600"}`}
                                     >
-                                      Delete
+                                      👍 {comment.like_count}
                                     </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleReportComment(comment)}
+                                    disabled={reportingCommentId === comment.comment_id}
+                                    className="text-sm text-gray-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {reportingCommentId === comment.comment_id ? "Reporting..." : "Report"}
+                                  </button>
+
+                                  {comment.is_you && (
+                                    <>
+                                      <button
+                                        onClick={() => handleEditComment(comment)}
+                                        className="text-sm text-gray-700 hover:underline"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteComment(comment.comment_id)}
+                                        className="text-sm text-red-600 hover:underline"
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
                                   )}
                                 </div>
 
-                                {replyingTo === comment.comment_id && user && (
+                                <CommentMeta comment={comment} />
+
+                                {editingCommentId === comment.comment_id ? (
+                                  <div className="mt-4">
+                                    <textarea
+                                      value={editText}
+                                      onChange={(e) => setEditText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
+                                      className="w-full min-h-[90px] border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-y"
+                                    />
+                                    <div className="flex items-center justify-between gap-2 mt-3">
+                                      <p className={`text-xs ${editText.length >= COMMENT_MAX_LENGTH ? "text-red-600" : "text-gray-500"}`}>
+                                        {editText.length}/{COMMENT_MAX_LENGTH}
+                                      </p>
+                                      <div className="flex justify-end gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setEditingCommentId(null);
+                                            setEditText("");
+                                          }}
+                                          className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          onClick={() => handleSaveEditedComment(comment.comment_id)}
+                                          disabled={isEditSubmitting || !editText.trim() || editText.length > COMMENT_MAX_LENGTH}
+                                          className="px-4 py-2 text-sm bg-[#8BC34A] text-white rounded-lg hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {isEditSubmitting ? "Saving..." : "Save"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {replyingToParentId === comment.comment_id && user && (
                                   <div className="mt-4">
                                     <textarea
                                       value={replyText}
                                       onChange={(e) => setReplyText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
-                                      placeholder="Write a reply..."
+                                      placeholder={replyingToComment ? `Reply to ${getCommentAuthor(replyingToComment)}...` : "Write a reply..."}
                                       className="w-full min-h-[90px] border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-y"
                                     />
 
@@ -753,7 +1053,8 @@ export default function ProjectDetail() {
                                       <div className="flex justify-end gap-2">
                                         <button
                                           onClick={() => {
-                                            setReplyingTo(null);
+                                            setReplyingToParentId(null);
+                                            setReplyingToComment(null);
                                             setReplyText("");
                                           }}
                                           className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
@@ -787,17 +1088,91 @@ export default function ProjectDetail() {
                                             <CommentHeader comment={reply} compact />
 
                                             <p className="text-sm text-gray-700 whitespace-pre-line mb-2">
+                                              {reply.reply_to_name ? (
+                                                <span className="text-gray-500">Replying to @{reply.reply_to_name} </span>
+                                              ) : null}
                                               {reply.comment_text}
                                             </p>
 
-                                            {reply.is_you && (
+                                            <div className="flex flex-wrap items-center gap-4">
+                                              {user && (
+                                                <button
+                                                  onClick={() => handleReplyClick(comment, reply)}
+                                                  className="text-sm text-[#8BC34A] hover:underline"
+                                                >
+                                                  Reply
+                                                </button>
+                                              )}
+
+                                              {user && (
+                                                <button
+                                                  onClick={() => handleToggleLike(reply)}
+                                                  className={`text-sm hover:underline ${reply.liked_by_viewer ? "text-blue-600" : "text-gray-600"}`}
+                                                >
+                                                  👍 {reply.like_count}
+                                                </button>
+                                              )}
+
                                               <button
-                                                onClick={() => handleDeleteComment(reply.comment_id)}
-                                                className="text-sm text-red-600 hover:underline"
+                                                onClick={() => handleReportComment(reply)}
+                                                disabled={reportingCommentId === reply.comment_id}
+                                                className="text-sm text-gray-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                                               >
-                                                Delete
+                                                {reportingCommentId === reply.comment_id ? "Reporting..." : "Report"}
                                               </button>
-                                            )}
+
+                                              {reply.is_you && (
+                                                <>
+                                                  <button
+                                                    onClick={() => handleEditComment(reply)}
+                                                    className="text-sm text-gray-700 hover:underline"
+                                                  >
+                                                    Edit
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleDeleteComment(reply.comment_id)}
+                                                    className="text-sm text-red-600 hover:underline"
+                                                  >
+                                                    Delete
+                                                  </button>
+                                                </>
+                                              )}
+                                            </div>
+
+                                            <CommentMeta comment={reply} />
+
+                                            {editingCommentId === reply.comment_id ? (
+                                              <div className="mt-4">
+                                                <textarea
+                                                  value={editText}
+                                                  onChange={(e) => setEditText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
+                                                  className="w-full min-h-[90px] border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-y"
+                                                />
+                                                <div className="flex items-center justify-between gap-2 mt-3">
+                                                  <p className={`text-xs ${editText.length >= COMMENT_MAX_LENGTH ? "text-red-600" : "text-gray-500"}`}>
+                                                    {editText.length}/{COMMENT_MAX_LENGTH}
+                                                  </p>
+                                                  <div className="flex justify-end gap-2">
+                                                    <button
+                                                      onClick={() => {
+                                                        setEditingCommentId(null);
+                                                        setEditText("");
+                                                      }}
+                                                      className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleSaveEditedComment(reply.comment_id)}
+                                                      disabled={isEditSubmitting || !editText.trim() || editText.length > COMMENT_MAX_LENGTH}
+                                                      className="px-4 py-2 text-sm bg-[#8BC34A] text-white rounded-lg hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                      {isEditSubmitting ? "Saving..." : "Save"}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ) : null}
                                           </div>
                                         </div>
                                       </div>
@@ -873,6 +1248,14 @@ export default function ProjectDetail() {
 
                     <button className="w-full bg-[#8BC34A] text-white py-3 rounded-lg font-medium hover:bg-[#7CB342] transition-colors mb-3">
                       Back this project
+                    </button>
+
+                    <button
+                      onClick={handleReportCampaign}
+                      disabled={isCampaignReporting}
+                      className="w-full bg-white text-gray-900 py-3 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors mb-3 disabled:opacity-50"
+                    >
+                      {isCampaignReporting ? "Reporting..." : "Report this campaign"}
                     </button>
 
                     <p className="text-xs text-gray-500">
@@ -960,12 +1343,6 @@ export default function ProjectDetail() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-center mb-12">
-              <button className="px-6 py-2 border border-gray-300 rounded-full text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                Report this project to CF
-              </button>
             </div>
 
             <section className="mb-12">

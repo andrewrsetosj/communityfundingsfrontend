@@ -25,6 +25,7 @@ type ProfileCampaign = {
   title: string;
   status: string;
   time_created: string;
+  url?: string | null;
   description_html?: string | null;
   category?: string | null;
   location?: string | null;
@@ -36,10 +37,25 @@ type ProfileCampaign = {
   content_type?: string | null;
 };
 
+type ProfileActivity = {
+  activity_type: "commented" | "followed" | "created_campaign";
+  activity_time: string;
+  comment_id?: number | null;
+  activity_text?: string | null;
+  activity_text_preview?: string | null;
+  campaign_id?: number | null;
+  campaign_url?: string | null;
+  campaign_title?: string | null;
+  target_creator_id?: string | null;
+  target_name?: string | null;
+  target_last_name?: string | null;
+};
+
 type ProfilePageData = {
   creator: ProfileCreator;
   interests: string[];
   campaigns: ProfileCampaign[];
+  activities: ProfileActivity[];
 };
 
 type FollowSummary = {
@@ -70,9 +86,29 @@ function formatJoinedDate(dateString?: string) {
   });
 }
 
+function formatTimeAgo(dateString?: string) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const seconds = Math.max(1, Math.floor(diffMs / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 30) return `${days}d ago`;
+  return formatJoinedDate(dateString);
+}
+
 function getFullName(creator?: ProfileCreator | null) {
   if (!creator) return "Unknown User";
   return [creator.name, creator.last_name].filter(Boolean).join(" ").trim() || "Unknown User";
+}
+
+function getActivityTargetName(activity: ProfileActivity) {
+  return [activity.target_name, activity.target_last_name].filter(Boolean).join(" ").trim() || activity.target_creator_id || "another user";
 }
 
 function formatUSD(cents?: number) {
@@ -92,6 +128,55 @@ function getPercentFunded(campaign: ProfileCampaign) {
   );
 }
 
+function getCampaignHref(campaign?: { url?: string | null; campaign_id?: number | null }) {
+  if (campaign?.url) return `/project/${campaign.url}`;
+  if (campaign?.campaign_id) return `/project/${campaign.campaign_id}`;
+  return "#";
+}
+
+function ActivityItem({ activity }: { activity: ProfileActivity }) {
+  if (activity.activity_type === "commented") {
+    const href = getCampaignHref({ url: activity.campaign_url, campaign_id: activity.campaign_id });
+    return (
+      <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <p className="text-sm font-semibold text-gray-900">Commented on {activity.campaign_title || "a campaign"}</p>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+        </div>
+        {activity.activity_text_preview ? (
+          <p className="text-sm text-gray-600 line-clamp-3">“{activity.activity_text_preview}”</p>
+        ) : (
+          <p className="text-sm text-gray-600">View comment activity</p>
+        )}
+      </Link>
+    );
+  }
+
+  if (activity.activity_type === "followed") {
+    const href = activity.target_creator_id ? `/profile/${activity.target_creator_id}` : "#";
+    return (
+      <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <p className="text-sm font-semibold text-gray-900">Followed {getActivityTargetName(activity)}</p>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+        </div>
+        <p className="text-sm text-gray-600">Open profile</p>
+      </Link>
+    );
+  }
+
+  const href = getCampaignHref({ url: activity.campaign_url, campaign_id: activity.campaign_id });
+  return (
+    <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <p className="text-sm font-semibold text-gray-900">Created a new campaign: {activity.campaign_title || "Untitled campaign"}</p>
+        <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+      </div>
+      <p className="text-sm text-gray-600">Open campaign</p>
+    </Link>
+  );
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -104,6 +189,7 @@ export default function ProfilePage() {
   const [followSummary, setFollowSummary] = useState<FollowSummary | null>(null);
   const [followRelationship, setFollowRelationship] = useState<FollowRelationship | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isReportLoading, setIsReportLoading] = useState(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -145,6 +231,7 @@ export default function ProfilePage() {
   const creator = data?.creator;
   const interests = data?.interests ?? [];
   const campaigns = data?.campaigns ?? [];
+  const activities = data?.activities ?? [];
 
   const isOwnProfile = useMemo(() => {
     return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
@@ -190,6 +277,35 @@ export default function ProfilePage() {
       alert("Something went wrong. Please try again.");
     } finally {
       setIsFollowLoading(false);
+    }
+  }
+
+  async function handleReportProfile() {
+    if (!creator || isOwnProfile) return;
+
+    try {
+      setIsReportLoading(true);
+
+      const res = await fetch(`${API_BASE}/api/profile-page/${creator.creator_id}/report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to report profile: ${res.status}`);
+      }
+
+      alert("Profile reported. A snapshot was saved for admin review.");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not report profile.");
+    } finally {
+      setIsReportLoading(false);
     }
   }
 
@@ -261,20 +377,24 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#8BC34A] mb-2">
                     User Profile
                   </p>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
                       {getFullName(creator)}
                     </h1>
 
-                    {!isOwnProfile && followRelationship?.follows_you && (
+                    {!isOwnProfile && followRelationship?.is_friend ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#F5F9F0] text-[#6E9E36] border border-[#8BC34A]/20">
+                        Friend
+                      </span>
+                    ) : !isOwnProfile && followRelationship?.follows_you ? (
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                         Follows you
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-sm text-gray-600">
@@ -329,21 +449,31 @@ export default function ProfilePage() {
                       Edit Profile
                     </Link>
                   ) : (
-                    <button
-                      onClick={handleFollowClick}
-                      disabled={isFollowLoading}
-                      className={`inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium transition-colors ${
-                        followRelationship?.is_following
-                          ? "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
-                          : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
-                      } disabled:opacity-50`}
-                    >
-                      {isFollowLoading
-                        ? "Loading..."
-                        : followRelationship?.is_following
-                        ? "Following"
-                        : "Follow"}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleFollowClick}
+                        disabled={isFollowLoading}
+                        className={`inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium transition-colors ${
+                          followRelationship?.is_following
+                            ? "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
+                            : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                        } disabled:opacity-50`}
+                      >
+                        {isFollowLoading
+                          ? "Loading..."
+                          : followRelationship?.is_following
+                          ? "Following"
+                          : "Follow"}
+                      </button>
+
+                      <button
+                        onClick={handleReportProfile}
+                        disabled={isReportLoading}
+                        className="inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        {isReportLoading ? "Reporting..." : "Report Profile"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -410,7 +540,7 @@ export default function ProfilePage() {
                 <section className="mb-8">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-gray-900">
-                      Projects Started
+                      Campaigns Started
                     </h2>
                     <p className="text-sm text-gray-500">
                       {campaigns.length} {campaigns.length === 1 ? "project" : "projects"}
@@ -436,7 +566,7 @@ export default function ProfilePage() {
                         return (
                           <Link
                             key={campaign.campaign_id}
-                            href={`/project/${campaign.campaign_id}`}
+                            href={getCampaignHref(campaign)}
                             className="group block"
                           >
                             <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
@@ -484,45 +614,6 @@ export default function ProfilePage() {
                                   style={{ width: `${percentFunded}%` }}
                                 />
                               </div>
-
-                              <div className="flex items-center text-xs text-gray-500 space-x-4">
-                                <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                                  <svg
-                                    className="w-4 h-4 mr-1"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                                    />
-                                  </svg>
-                                  Save
-                                </span>
-                                <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                                  <span className="mr-1">$</span>
-                                  Fund
-                                </span>
-                                <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                                  <svg
-                                    className="w-4 h-4 mr-1"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 5l7 7-7 7"
-                                    />
-                                  </svg>
-                                  View
-                                </span>
-                              </div>
                             </div>
                           </Link>
                         );
@@ -535,45 +626,20 @@ export default function ProfilePage() {
               <div className="lg:col-span-1">
                 <div className="sticky top-8 space-y-6">
                   <section className="border border-gray-200 rounded-2xl p-6 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Basics</h3>
-
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          Full Name
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {getFullName(creator)}
-                        </p>
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          User Type
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatUserType(creator.user_type)}
-                        </p>
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          Member Since
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatJoinedDate(creator.time_creation)}
-                        </p>
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          Projects Started
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {campaigns.length}
-                        </p>
-                      </div>
+                    <div className="flex items-center justify-between mb-4 gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                      <span className="text-xs text-gray-500">Newest first</span>
                     </div>
+
+                    {activities.length === 0 ? (
+                      <p className="text-sm text-gray-600">No recent activity yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {activities.map((activity, index) => (
+                          <ActivityItem key={`${activity.activity_type}-${activity.activity_time}-${index}`} activity={activity} />
+                        ))}
+                      </div>
+                    )}
                   </section>
                 </div>
               </div>
