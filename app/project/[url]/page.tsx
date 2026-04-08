@@ -730,6 +730,8 @@ export default function ProjectDetail() {
 
   const campaign = data?.campaign;
   const creator = data?.creator;
+  const isOwner = Boolean(user?.id && campaign?.creator_id && user.id === campaign.creator_id);
+  const isCampaignActive = campaign?.status === "active";
 
   const creatorFullName = creator
     ? [creator.name, creator.last_name].filter(Boolean).join(" ").trim()
@@ -924,31 +926,37 @@ export default function ProjectDetail() {
 
                   <div className="border border-gray-200 rounded-2xl p-5 bg-white mb-6">
                     {user ? (
-                      <>
-                        <textarea
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
-                          placeholder="Share your thoughts about this project..."
-                          className="w-full min-h-[120px] border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-y"
-                        />
+                      isCampaignActive ? (
+                        <>
+                          <textarea
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value.slice(0, COMMENT_MAX_LENGTH))}
+                            placeholder="Share your thoughts about this project..."
+                            className="w-full min-h-[120px] border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-y"
+                          />
 
-                        <div className="flex items-center justify-between mt-3">
-                          <p className={`text-xs ${commentText.length >= COMMENT_MAX_LENGTH ? "text-red-600" : "text-gray-500"}`}>
-                            {commentText.length}/{COMMENT_MAX_LENGTH}
-                          </p>
+                          <div className="flex items-center justify-between mt-3">
+                            <p className={`text-xs ${commentText.length >= COMMENT_MAX_LENGTH ? "text-red-600" : "text-gray-500"}`}>
+                              {commentText.length}/{COMMENT_MAX_LENGTH}
+                            </p>
 
-                          <button
-                            onClick={handleSubmitComment}
-                            disabled={isCommentSubmitting || !commentText.trim() || commentText.length > COMMENT_MAX_LENGTH}
-                            className="px-5 py-2.5 bg-[#8BC34A] text-white rounded-lg text-sm font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isCommentSubmitting ? "Posting..." : "Post Comment"}
-                          </button>
+                            <button
+                              onClick={handleSubmitComment}
+                              disabled={isCommentSubmitting || !commentText.trim() || commentText.length > COMMENT_MAX_LENGTH}
+                              className="px-5 py-2.5 bg-[#8BC34A] text-white rounded-lg text-sm font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isCommentSubmitting ? "Posting..." : "Post Comment"}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-600">
+                          Comments are disabled until this campaign is active.
                         </div>
-                      </>
+                      )
                     ) : (
                       <p className="text-sm text-gray-600">
-                        Please sign in to leave a comment.
+                        {isCampaignActive ? "Please sign in to leave a comment." : "Comments are disabled until this campaign is active."}
                       </p>
                     )}
                   </div>
@@ -1264,9 +1272,51 @@ export default function ProjectDetail() {
                     <p className="text-2xl font-bold text-gray-900">{daysToGo ?? "-"}</p>
                     <p className="text-sm text-gray-500 mb-6">days to go</p>
 
-                    <button className="w-full bg-[#8BC34A] text-white py-3 rounded-lg font-medium hover:bg-[#7CB342] transition-colors mb-3">
+                    <button
+                      disabled={!isCampaignActive}
+                      className={`w-full py-3 rounded-lg font-medium transition-colors mb-3 ${
+                        isCampaignActive
+                          ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      }`}
+                    >
                       Back this project
                     </button>
+
+                    {isOwner && (
+                      <Link
+                        href={`/edit-campaign/${campaign.url || campaign.campaign_id}`}
+                        className="w-full flex items-center justify-center bg-white text-gray-900 py-3 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors mb-3"
+                      >
+                        Edit Campaign
+                      </Link>
+                    )}
+
+                    {isOwner && campaign?.status === "draft" && (
+                      <button
+                        onClick={async () => {
+                          const confirmed = window.confirm("Delete this draft campaign? This cannot be undone.");
+                          if (!confirmed) return;
+                          try {
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/campaign-page/${campaign.url || campaign.campaign_id}`, {
+                              method: "DELETE",
+                              headers: getAuthHeaders(),
+                            });
+                            if (!res.ok) {
+                              const text = await res.text();
+                              throw new Error(text || `Failed to delete draft: ${res.status}`);
+                            }
+                            router.push("/");
+                          } catch (err: any) {
+                            console.error(err);
+                            alert(err?.message || "Could not delete draft.");
+                          }
+                        }}
+                        className="w-full bg-red-50 text-red-600 py-3 rounded-lg font-medium border border-red-200 hover:bg-red-100 transition-colors mb-3"
+                      >
+                        Delete Draft
+                      </button>
+                    )}
 
                     <button
                       onClick={handleReportCampaign}
