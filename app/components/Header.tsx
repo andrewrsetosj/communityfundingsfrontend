@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
 
 const categories = [
@@ -51,6 +51,7 @@ const categories = [
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -130,7 +131,16 @@ useEffect(() => {
   };
 }, [user?.id]);
 
-const profileHref = profileUsername ? `/profile/${profileUsername}` : user?.id ? `/profile/${user.id}` : "#";
+const profileHref =
+  pathname === "/settings"
+    ? user?.id
+      ? `/profile/${user.id}`
+      : "#"
+    : profileUsername
+      ? `/profile/${profileUsername}`
+      : user?.id
+        ? `/profile/${user.id}`
+        : "#";
 
   return (
     <header className="w-full">
