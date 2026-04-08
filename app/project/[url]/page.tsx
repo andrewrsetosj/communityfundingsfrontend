@@ -45,7 +45,7 @@ type Faq = {
 type Reward = {
   reward_id: number;
   title: string;
-  description_html: string;
+  description: string;
   required_amount_cents: number;
 };
 
@@ -114,6 +114,16 @@ const recommendedProjects = [
 function formatUSD(cents?: number) {
   if (typeof cents !== "number") return "";
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
+}
+
+function formatCampaignStatus(status?: string) {
+  if (!status) return "";
+  if (status === "pending_review") return "Pending";
+  return status
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function formatCommentDate(dateString?: string) {
@@ -866,7 +876,7 @@ export default function ProjectDetail() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h18M3 6h18M3 18h18" />
                       </svg>
                     </div>
-                    <p className="text-sm text-gray-600">Status: <span className="font-medium">{campaign.status?.charAt(0).toUpperCase() + campaign.status?.slice(1)}</span></p>
+                    <p className="text-sm text-gray-600">Status: <span className="font-medium">{formatCampaignStatus(campaign.status)}</span></p>
                   </div>
                 </div>
 
@@ -1343,7 +1353,7 @@ export default function ProjectDetail() {
                               <p className="font-semibold text-gray-900">{r.title}</p>
                               <p className="text-sm text-gray-700">{formatUSD(r.required_amount_cents)}</p>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">{r.description_html}</p>
+                            <p className="text-sm text-gray-600 mt-1">{r.description || "No reward details yet."}</p>
                           </div>
                         ))}
                       </div>
