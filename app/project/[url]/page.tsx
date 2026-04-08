@@ -1390,7 +1390,7 @@ export default function ProjectDetail() {
                           href={getProfileHref(creator)}
                           className="text-[#8BC34A] hover:underline"
                         >
-                          Read More
+                          Visit profile
                         </Link>
                       )}
                     </p>
