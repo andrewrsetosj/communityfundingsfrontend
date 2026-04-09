@@ -175,7 +175,7 @@ const profileHref =
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search projects..."
+                    placeholder="Search campaigns..."
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
                     onKeyDown={(e) => {
                       if (e.key === "Escape") closeSearch();
@@ -205,7 +205,7 @@ const profileHref =
                   How it Works
                 </Link>
                 <Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
-                  Projects We Love
+                  Campaigns We Love
                 </Link>
                 <div className="relative" ref={categoriesRef}>
                   <button
@@ -367,7 +367,7 @@ const profileHref =
                               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                             />
                           </svg>
-                          Settings
+                          Profile Settings
                         </Link>
                         <Link
                           href="/my-projects"
@@ -387,7 +387,7 @@ const profileHref =
                               d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                             />
                           </svg>
-                          My Projects
+                          My Campaigns
                         </Link>
                         <Link
                           href="/drafts"
@@ -407,7 +407,7 @@ const profileHref =
                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                             />
                           </svg>
-                          Drafts
+                          My Drafts
                         </Link>
                         <Link
                           href="/saved"
@@ -427,7 +427,7 @@ const profileHref =
                               d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                             />
                           </svg>
-                          Saved Projects
+                          Saved Campaigns
                         </Link>
                         <div className="border-t border-gray-100 mt-2 pt-2">
                           <button

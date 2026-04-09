@@ -101,7 +101,7 @@ export default function DraftsPage() {
           href="/create-project/basics"
           className="bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
         >
-          New Project
+          New Campaign
         </Link>
       </div>
 
@@ -124,13 +124,13 @@ export default function DraftsPage() {
             No drafts yet
           </h3>
           <p className="text-gray-500 mb-6">
-            Start creating a project and your progress will be saved here.
+            Start creating a campaign and your progress will be saved here.
           </p>
           <Link
             href="/create-project/basics"
             className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
           >
-            Start a New Project
+            Start a New Campaign
           </Link>
         </div>
       ) : (
