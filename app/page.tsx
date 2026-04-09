@@ -54,7 +54,7 @@ export default function Home() {
                 href="/create-project/basics"
                 className="bg-white text-[#8BC34A] px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
               >
-                Start a Project
+                Start a Campaign
               </Link>
             </SignedIn>
             <SignedOut>
@@ -62,7 +62,7 @@ export default function Home() {
                 href="/sign-in"
                 className="bg-white text-[#8BC34A] px-8 py-3 rounded-full font-medium hover:bg-gray-100 transition-colors"
               >
-                Start a Project
+                Start a Campaign
               </Link>
             </SignedOut>
           </div>
@@ -85,7 +85,7 @@ export default function Home() {
               </h2>
               <p className="text-gray-600 mb-4">
                 Discover campaigns tailored to your passions. Based on the interests
-                you selected, we&apos;ll show you projects in categories you care about most.
+                you selected, we&apos;ll show you campaigns in categories you care about most.
               </p>
               <p className="text-gray-600 mb-6">
                 Update your interests anytime in your profile settings to refine
@@ -95,7 +95,7 @@ export default function Home() {
                 href="/recommended"
                 className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
               >
-                See Recommended Projects
+                See Recommended Campaigns
               </Link>
             </div>
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-200">
@@ -167,7 +167,7 @@ export default function Home() {
               </div>
               <div className="p-6">
                 <p className="text-sm text-gray-500 mb-2">
-                  Funded 1/10 Project By: <span className="font-medium">JOEL PEDERSON</span>
+                  Funded 1/10 Campaign By: <span className="font-medium">JOEL PEDERSON</span>
                 </p>
                 <p className="text-sm text-gray-500">Funders: $60</p>
                 <div className="flex items-center text-xs text-gray-400 space-x-3 mt-3">

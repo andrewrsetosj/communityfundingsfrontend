@@ -73,6 +73,7 @@ type Comment = {
   is_you: boolean;
   is_friend: boolean;
   is_project_owner: boolean;
+  is_project_collaborator: boolean;
 };
 
 type Photo = {
@@ -92,9 +93,37 @@ type CommentsPagination = {
   total_pages: number;
 };
 
+type Collaborator = {
+  collaborator_id: number;
+  campaign_id: number;
+  email: string;
+  status: string;
+  time_created: string;
+  creator_id: string;
+  username?: string | null;
+  name: string;
+  last_name?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+  user_type?: number | null;
+};
+
+type ViewerPermissions = {
+  is_owner: boolean;
+  is_collaborator: boolean;
+  has_pending_invite: boolean;
+  can_view: boolean;
+  can_comment: boolean;
+};
+
 type CampaignPageData = {
   campaign: Campaign;
   creator: Creator | null;
+  collaborators: Collaborator[];
+  viewer_permissions?: ViewerPermissions;
+  viewer_engagement?: {
+    is_saved?: boolean;
+  };
   faqs: Faq[];
   rewards: Reward[];
   photos: Photo[];
@@ -103,13 +132,6 @@ type CampaignPageData = {
 };
 
 const COMMENT_MAX_LENGTH = 1000;
-
-const recommendedProjects = [
-  { id: 1, image: "photo-1558618666-fcd25c85cd64", title: "Handcrafted Ceramic Pottery Collection", creator: "SARAH CHEN" },
-  { id: 2, image: "photo-1493225457124-a3eb161ffa5f", title: "Independent Music Album: Echoes of Tomorrow", creator: "THE MIDNIGHT COLLECTIVE" },
-  { id: 3, image: "photo-1511632765486-a01980e01a18", title: "Community Garden Initiative for Urban Schools", creator: "GREEN FUTURES" },
-  { id: 4, image: "photo-1469474968028-56623f02e42e", title: "Documentary: Voices of the Mountains", creator: "WILD LENS FILMS" },
-];
 
 function formatUSD(cents?: number) {
   if (typeof cents !== "number") return "";
@@ -206,8 +228,8 @@ function Avatar({
     size === "sm"
       ? "w-9 h-9 text-xs"
       : size === "lg"
-      ? "w-12 h-12 text-base"
-      : "w-11 h-11 text-sm";
+        ? "w-12 h-12 text-base"
+        : "w-11 h-11 text-sm";
 
   if (avatarUrl) {
     const pixelSize = size === "sm" ? 36 : size === "lg" ? 48 : 44;
@@ -255,6 +277,12 @@ function CommentBadges({ comment }: { comment: Comment }) {
           Campaign Owner
         </span>
       )}
+
+      {comment.is_project_collaborator && !comment.is_project_owner && (
+        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          Campaign Collaborator
+        </span>
+      )}
     </>
   );
 }
@@ -297,6 +325,40 @@ function CommentMeta({ comment }: { comment: Comment }) {
   return <p className="text-xs text-gray-400 mt-2">{edited}</p>;
 }
 
+function BookmarkButton({
+  isSaved,
+  isSubmitting,
+  onClick,
+}: {
+  isSaved: boolean;
+  isSubmitting: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={isSubmitting}
+      aria-label={isSaved ? "Unsave campaign" : "Save campaign"}
+      title={isSaved ? "Saved" : "Save campaign"}
+      className="inline-flex items-center justify-center w-11 h-11 rounded-full border border-gray-200 bg-white text-gray-700 hover:border-[#8BC34A] hover:text-[#8BC34A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <svg
+        className="w-5 h-5"
+        viewBox="0 0 24 24"
+        fill={isSaved ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"
+        />
+      </svg>
+    </button>
+  );
+}
+
 export default function ProjectDetail() {
   const { user } = useUser();
   const router = useRouter();
@@ -308,6 +370,7 @@ export default function ProjectDetail() {
 
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [isSaveSubmitting, setIsSaveSubmitting] = useState(false);
 
   const [commentText, setCommentText] = useState("");
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
@@ -325,6 +388,7 @@ export default function ProjectDetail() {
   const [loadingRepliesFor, setLoadingRepliesFor] = useState<number | null>(null);
   const [reportingCommentId, setReportingCommentId] = useState<number | null>(null);
   const [isCampaignReporting, setIsCampaignReporting] = useState(false);
+  const [isLeavingCampaign, setIsLeavingCampaign] = useState(false);
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "most_liked">("newest");
 
   async function loadCampaignPage(targetPage: number, targetSortBy: "newest" | "oldest" | "most_liked" = sortBy) {
@@ -360,6 +424,45 @@ export default function ProjectDetail() {
     if (!url) return;
     loadCampaignPage(1);
   }, [url]);
+
+  async function handleToggleSave() {
+    if (!url || !user || !data) return;
+
+    try {
+      setIsSaveSubmitting(true);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const isSaved = Boolean(data.viewer_engagement?.is_saved);
+
+      const res = await fetch(`${API_BASE}/api/saved-campaigns/${url}`, {
+        method: isSaved ? "DELETE" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to ${isSaved ? "unsave" : "save"} campaign: ${res.status}`);
+      }
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          viewer_engagement: {
+            ...(prev.viewer_engagement ?? {}),
+            is_saved: !isSaved,
+          },
+        };
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not update saved state.");
+    } finally {
+      setIsSaveSubmitting(false);
+    }
+  }
 
   async function handleSubmitComment() {
     if (!url || !commentText.trim()) return;
@@ -663,6 +766,47 @@ export default function ProjectDetail() {
     }
   }
 
+  async function handleLeaveCampaign() {
+    if (!url || !user || !data) return;
+
+    const viewerCollaborator = data.collaborators.find((collaborator) => collaborator.creator_id === user.id);
+    if (!viewerCollaborator) {
+      alert("Could not find your collaborator record for this campaign.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to leave ${data.campaign.title}?`);
+    if (!confirmed) return;
+
+    try {
+      setIsLeavingCampaign(true);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+      const res = await fetch(
+        `${API_BASE}/api/campaigns/invites/${viewerCollaborator.collaborator_id}/decline`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to leave campaign: ${res.status}`);
+      }
+
+      router.push("/my-projects");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not leave campaign.");
+    } finally {
+      setIsLeavingCampaign(false);
+    }
+  }
+
   async function handleLoadMoreReplies(parentCommentId: number) {
     if (!url) return;
 
@@ -730,9 +874,15 @@ export default function ProjectDetail() {
 
   const campaign = data?.campaign;
   const creator = data?.creator;
-  const isOwner = Boolean(user?.id && campaign?.creator_id && user.id === campaign.creator_id);
+  const collaborators = data?.collaborators ?? [];
+  const viewerPermissions = data?.viewer_permissions;
+  const isOwner = viewerPermissions?.is_owner ?? Boolean(user?.id && campaign?.creator_id && user.id === campaign.creator_id);
+  const isCollaborator = viewerPermissions?.is_collaborator ?? false;
+  const isSaved = data?.viewer_engagement?.is_saved ?? false;
   const isCampaignActive = campaign?.status === "active";
-  const canViewCampaign = Boolean(campaign && (isCampaignActive || isOwner));
+  const canViewCampaign = viewerPermissions?.can_view ?? Boolean(campaign && (isCampaignActive || isOwner || isCollaborator));
+  const canComment = viewerPermissions?.can_comment ?? Boolean(isCampaignActive);
+  const canEditCampaign = isOwner || isCollaborator;
 
   const creatorFullName = creator
     ? [creator.name, creator.last_name].filter(Boolean).join(" ").trim()
@@ -743,7 +893,7 @@ export default function ProjectDetail() {
     (currentPhoto?.content_type ?? "").toLowerCase().startsWith("video/");
   const heroImage =
     currentPhoto?.image_url ??
-    "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800";
+    "https://community-fundings-assets.s3.us-east-2.amazonaws.com/Hero/placeholderimg.jpeg";
 
   const totalPhotos = data?.photos?.length ?? 0;
 
@@ -777,7 +927,7 @@ export default function ProjectDetail() {
       <Header />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
           <button
             onClick={() => router.back()}
             className="inline-flex items-center text-sm text-[#8BC34A] hover:text-[#7CB342] transition-colors"
@@ -787,6 +937,15 @@ export default function ProjectDetail() {
             </svg>
             Back
           </button>
+
+          {user && (
+            <Link
+              href="/saved"
+              className="text-sm font-medium text-gray-700 hover:text-[#8BC34A] transition-colors"
+            >
+              View Saved Campaigns
+            </Link>
+          )}
         </div>
 
         {!data && !error && <p className="text-gray-600">Loading…</p>}
@@ -810,9 +969,19 @@ export default function ProjectDetail() {
 
         {data && campaign && canViewCampaign && (
           <>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-              {campaign.title}
-            </h1>
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                {campaign.title}
+              </h1>
+
+            {user && isCampaignActive && (
+              <BookmarkButton
+                isSaved={isSaved}
+                isSubmitting={isSaveSubmitting}
+                onClick={handleToggleSave}
+              />
+            )}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
               <div className="lg:col-span-2">
@@ -959,10 +1128,10 @@ export default function ProjectDetail() {
 
                             <button
                               onClick={handleSubmitComment}
-                              disabled={isCommentSubmitting || !commentText.trim() || commentText.length > COMMENT_MAX_LENGTH}
+                              disabled={!canComment || isCommentSubmitting || !commentText.trim() || commentText.length > COMMENT_MAX_LENGTH}
                               className="px-5 py-2.5 bg-[#8BC34A] text-white rounded-lg text-sm font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              {isCommentSubmitting ? "Posting..." : "Post Comment"}
+                              {!canComment ? "Comments disabled" : isCommentSubmitting ? "Posting..." : "Post Comment"}
                             </button>
                           </div>
                         </>
@@ -1294,22 +1463,37 @@ export default function ProjectDetail() {
                     <p className="text-sm text-gray-500 mb-6">days to go</p>
 
                     <button
-                      disabled={!isCampaignActive || isOwner}
+                      disabled={!isCampaignActive || isOwner || isCollaborator}
                       className={`w-full py-3 rounded-lg font-medium transition-colors mb-3 ${
-                      isCampaignActive && !isOwner
-                      ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
-                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        isCampaignActive && !isOwner && !isCollaborator
+                          ? "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
                       }`}
-                      >
-                      {isOwner ? "You can't back your own campaign" : "Back this campaign"}
+                    >
+                      {isOwner
+                        ? "You can't back your own campaign"
+                        : isCollaborator
+                          ? "You can't back a campaign you're collaborating on"
+                          : "Back this campaign"}
                     </button>
-                    {isOwner && (
+
+                    {canEditCampaign && (
                       <Link
                         href={`/edit-campaign/${campaign.url || campaign.campaign_id}`}
                         className="w-full flex items-center justify-center bg-white text-gray-900 py-3 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors mb-3"
                       >
                         Edit Campaign
                       </Link>
+                    )}
+
+                    {isCollaborator && !isOwner && (
+                      <button
+                        onClick={handleLeaveCampaign}
+                        disabled={isLeavingCampaign}
+                        className="w-full bg-white text-red-600 py-3 rounded-lg font-medium border border-red-200 hover:bg-red-50 transition-colors mb-3 disabled:opacity-50"
+                      >
+                        {isLeavingCampaign ? "Leaving..." : "Leave Campaign"}
+                      </button>
                     )}
 
                     {isOwner && campaign?.status === "draft" && (
@@ -1338,7 +1522,7 @@ export default function ProjectDetail() {
                       </button>
                     )}
 
-                    {!isOwner && (
+                    {!isOwner && !isCollaborator && (
                       <button
                         onClick={handleReportCampaign}
                         disabled={isCampaignReporting}
@@ -1354,6 +1538,9 @@ export default function ProjectDetail() {
                   </div>
 
                   <div className="border-t border-gray-200 pt-6 mb-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-3">
+                      Creator
+                    </p>
                     {creator ? (
                       <Link
                         href={getProfileHref(creator)}
@@ -1370,7 +1557,7 @@ export default function ProjectDetail() {
                             {creatorFullName}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {creator.username}
+                            {creator.username ? `@${creator.username}` : creator.creator_id}
                           </p>
                         </div>
                       </Link>
@@ -1383,7 +1570,7 @@ export default function ProjectDetail() {
                       </div>
                     )}
 
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-sm text-gray-600 mb-4">
                       {creator?.bio ?? "No bio yet."}{" "}
                       {creator && (
                         <Link
@@ -1394,6 +1581,44 @@ export default function ProjectDetail() {
                         </Link>
                       )}
                     </p>
+
+                    {collaborators.length > 0 && (
+                      <div className="border-t border-gray-100 pt-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-3">
+                          Collaborators
+                        </p>
+                        <div className="space-y-3">
+                          {collaborators.map((collaborator) => {
+                            const collaboratorName = [collaborator.name, collaborator.last_name]
+                              .filter(Boolean)
+                              .join(" ")
+                              .trim() || collaborator.username || collaborator.creator_id;
+
+                            return (
+                              <Link
+                                key={collaborator.collaborator_id}
+                                href={getProfileHref(collaborator)}
+                                className="flex items-center gap-3 group"
+                              >
+                                <Avatar
+                                  name={collaboratorName}
+                                  avatarUrl={collaborator.avatar_url}
+                                  size="md"
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-[#8BC34A] transition-colors">
+                                    {collaboratorName}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {collaborator.username ? `@${collaborator.username}` : collaborator.creator_id}
+                                  </p>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end mb-6">

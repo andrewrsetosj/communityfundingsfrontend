@@ -36,10 +36,13 @@ type ProfileCampaign = {
   backers: number;
   image_url?: string | null;
   content_type?: string | null;
+  owner_name?: string | null;
+  owner_last_name?: string | null;
+  owner_username?: string | null;
 };
 
 type ProfileActivity = {
-  activity_type: "commented" | "followed" | "created_campaign";
+  activity_type: "commented" | "followed" | "created_campaign" | "joined_as_collaborator";
   activity_time: string;
   comment_id?: number | null;
   activity_text?: string | null;
@@ -58,6 +61,7 @@ type ProfilePageData = {
   creator: ProfileCreator;
   interests: string[];
   campaigns: ProfileCampaign[];
+  collaborations: ProfileCampaign[];
   activities: ProfileActivity[];
 };
 
@@ -180,6 +184,19 @@ function ActivityItem({ activity }: { activity: ProfileActivity }) {
   }
 
   const href = getCampaignHref({ url: activity.campaign_url, campaign_id: activity.campaign_id });
+
+  if (activity.activity_type === "joined_as_collaborator") {
+    return (
+      <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <p className="text-sm font-semibold text-gray-900">Joined {activity.campaign_title || "a campaign"} as a collaborator</p>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+        </div>
+        <p className="text-sm text-gray-600">Open campaign</p>
+      </Link>
+    );
+  }
+
   return (
     <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -245,8 +262,14 @@ export default function ProfilePage() {
   const creator = data?.creator;
   const interests = data?.interests ?? [];
   const activities = (data?.activities ?? []).filter((activity) => {
-    if (activity.activity_type !== "created_campaign") return true;
-    return activity.campaign_status === "active";
+    if (
+      activity.activity_type === "created_campaign" ||
+      activity.activity_type === "joined_as_collaborator"
+    ) {
+      return activity.campaign_status === "active";
+    }
+
+    return true;
   });
 
 const isOwnProfile = useMemo(() => {
@@ -254,6 +277,13 @@ const isOwnProfile = useMemo(() => {
 }, [user?.id, creator?.creator_id]);
 
   const campaigns = (data?.campaigns ?? []).filter((campaign) => {
+    if (campaign.status === "inactive") return false;
+    if (isOwnProfile) return true;
+    return campaign.status === "active";
+  });
+
+  const collaborations = (data?.collaborations ?? []).filter((campaign) => {
+    if (campaign.status === "inactive") return false;
     if (isOwnProfile) return true;
     return campaign.status === "active";
   });
@@ -339,6 +369,7 @@ const isOwnProfile = useMemo(() => {
 
         const res = await fetch(`${API_BASE}/api/profile-page/${id}`, {
           cache: "no-store",
+          headers: getAuthHeaders(),
         });
 
         if (!res.ok) {
@@ -566,13 +597,13 @@ const isOwnProfile = useMemo(() => {
                       Campaigns Started
                     </h2>
                     <p className="text-sm text-gray-500">
-                      {campaigns.length} {campaigns.length === 1 ? "project" : "projects"}
+                      {campaigns.length} {campaigns.length === 1 ? "campaign" : "campaigns"}
                     </p>
                   </div>
 
                   {campaigns.length === 0 ? (
                     <div className="border border-gray-200 rounded-2xl p-6 bg-white">
-                      <p className="text-gray-600">No projects yet.</p>
+                      <p className="text-gray-600">No campaigns yet.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -580,7 +611,7 @@ const isOwnProfile = useMemo(() => {
                         const percentFunded = getPercentFunded(campaign);
                         const imageSrc =
                           campaign.image_url ||
-                          "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800";
+                          "https://community-fundings-assets.s3.us-east-2.amazonaws.com/Hero/placeholderimg.jpeg";
                         const thumbIsVideo =
                           (campaign.content_type ?? "")
                             .toLowerCase()
@@ -637,6 +668,99 @@ const isOwnProfile = useMemo(() => {
                                   {formatUSD(campaign.amount_raised_cents)}
                                 </span>{" "}
                                 raised
+                              </p>
+
+                              <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">
+                                <div
+                                  className="h-2 bg-[#8BC34A]"
+                                  style={{ width: `${percentFunded}%` }}
+                                />
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <section className="mb-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Collaborating On
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {collaborations.length} {collaborations.length === 1 ? "campaign" : "campaigns"}
+                    </p>
+                  </div>
+
+                  {collaborations.length === 0 ? (
+                    <div className="border border-gray-200 rounded-2xl p-6 bg-white">
+                      <p className="text-gray-600">No collaborations yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {collaborations.map((campaign) => {
+                        const percentFunded = getPercentFunded(campaign);
+                        const imageSrc =
+                          campaign.image_url ||
+                          "https://community-fundings-assets.s3.us-east-2.amazonaws.com/Hero/placeholderimg.jpeg";
+                        const thumbIsVideo =
+                          (campaign.content_type ?? "")
+                            .toLowerCase()
+                            .startsWith("video/");
+
+                        return (
+                          <Link
+                            key={`collab-${campaign.campaign_id}`}
+                            href={getCampaignHref(campaign)}
+                            className="group block"
+                          >
+                            <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
+                              {thumbIsVideo ? (
+                                <video
+                                  src={imageSrc}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              ) : (
+                                <Image
+                                  src={imageSrc}
+                                  alt={campaign.title}
+                                  fill
+                                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              )}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
+                                  {campaign.title}
+                                </h3>
+
+                                {isOwnProfile && campaign.status !== "active" && (
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                    Only visible to you
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-xs text-gray-500 mb-1">
+                                {percentFunded}% funded · By{" "}
+                                <span className="font-semibold text-gray-700">
+                                  {[campaign.owner_name, campaign.owner_last_name].filter(Boolean).join(" ").trim() ||
+                                    campaign.owner_username ||
+                                    "Unknown creator"}
+                                </span>
+                              </p>
+
+                              <p className="text-xs text-gray-500 mb-2">
+                                {campaign.backers} {campaign.backers === 1 ? "backer" : "backers"} · <span className="font-medium text-gray-700">
+                                  {formatUSD(campaign.amount_raised_cents)}
+                                </span> raised
                               </p>
 
                               <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">

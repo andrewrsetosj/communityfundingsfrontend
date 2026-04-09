@@ -29,6 +29,14 @@ type Faq = {
   display_order?: number;
 };
 
+type ViewerPermissions = {
+  is_owner?: boolean;
+  is_collaborator?: boolean;
+  has_pending_invite?: boolean;
+  can_view?: boolean;
+  can_comment?: boolean;
+};
+
 type CampaignData = {
   campaign: {
     campaign_id: number;
@@ -43,6 +51,7 @@ type CampaignData = {
     duration_days?: number | null;
     backers: number;
   };
+  viewer_permissions?: ViewerPermissions;
   rewards: Reward[];
   faqs: Faq[];
   photos: {
@@ -59,24 +68,24 @@ type CampaignData = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const MAX_DURATION_DAYS = 365;
 const CATEGORY_OPTIONS = [
-    "Art",
-    "Comics",
-    "Crafts",
-    "Dance",
-    "Design",
-    "Fashion",
-    "Film & Video",
-    "Food",
-    "Games",
-    "Journalism",
-    "Music",
-    "Photography",
-    "Publishing",
-    "Technology",
-    "Theater",
+  "Art",
+  "Comics",
+  "Crafts",
+  "Dance",
+  "Design",
+  "Fashion",
+  "Film & Video",
+  "Food",
+  "Games",
+  "Journalism",
+  "Music",
+  "Photography",
+  "Publishing",
+  "Technology",
+  "Theater",
 ];
 
-function getAuthHeaders(): Record<string,string> {
+function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("cf_backend_token");
   if (!token || token === "undefined" || token === "null") return {};
@@ -87,7 +96,7 @@ function centsFromDollars(value: string) {
   const cleaned = value.replace(/[^0-9.]/g, "").trim();
   if (!cleaned) return 0;
   const [whole, frac = ""] = cleaned.split(".");
-  return (parseInt(whole || "0", 10) * 100) + parseInt((frac + "00").slice(0,2), 10);
+  return parseInt(whole || "0", 10) * 100 + parseInt((frac + "00").slice(0, 2), 10);
 }
 
 function formatStatusLabel(status: string) {
@@ -118,7 +127,12 @@ function getMissingRequiredFields(params: {
   if (!params.location.trim()) missing.push("location");
   if (centsFromDollars(params.goalAmount) <= 0) missing.push("funding goal");
   const durationNum = Number(params.durationDays);
-  if (!params.durationDays.trim() || !Number.isInteger(durationNum) || durationNum < 1 || durationNum > MAX_DURATION_DAYS) {
+  if (
+    !params.durationDays.trim() ||
+    !Number.isInteger(durationNum) ||
+    durationNum < 1 ||
+    durationNum > MAX_DURATION_DAYS
+  ) {
     missing.push("duration");
   }
   return missing;
@@ -163,7 +177,7 @@ export default function EditCampaignPage() {
           headers: getAuthHeaders(),
         });
         if (!res.ok) throw new Error(`Failed to load campaign: ${res.status}`);
-        const data = await res.json() as CampaignData;
+        const data = (await res.json()) as CampaignData;
         setData(data);
         setCreatorId(data.campaign.creator_id);
         setTitle(data.campaign.title || "");
@@ -177,8 +191,12 @@ export default function EditCampaignPage() {
         setFaqs((data.faqs || []).map((f, idx) => ({ ...f, display_order: idx })));
         setPhotos(data.photos || []);
         const existingPrimaryIndex = (data.photos || []).findIndex((p) => p.is_primary);
-        setPrimaryMediaSelection((data.photos || []).length > 0 ? { kind: "existing", index: existingPrimaryIndex >= 0 ? existingPrimaryIndex : 0 } : null);
-      } catch (e:any) {
+        setPrimaryMediaSelection(
+          (data.photos || []).length > 0
+            ? { kind: "existing", index: existingPrimaryIndex >= 0 ? existingPrimaryIndex : 0 }
+            : null
+        );
+      } catch (e: any) {
         setError(e?.message || "Could not load campaign");
       } finally {
         setLoading(false);
@@ -186,15 +204,35 @@ export default function EditCampaignPage() {
     })();
   }, [url]);
 
-  const notOwner = !!user?.id && !!creatorId && user.id !== creatorId;
+  const viewerPermissions = data?.viewer_permissions;
+  const isOwner = viewerPermissions?.is_owner ?? (!!user?.id && !!creatorId && user.id === creatorId);
+  const isCollaborator = viewerPermissions?.is_collaborator ?? false;
+  const notAllowed = !loading && data && !isOwner && !isCollaborator;
 
-  const addReward = () => setRewards((prev) => [...prev, { title: "", description: "", required_amount_cents: 0, limit_total: null, display_order: prev.length }]);
-  const updateReward = (idx:number, patch: Partial<Reward>) => setRewards((prev) => prev.map((r,i) => i===idx ? { ...r, ...patch } : r));
-  const removeReward = (idx:number) => setRewards((prev) => prev.filter((_,i)=>i!==idx).map((r,i)=>({ ...r, display_order:i })));
+  const collaboratorRestricted = isCollaborator;
+  const ownerLockedFields = (data?.campaign?.backers || 0) > 0;
+  const hasBackers = ownerLockedFields || collaboratorRestricted;
 
-  const addFaq = () => setFaqs((prev) => [...prev, { question: "", answer: "", display_order: prev.length }]);
-  const updateFaq = (idx:number, patch: Partial<Faq>) => setFaqs((prev) => prev.map((f,i) => i===idx ? { ...f, ...patch } : f));
-  const removeFaq = (idx:number) => setFaqs((prev) => prev.filter((_,i)=>i!==idx).map((f,i)=>({ ...f, display_order:i })));
+  const addReward = () =>
+    setRewards((prev) => [
+      ...prev,
+      { title: "", description: "", required_amount_cents: 0, limit_total: null, display_order: prev.length },
+    ]);
+
+  const updateReward = (idx: number, patch: Partial<Reward>) =>
+    setRewards((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
+  const removeReward = (idx: number) =>
+    setRewards((prev) => prev.filter((_, i) => i !== idx).map((r, i) => ({ ...r, display_order: i })));
+
+  const addFaq = () =>
+    setFaqs((prev) => [...prev, { question: "", answer: "", display_order: prev.length }]);
+
+  const updateFaq = (idx: number, patch: Partial<Faq>) =>
+    setFaqs((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+
+  const removeFaq = (idx: number) =>
+    setFaqs((prev) => prev.filter((_, i) => i !== idx).map((f, i) => ({ ...f, display_order: i })));
 
   const missingRequiredFields = useMemo(() => {
     return getMissingRequiredFields({
@@ -210,12 +248,12 @@ export default function EditCampaignPage() {
   const canSave = missingRequiredFields.length === 0;
   const durationNumber = Number(durationDays);
   const durationError =
-    durationDays.trim() && (!Number.isInteger(durationNumber) || durationNumber < 1 || durationNumber > MAX_DURATION_DAYS)
+    durationDays.trim() &&
+    (!Number.isInteger(durationNumber) || durationNumber < 1 || durationNumber > MAX_DURATION_DAYS)
       ? `Duration must be a whole number between 1 and ${MAX_DURATION_DAYS} days.`
       : "";
 
   const isDraft = status === "draft";
-  const hasBackers = (data?.campaign?.backers || 0) > 0;
 
   function addFiles(files: FileList | File[]) {
     const incoming = Array.from(files).filter((f) => {
@@ -281,24 +319,24 @@ export default function EditCampaignPage() {
   }
 
   function getPrimaryFlags(existingCount: number, pendingCount: number) {
-    let existingPrimaryIndex = -1
-    let pendingPrimaryIndex = -1
+    let existingPrimaryIndex = -1;
+    let pendingPrimaryIndex = -1;
 
     if (primaryMediaSelection?.kind === "existing" && primaryMediaSelection.index < existingCount) {
-      existingPrimaryIndex = primaryMediaSelection.index
+      existingPrimaryIndex = primaryMediaSelection.index;
     } else if (primaryMediaSelection?.kind === "pending" && primaryMediaSelection.index < pendingCount) {
-      pendingPrimaryIndex = primaryMediaSelection.index
+      pendingPrimaryIndex = primaryMediaSelection.index;
     } else if (existingCount > 0) {
-      existingPrimaryIndex = 0
+      existingPrimaryIndex = 0;
     } else if (pendingCount > 0) {
-      pendingPrimaryIndex = 0
+      pendingPrimaryIndex = 0;
     }
 
-    return { existingPrimaryIndex, pendingPrimaryIndex }
+    return { existingPrimaryIndex, pendingPrimaryIndex };
   }
 
   async function handleDeleteDraft() {
-    if (!url || !isDraft) return;
+    if (!url || !isDraft || !isOwner) return;
     const confirmed = window.confirm("Delete this draft campaign? This cannot be undone.");
     if (!confirmed) return;
 
@@ -345,19 +383,22 @@ export default function EditCampaignPage() {
         : [];
 
       const uploadedPhotoPayload = photosPayloadForApi(uploadedPhotos);
-      const { existingPrimaryIndex, pendingPrimaryIndex } = getPrimaryFlags(photos.length, uploadedPhotoPayload.length);
+      const { existingPrimaryIndex, pendingPrimaryIndex } = getPrimaryFlags(
+        photos.length,
+        uploadedPhotoPayload.length
+      );
 
       const mergedPhotos = [
         ...photos.map((p, idx) => ({
           s3_bucket: p.s3_bucket || "",
           s3_key: p.s3_key || "",
           content_type: p.content_type || "image/jpeg",
-          is_primary: idx == existingPrimaryIndex,
+          is_primary: idx === existingPrimaryIndex,
           sort_order: idx,
         })),
         ...uploadedPhotoPayload.map((p, idx) => ({
           ...p,
-          is_primary: idx == pendingPrimaryIndex,
+          is_primary: idx === pendingPrimaryIndex,
           sort_order: photos.length + idx,
         })),
       ].map((p, idx) => ({
@@ -375,10 +416,10 @@ export default function EditCampaignPage() {
         body: JSON.stringify({
           title: hasBackers ? (data?.campaign.title || "").trim() : title.trim(),
           description_html: descriptionHtml,
-          category: hasBackers ? (data?.campaign.category || null) : (category.trim() || null),
-          location: hasBackers ? (data?.campaign.location || null) : (location.trim() || null),
-          funding_goal_cents: hasBackers ? (data?.campaign.funding_goal_cents || 0) : centsFromDollars(goalAmount),
-          duration_days: hasBackers ? (data?.campaign.duration_days ?? null) : (durationDays ? Number(durationDays) : null),
+          category: hasBackers ? data?.campaign.category || null : category.trim() || null,
+          location: hasBackers ? data?.campaign.location || null : location.trim() || null,
+          funding_goal_cents: hasBackers ? data?.campaign.funding_goal_cents || 0 : centsFromDollars(goalAmount),
+          duration_days: hasBackers ? data?.campaign.duration_days ?? null : durationDays ? Number(durationDays) : null,
           rewards: rewards
             .filter((r) => r.title.trim() && r.required_amount_cents > 0)
             .map((r, idx) => ({
@@ -390,7 +431,11 @@ export default function EditCampaignPage() {
             })),
           faqs: faqs
             .filter((f) => f.question.trim() && f.answer.trim())
-            .map((f, idx) => ({ question: f.question.trim(), answer: f.answer.trim(), display_order: idx })),
+            .map((f, idx) => ({
+              question: f.question.trim(),
+              answer: f.answer.trim(),
+              display_order: idx,
+            })),
           photos: mergedPhotos,
         }),
       });
@@ -412,7 +457,7 @@ export default function EditCampaignPage() {
 
       pendingPreviewUrls.forEach((u) => URL.revokeObjectURL(u));
       router.push(`/project/${url}`);
-    } catch (e:any) {
+    } catch (e: any) {
       setSaveError(e?.message || "Could not save campaign.");
       alert(e?.message || "Could not save campaign.");
     } finally {
@@ -429,36 +474,75 @@ export default function EditCampaignPage() {
             <h1 className="text-3xl font-serif font-bold text-gray-900">Edit Campaign</h1>
             <p className="text-gray-600 mt-2">Update your campaign basics, story, rewards, and FAQs in one place.</p>
           </div>
-          <Link href={url ? `/project/${url}` : "#"} className="text-sm text-[#8BC34A] hover:underline">Back to campaign</Link>
+          <Link href={url ? `/project/${url}` : "#"} className="text-sm text-[#8BC34A] hover:underline">
+            Back to campaign
+          </Link>
         </div>
 
         {loading && <p className="text-gray-600">Loading…</p>}
         {error && <p className="text-red-600">{error}</p>}
-        {notOwner && <p className="text-red-600">You can only edit your own campaign.</p>}
+        {notAllowed && <p className="text-red-600">You do not have permission to edit this campaign.</p>}
 
-        {!loading && !error && !notOwner && (
+        {!loading && !error && !notAllowed && (
           <div className="space-y-8">
-            {hasBackers && (
+            {isDraft && !isCollaborator && (
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
+                This campaign is currently a draft. To continue editing and posting your campaign, we suggest editing through the{" "}
+                <Link href="/drafts" className="font-medium text-sky-700 underline hover:text-sky-800">
+                  Drafts page
+                </Link>
+                .
+              </div>
+            )}
+
+            {collaboratorRestricted && (
+              <div className="rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4 text-sm text-violet-900">
+                As a collaborator, you are seeing a limited version of this page. Ask the campaign owner if you would like to make any additional changes. (You will only be able to save changes if the campaign owner has filled out the Campaign Title, Category, Location, Funding Goal, and Duration.)
+              </div>
+            )}
+
+            {!collaboratorRestricted && ownerLockedFields && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
                 Because backers have contributed to your campaign, you are no longer able to edit the title, category, location, funding goal, or duration.
               </div>
             )}
+
             <div className="rounded-2xl border border-gray-200 p-6 bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Project Title <span className="text-red-500">*</span></label>
-                  <input value={title} onChange={(e)=>setTitle(e.target.value)} disabled={hasBackers} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campaign Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={hasBackers}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <input value={formatStatusLabel(status)} disabled className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500" />
+                  <input
+                    value={formatStatusLabel(status)}
+                    disabled
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category <span className="text-red-500">*</span></label>
-                  <select value={category} onChange={(e)=>setCategory(e.target.value)} disabled={hasBackers} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] bg-white disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    disabled={hasBackers}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] bg-white disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  >
                     <option value="">Select a category</option>
                     {CATEGORY_OPTIONS.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
                     ))}
                   </select>
                   {!category || !isValidCategory(category) ? (
@@ -466,58 +550,94 @@ export default function EditCampaignPage() {
                   ) : null}
                 </div>
                 <div>
-                <div className={hasBackers ? "pointer-events-none opacity-70" : ""}>
-                <LocationAutocomplete
-                    value={location}
-                    onChange={(value) => setLocation(value)}
-                />
-                </div>
-                  {!location.trim() ? (
-                    <p className="mt-2 text-sm text-gray-500">Please choose a city.</p>
-                  ) : null}
+                  <div className={hasBackers ? "pointer-events-none opacity-70" : ""}>
+                    <LocationAutocomplete value={location} onChange={(value) => setLocation(value)} />
+                  </div>
+                  {!location.trim() ? <p className="mt-2 text-sm text-gray-500">Please choose a city.</p> : null}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Funding Goal (USD) <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Funding Goal (USD) <span className="text-red-500">*</span>
+                  </label>
                   <input
                     value={goalAmount}
                     onChange={(e) => setGoalAmount(e.target.value)}
                     disabled={hasBackers}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                    />
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Duration (days) <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Duration (days) <span className="text-red-500">*</span>
+                  </label>
                   <input
                     value={durationDays}
                     onChange={(e) => setDurationDays(e.target.value.replace(/[^0-9]/g, ""))}
                     disabled={hasBackers}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                    />
+                  />
+                  {durationError ? <p className="mt-2 text-sm text-red-600">{durationError}</p> : null}
                 </div>
               </div>
             </div>
 
             <div className="rounded-2xl border border-gray-200 p-6 bg-white">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Project Description</label>
-              <textarea value={descriptionHtml} onChange={(e)=>setDescriptionHtml(e.target.value)} rows={8} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]" />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Campaign Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={descriptionHtml}
+                onChange={(e) => setDescriptionHtml(e.target.value)}
+                rows={8}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A]"
+              />
             </div>
 
             <div className="rounded-2xl border border-gray-200 p-6 bg-white">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Rewards</h2>
-                <button type="button" onClick={addReward} className="px-4 py-2 bg-[#8BC34A] text-white rounded-lg">Add reward</button>
+                <button type="button" onClick={addReward} className="px-4 py-2 bg-[#8BC34A] text-white rounded-lg">
+                  Add reward
+                </button>
               </div>
               <div className="space-y-4">
                 {rewards.length === 0 && <p className="text-sm text-gray-500">No rewards yet.</p>}
                 {rewards.map((reward, idx) => (
                   <div key={idx} className="border border-gray-200 rounded-xl p-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <input value={reward.title} onChange={(e)=>updateReward(idx, { title: e.target.value })} placeholder="Reward title" className="px-4 py-3 border border-gray-200 rounded-lg" />
-                      <input value={reward.required_amount_cents ? String(reward.required_amount_cents / 100) : ""} onChange={(e)=>updateReward(idx, { required_amount_cents: centsFromDollars(e.target.value) })} placeholder="Amount in USD" className="px-4 py-3 border border-gray-200 rounded-lg" />
-                      <textarea value={reward.description || ""} onChange={(e)=>updateReward(idx, { description: e.target.value })} placeholder="Reward description" rows={3} className="md:col-span-2 px-4 py-3 border border-gray-200 rounded-lg" />
-                      <input value={reward.limit_total || ""} onChange={(e)=>updateReward(idx, { limit_total: e.target.value ? Number(e.target.value.replace(/[^0-9]/g, "")) : null })} placeholder="Limit (optional)" className="px-4 py-3 border border-gray-200 rounded-lg" />
+                      <input
+                        value={reward.title}
+                        onChange={(e) => updateReward(idx, { title: e.target.value })}
+                        placeholder="Reward title"
+                        className="px-4 py-3 border border-gray-200 rounded-lg"
+                      />
+                      <input
+                        value={reward.required_amount_cents ? String(reward.required_amount_cents / 100) : ""}
+                        onChange={(e) => updateReward(idx, { required_amount_cents: centsFromDollars(e.target.value) })}
+                        placeholder="Amount in USD"
+                        className="px-4 py-3 border border-gray-200 rounded-lg"
+                      />
+                      <textarea
+                        value={reward.description || ""}
+                        onChange={(e) => updateReward(idx, { description: e.target.value })}
+                        placeholder="Reward description (required)"
+                        rows={3}
+                        className="md:col-span-2 px-4 py-3 border border-gray-200 rounded-lg"
+                      />
+                      <input
+                        value={reward.limit_total || ""}
+                        onChange={(e) =>
+                          updateReward(idx, {
+                            limit_total: e.target.value ? Number(e.target.value.replace(/[^0-9]/g, "")) : null,
+                          })
+                        }
+                        placeholder="Limit (optional)"
+                        className="px-4 py-3 border border-gray-200 rounded-lg"
+                      />
                     </div>
-                    <button type="button" onClick={()=>removeReward(idx)} className="mt-3 text-sm text-red-600 hover:underline">Remove reward</button>
+                    <button type="button" onClick={() => removeReward(idx)} className="mt-3 text-sm text-red-600 hover:underline">
+                      Remove reward
+                    </button>
                   </div>
                 ))}
               </div>
@@ -526,15 +646,30 @@ export default function EditCampaignPage() {
             <div className="rounded-2xl border border-gray-200 p-6 bg-white">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">FAQs</h2>
-                <button type="button" onClick={addFaq} className="px-4 py-2 bg-[#8BC34A] text-white rounded-lg">Add FAQ</button>
+                <button type="button" onClick={addFaq} className="px-4 py-2 bg-[#8BC34A] text-white rounded-lg">
+                  Add FAQ
+                </button>
               </div>
               <div className="space-y-4">
                 {faqs.length === 0 && <p className="text-sm text-gray-500">No FAQs yet.</p>}
                 {faqs.map((faq, idx) => (
                   <div key={idx} className="border border-gray-200 rounded-xl p-4">
-                    <input value={faq.question} onChange={(e)=>updateFaq(idx, { question: e.target.value })} placeholder="Question" className="w-full px-4 py-3 border border-gray-200 rounded-lg mb-3" />
-                    <textarea value={faq.answer} onChange={(e)=>updateFaq(idx, { answer: e.target.value })} placeholder="Answer" rows={4} className="w-full px-4 py-3 border border-gray-200 rounded-lg" />
-                    <button type="button" onClick={()=>removeFaq(idx)} className="mt-3 text-sm text-red-600 hover:underline">Remove FAQ</button>
+                    <input
+                      value={faq.question}
+                      onChange={(e) => updateFaq(idx, { question: e.target.value })}
+                      placeholder="Question"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg mb-3"
+                    />
+                    <textarea
+                      value={faq.answer}
+                      onChange={(e) => updateFaq(idx, { answer: e.target.value })}
+                      placeholder="Answer"
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+                    />
+                    <button type="button" onClick={() => removeFaq(idx)} className="mt-3 text-sm text-red-600 hover:underline">
+                      Remove FAQ
+                    </button>
                   </div>
                 ))}
               </div>
@@ -649,7 +784,7 @@ export default function EditCampaignPage() {
 
             <div className="flex justify-between gap-3">
               <div>
-                {isDraft && (
+                {isDraft && isOwner && (
                   <button
                     type="button"
                     onClick={handleDeleteDraft}
@@ -661,8 +796,15 @@ export default function EditCampaignPage() {
                 )}
               </div>
               <div className="flex gap-3">
-                <Link href={url ? `/project/${url}` : "#"} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancel</Link>
-                <button onClick={handleSave} disabled={!canSave || saving} title={!canSave ? "One or more required fields are missing values." : undefined} className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed">
+                <Link href={url ? `/project/${url}` : "#"} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </Link>
+                <button
+                  onClick={handleSave}
+                  disabled={!canSave || saving}
+                  title={!canSave ? "One or more required fields are missing values." : undefined}
+                  className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
