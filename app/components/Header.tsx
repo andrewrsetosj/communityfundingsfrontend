@@ -158,31 +158,48 @@ export default function Header() {
     }
   }, [isSearchOpen]);
 
-  useEffect(() => {
-    if (!user?.id) {
-      setProfileUsername(null);
-      return;
-    }
+useEffect(() => {
+  if (!user?.id) {
+    setNotifications([]);
+    setUnreadCount(0);
+    return;
+  }
 
-    let cancelled = false;
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("cf_backend_token")
+      : null;
 
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!cancelled) {
-          setProfileUsername(json.username || json.id || null);
-        }
-      } catch (err) {
-        console.error("Error fetching username:", err);
+  if (!token || token === "undefined" || token === "null") {
+    return;
+  }
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/unread-count`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const json = await res.json();
+      if (!cancelled) {
+        setUnreadCount(Number(json.unread_count || 0));
       }
-    })();
+    } catch (err) {
+      console.error("Error fetching unread notifications:", err);
+    }
+  })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, API_BASE]);
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id, API_BASE]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -215,13 +232,24 @@ export default function Header() {
   }, [user?.id, API_BASE]);
 
   async function refreshNotifications() {
-    try {
-      setIsNotificationsRefreshing(true);
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("cf_backend_token")
+      : null;
 
-      const res = await fetch(`${API_BASE}/api/notifications/refresh`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-      });
+  if (!token || token === "undefined" || token === "null") {
+    return;
+  }
+
+  try {
+    setIsNotificationsRefreshing(true);
+
+    const res = await fetch(`${API_BASE}/api/notifications/refresh`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
       if (!res.ok) {
         throw new Error(`Failed to refresh notifications: ${res.status}`);
@@ -237,13 +265,24 @@ export default function Header() {
   }
 
   async function loadNotifications() {
-    try {
-      setIsNotificationsLoading(true);
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("cf_backend_token")
+      : null;
 
-      const res = await fetch(`${API_BASE}/api/notifications?limit=20`, {
-        cache: "no-store",
-        headers: getAuthHeaders(),
-      });
+  if (!token || token === "undefined" || token === "null") {
+    return;
+  }
+
+  try {
+    setIsNotificationsLoading(true);
+
+    const res = await fetch(`${API_BASE}/api/notifications?limit=20`, {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
       if (!res.ok) {
         throw new Error(`Failed to load notifications: ${res.status}`);
