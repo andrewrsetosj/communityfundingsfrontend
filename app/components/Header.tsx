@@ -49,27 +49,89 @@ const categories = [
   },
 ];
 
+type NotificationActor = {
+  creator_id?: string | null;
+  name?: string | null;
+  last_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+};
+
+type NotificationItem = {
+  notification_id: number;
+  recipient_creator_id: string;
+  actor_creator_id?: string | null;
+  type: string;
+  title: string;
+  body?: string | null;
+  link_url?: string | null;
+  campaign_id?: number | null;
+  comment_id?: number | null;
+  collaborator_id?: number | null;
+  is_read: boolean;
+  time_created: string;
+  actor?: NotificationActor | null;
+};
+
+function formatTimeAgo(dateString?: string | null) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const seconds = Math.max(1, Math.floor(diffMs / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 30) return `${days}d ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [isNotificationsRefreshing, setIsNotificationsRefreshing] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+  function getAuthHeaders(): Record<string, string> {
+    if (typeof window === "undefined") return {};
+    const token = localStorage.getItem("cf_backend_token");
+    if (!token || token === "undefined" || token === "null") return {};
+    return { Authorization: `Bearer ${token}` };
+  }
 
   const closeSearch = useCallback(() => {
     setIsSearchOpen(false);
     setSearchQuery("");
   }, []);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -81,20 +143,211 @@ export default function Header() {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         closeSearch();
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [closeSearch]);
 
-  // Focus the input when search opens
   useEffect(() => {
     if (isSearchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [isSearchOpen]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!user?.id) {
+      setProfileUsername(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setProfileUsername(json.username || json.id || null);
+        }
+      } catch (err) {
+        console.error("Error fetching username:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, API_BASE]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/notifications/unread-count`, {
+          cache: "no-store",
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setUnreadCount(Number(json.unread_count || 0));
+        }
+      } catch (err) {
+        console.error("Error fetching unread notifications:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, API_BASE]);
+
+  async function refreshNotifications() {
+    try {
+      setIsNotificationsRefreshing(true);
+
+      const res = await fetch(`${API_BASE}/api/notifications/refresh`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to refresh notifications: ${res.status}`);
+      }
+
+      const json = await res.json();
+      setUnreadCount(Number(json.unread_count || 0));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsNotificationsRefreshing(false);
+    }
+  }
+
+  async function loadNotifications() {
+    try {
+      setIsNotificationsLoading(true);
+
+      const res = await fetch(`${API_BASE}/api/notifications?limit=20`, {
+        cache: "no-store",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to load notifications: ${res.status}`);
+      }
+
+      const json = await res.json();
+      setNotifications(Array.isArray(json.notifications) ? json.notifications : []);
+      setUnreadCount(Number(json.unread_count || 0));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsNotificationsLoading(false);
+    }
+  }
+
+  async function handleRefreshAndLoad() {
+    await refreshNotifications();
+    await loadNotifications();
+  }
+
+  async function handleNotificationsToggle() {
+    const next = !isNotificationsOpen;
+    setIsNotificationsOpen(next);
+
+    if (next) {
+      await handleRefreshAndLoad();
+    }
+  }
+
+  async function handleNotificationClick(notification: NotificationItem) {
+    try {
+      if (!notification.is_read) {
+        const res = await fetch(`${API_BASE}/api/notifications/${notification.notification_id}/read`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+        });
+
+        if (res.ok) {
+          setNotifications((prev) =>
+            prev.map((item) =>
+              item.notification_id === notification.notification_id
+                ? { ...item, is_read: true }
+                : item
+            )
+          );
+          setUnreadCount((prev) => Math.max(0, prev - 1));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsNotificationsOpen(false);
+      if (notification.link_url) {
+        router.push(notification.link_url);
+      }
+    }
+  }
+
+  async function handleDeleteNotification(notificationId: number, event: React.MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+      const target = notifications.find((item) => item.notification_id === notificationId);
+
+      const res = await fetch(`${API_BASE}/api/notifications/${notificationId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to delete notification: ${res.status}`);
+      }
+
+      setNotifications((prev) => prev.filter((item) => item.notification_id !== notificationId));
+
+      if (target && !target.is_read) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to mark all notifications as read: ${res.status}`);
+      }
+
+      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       closeSearch();
@@ -105,55 +358,26 @@ export default function Header() {
     signOut({ redirectUrl: "/" });
   };
 
-
-useEffect(() => {
-  if (!user?.id) {
-    setProfileUsername(null);
-    return;
-  }
-
-  let cancelled = false;
-
-  (async () => {
-    try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
-      if (!res.ok) return;
-      const json = await res.json();
-      if (!cancelled) setProfileUsername(json.username || json.id || null);
-    } catch (err) {
-      console.error("Error fetching username:", err);
-    }
-  })();
-
-  return () => {
-    cancelled = true;
-  };
-}, [user?.id]);
-
-const profileHref =
-  pathname === "/settings"
-    ? user?.id
-      ? `/profile/${user.id}`
-      : "#"
-    : profileUsername
-      ? `/profile/${profileUsername}`
-      : user?.id
+  const profileHref =
+    pathname === "/settings"
+      ? user?.id
         ? `/profile/${user.id}`
-        : "#";
+        : "#"
+      : profileUsername
+        ? `/profile/${profileUsername}`
+        : user?.id
+          ? `/profile/${user.id}`
+          : "#";
 
   return (
     <header className="w-full">
-      {/* Top Banner */}
       <div className="bg-[#8BC34A] text-white text-center py-2 text-sm">
         Community Funding is a project we&apos;re building together. Stay informed with our new blog, Project Updates.
       </div>
 
-      {/* Navigation */}
       <nav className="bg-white border-b border-gray-100 px-20 py-4">
         <div className="mx-auto flex items-center justify-between">
           {isSearchOpen ? (
-            /* Search Bar (replaces nav content) */
             <div ref={searchRef} className="flex items-center gap-3 w-full">
               <form onSubmit={handleSearchSubmit} className="flex items-center gap-3 w-full">
                 <div className="relative flex-1">
@@ -174,11 +398,11 @@ const profileHref =
                     ref={searchInputRef}
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search campaigns..."
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") closeSearch();
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") closeSearch();
                     }}
                   />
                 </div>
@@ -194,11 +418,9 @@ const profileHref =
               </form>
             </div>
           ) : (
-            /* Normal nav content */
             <>
-              {/* Left Nav Links */}
               <div className="hidden md:flex items-center space-x-10 text-md text-gray-700 flex-1">
-                  <Link href="/about-us" className="hover:text-[#8BC34A] transition-colors">
+                <Link href="/about-us" className="hover:text-[#8BC34A] transition-colors">
                   About Us
                 </Link>
                 <Link href="/how-it-works" className="hover:text-[#8BC34A] transition-colors">
@@ -207,6 +429,7 @@ const profileHref =
                 <Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
                   Campaigns We Love
                 </Link>
+
                 <div className="relative" ref={categoriesRef}>
                   <button
                     onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
@@ -222,6 +445,7 @@ const profileHref =
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
+
                   {isCategoriesOpen && (
                     <div className="absolute left-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-3 z-50">
                       <div className="grid grid-cols-2 gap-1 px-2">
@@ -249,6 +473,7 @@ const profileHref =
                           </Link>
                         ))}
                       </div>
+
                       <div className="border-t border-gray-100 mt-2 pt-2 px-2">
                         <Link
                           href="/categories"
@@ -263,7 +488,6 @@ const profileHref =
                 </div>
               </div>
 
-              {/* Center Logo */}
               <Link href="/" className="flex items-center justify-center">
                 <Image
                   src="/logo.png"
@@ -275,9 +499,7 @@ const profileHref =
                 />
               </Link>
 
-              {/* Right Side */}
-              <div className="flex items-center space-x-10 flex-1 justify-end">
-                {/* Search Icon */}
+              <div className="flex items-center space-x-6 flex-1 justify-end">
                 <button
                   onClick={() => setIsSearchOpen(true)}
                   className="text-gray-500 hover:text-[#8BC34A] transition-colors"
@@ -298,7 +520,6 @@ const profileHref =
                   </svg>
                 </button>
 
-                {/* Auth Buttons */}
                 <SignedOut>
                   <Link
                     href="/sign-in"
@@ -307,42 +528,191 @@ const profileHref =
                     Log In
                   </Link>
                 </SignedOut>
+
                 <SignedIn>
+                  <div className="relative" ref={notificationsRef}>
+                    <button
+                      onClick={handleNotificationsToggle}
+                      className="relative text-gray-500 hover:text-[#8BC34A] transition-colors"
+                      aria-label="Notifications"
+                    >
+                      <svg
+                        className="w-7 h-7"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                        />
+                      </svg>
+
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#8BC34A] text-white text-[10px] font-semibold flex items-center justify-center">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {isNotificationsOpen && (
+                      <div className="absolute right-0 mt-2 w-[360px] max-w-[90vw] bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                            <p className="text-xs text-gray-500">{unreadCount} unread</p>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={handleRefreshAndLoad}
+                              disabled={isNotificationsRefreshing || isNotificationsLoading}
+                              className="text-xs font-medium text-gray-600 hover:text-[#8BC34A] disabled:opacity-50"
+                            >
+                              {isNotificationsRefreshing ? "Refreshing..." : "Refresh"}
+                            </button>
+
+                            {notifications.length > 0 && unreadCount > 0 && (
+                              <button
+                                onClick={handleMarkAllRead}
+                                className="text-xs font-medium text-[#8BC34A] hover:underline"
+                              >
+                                Mark all as read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="max-h-[420px] overflow-y-auto">
+                          {isNotificationsLoading ? (
+                            <div className="px-4 py-6 text-sm text-gray-500">
+                              Loading notifications...
+                            </div>
+                          ) : notifications.length === 0 ? (
+                            <div className="px-4 py-8 text-sm text-gray-500 text-center">
+                              No notifications yet.
+                            </div>
+                          ) : (
+                            notifications.map((notification) => {
+                              const actorName =
+                                [notification.actor?.name, notification.actor?.last_name]
+                                  .filter(Boolean)
+                                  .join(" ")
+                                  .trim() ||
+                                notification.actor?.username ||
+                                "Someone";
+
+                              return (
+                                <button
+                                  key={notification.notification_id}
+                                  onClick={() => handleNotificationClick(notification)}
+                                  className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                                    !notification.is_read ? "bg-[#F5F9F0]" : "bg-white"
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                                      {notification.actor?.avatar_url ? (
+                                        <Image
+                                          src={notification.actor.avatar_url}
+                                          alt={actorName}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+                                          {actorName?.[0]?.toUpperCase() ?? "N"}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                                            {notification.title}
+                                          </p>
+
+                                          {notification.body ? (
+                                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                              {notification.body}
+                                            </p>
+                                          ) : null}
+
+                                          <p className="text-xs text-gray-400 mt-1">
+                                            {formatTimeAgo(notification.time_created)}
+                                          </p>
+                                        </div>
+
+                                        <button
+                                          onClick={(event) =>
+                                            handleDeleteNotification(notification.notification_id, event)
+                                          }
+                                          className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                                          aria-label="Delete notification"
+                                        >
+                                          <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M6 18L18 6M6 6l12 12"
+                                            />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="relative" ref={dropdownRef}>
-                    {/* Profile Button */}
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className="flex items-center focus:outline-none"
                     >
                       {user?.imageUrl ? (
                         <div className="relative w-10 h-10 rounded-full overflow-hidden">
-  <Image
-    src={user.imageUrl}
-    alt="Profile"
-    fill
-    className="object-cover"
-  />
-</div>
+                          <Image
+                            src={user.imageUrl}
+                            alt="Profile"
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
                       )}
                     </button>
 
-                    {/* Dropdown Menu */}
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                         <Link
-                        href={profileHref}
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="block px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                          href={profileHref}
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="block px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                        {user?.fullName || user?.firstName || "User"}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                        {user?.primaryEmailAddress?.emailAddress}
-                        </p>
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {user?.fullName || user?.firstName || "User"}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {user?.primaryEmailAddress?.emailAddress}
+                          </p>
                         </Link>
+
                         <Link
                           href="/settings"
                           onClick={() => setIsDropdownOpen(false)}
@@ -369,6 +739,7 @@ const profileHref =
                           </svg>
                           Profile Settings
                         </Link>
+
                         <Link
                           href="/my-projects"
                           onClick={() => setIsDropdownOpen(false)}
@@ -389,6 +760,7 @@ const profileHref =
                           </svg>
                           My Campaigns
                         </Link>
+
                         <Link
                           href="/drafts"
                           onClick={() => setIsDropdownOpen(false)}
@@ -409,6 +781,7 @@ const profileHref =
                           </svg>
                           My Drafts
                         </Link>
+
                         <Link
                           href="/saved"
                           onClick={() => setIsDropdownOpen(false)}
@@ -429,6 +802,7 @@ const profileHref =
                           </svg>
                           Saved Campaigns
                         </Link>
+
                         <div className="border-t border-gray-100 mt-2 pt-2">
                           <button
                             onClick={handleSignOut}

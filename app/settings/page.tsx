@@ -52,6 +52,13 @@ type TabType = "account" | "edit-profile" | "payment-methods";
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser();
+  const isGoogleAccount =
+  !!user?.externalAccounts?.some(
+    (account) => account.provider === "google"
+  );
+  const canChangePassword = !!user?.passwordEnabled;
+  const shouldDisableEmail = isGoogleAccount;
+  const shouldDisablePassword = !canChangePassword;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<TabType>("edit-profile");
@@ -74,6 +81,7 @@ export default function SettingsPage() {
   const [website, setWebsite] = useState("");
   const [username, setUsername] = useState("");
   const [aboutYou, setAboutYou] = useState("");
+  const [accountType, setAccountType] = useState<0 | 1>(1);
   const [privacyOption1, setPrivacyOption1] = useState(true);
   const [privacyOption2, setPrivacyOption2] = useState(false);
 
@@ -133,6 +141,7 @@ export default function SettingsPage() {
         if (data.website) setWebsite(data.website);
         if (data.username) setUsername(data.username);
         else if (user?.id) setUsername(user.id);
+        if (typeof data.user_type === "number") setAccountType(data.user_type === 0 ? 0 : 1);
       } catch (err) {
         console.error("Error fetching creator profile:", err);
       }
@@ -266,6 +275,7 @@ export default function SettingsPage() {
           state,
           time_zone: timeZone,
           website: normalizedWebsite,
+          user_type: accountType,
         }),
       });
       if (!res.ok) throw new Error("Failed to save profile");
@@ -430,8 +440,18 @@ export default function SettingsPage() {
                     value={profileEmail}
                     onChange={(e) => setProfileEmail(e.target.value)}
                     placeholder="your@email.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                    disabled={shouldDisableEmail}
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 ${
+                      shouldDisableEmail
+                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "border-gray-200 focus:border-[#8BC34A] focus:ring-[#8BC34A]"
+                    }`}
                   />
+                  {shouldDisableEmail && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      This email is managed through your Google sign-in.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -454,7 +474,44 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
-
+                
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div>
+    <label
+      htmlFor="accountType"
+      className="block text-sm font-medium text-gray-700 mb-2"
+    >
+      Account Type
+    </label>
+    <div className="relative">
+      <select
+        id="accountType"
+        value={accountType}
+        onChange={(e) => {
+          setAccountType(Number(e.target.value) as 0 | 1);
+          setIsDirty(true);
+        }}
+        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] appearance-none bg-white"
+      >
+        <option value={1}>Individual</option>
+        <option value={0}>Business</option>
+      </select>
+      <svg
+        className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 9l-7 7-7-7"
+        />
+      </svg>
+    </div>
+  </div>
+</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -653,7 +710,12 @@ export default function SettingsPage() {
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                      disabled={shouldDisablePassword}
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 ${
+                        shouldDisablePassword
+                          ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "border-gray-200 focus:border-[#8BC34A] focus:ring-[#8BC34A]"
+                      }`}
                     />
                   </div>
                   <div>
@@ -669,10 +731,21 @@ export default function SettingsPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                      disabled={shouldDisablePassword}
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 ${
+                        shouldDisablePassword
+                          ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "border-gray-200 focus:border-[#8BC34A] focus:ring-[#8BC34A]"
+                      }`}
                     />
                   </div>
                 </div>
+
+                {shouldDisablePassword && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Password changes are unavailable because this account signs in through Google.
+                  </p>
+                )}
               </div>
               <div className="flex justify-end items-center gap-4 pt-4">
                 <Link
