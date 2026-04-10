@@ -880,6 +880,27 @@ export default function ProjectDetail() {
   const isCollaborator = viewerPermissions?.is_collaborator ?? false;
   const isSaved = data?.viewer_engagement?.is_saved ?? false;
   const isCampaignActive = campaign?.status === "active";
+  const isCampaignInactive = campaign?.status === "inactive";
+  const isFullyFunded =
+    Boolean(
+      campaign?.funding_goal_cents &&
+      campaign.amount_raised_cents >= campaign.funding_goal_cents
+    );
+
+  const fundingBlurb = useMemo(() => {
+    if (!campaign) return "";
+
+    if (isCampaignInactive) {
+      if (isFullyFunded) {
+        return "This campaign ended successfully and reached its funding goal.";
+      }
+
+      return "This campaign has ended and did not reach its funding goal.";
+    }
+
+    return "All or nothing. This campaign will only be funded if it reaches its goal before the campaign ends.";
+  }, [campaign, isCampaignInactive, isFullyFunded]);
+
   const canViewCampaign = viewerPermissions?.can_view ?? Boolean(campaign && (isCampaignActive || isOwner || isCollaborator));
   const canComment = viewerPermissions?.can_comment ?? Boolean(isCampaignActive);
   const canEditCampaign = isOwner || isCollaborator;
@@ -1474,7 +1495,13 @@ export default function ProjectDetail() {
                         ? "You can't back your own campaign"
                         : isCollaborator
                           ? "You can't back a campaign you're collaborating on"
-                          : "Back this campaign"}
+                          : campaign?.status === "inactive"
+                            ? "This campaign has ended"
+                            : campaign?.status === "draft"
+                              ? "This campaign is still a draft"
+                              : campaign?.status === "pending_review"
+                                ? "This campaign is pending review"
+                                : "Back this campaign"}
                     </button>
 
                     {canEditCampaign && (
@@ -1532,8 +1559,8 @@ export default function ProjectDetail() {
                       </button>
                     )}
 
-                    <p className="text-xs text-gray-500">
-                      All or nothing. This campaign will only be funded if it reaches its goal before the campaign ends.
+                    <p className="text-sm text-gray-600">
+                      {fundingBlurb}
                     </p>
                   </div>
 
