@@ -137,9 +137,23 @@ function sortPersonalCampaigns(items: Campaign[], sortValue: ProjectSortValue) {
     }
 
     if (sortValue === "ending_soonest") {
+      const statusRank = (status?: string | null) => {
+        if (status === "inactive") return 1;
+        return 0;
+      };
+
+      const aStatusRank = statusRank(a.status);
+      const bStatusRank = statusRank(b.status);
+
+      if (aStatusRank !== bStatusRank) {
+        return aStatusRank - bStatusRank;
+      }
+
       const aDays = a.days_left ?? Number.POSITIVE_INFINITY;
       const bDays = b.days_left ?? Number.POSITIVE_INFINITY;
+
       if (aDays !== bDays) return aDays - bDays;
+
       return compareNullableDates(a.created_at, b.created_at, false);
     }
 
