@@ -419,6 +419,8 @@ export default function ProjectDetail() {
   const [donorMessage, setDonorMessage] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [donating, setDonating] = useState(false);
+  const [showEligibility, setShowEligibility] = useState(false);
+  const [eligibilityAccepted, setEligibilityAccepted] = useState(false);
   const [donateError, setDonateError] = useState("");
 
   // Load campaign from backend
@@ -447,13 +449,18 @@ export default function ProjectDetail() {
       setDonateError("Please enter a valid amount");
       return;
     }
+    if (!eligibilityAccepted) {
+      setShowEligibility(true);
+      return;
+    }
+    setEligibilityAccepted(false);
     setDonating(true);
     setDonateError("");
 
     try {
       const res = await fetch(`${API_BASE}/api/stripe/create-checkout-session`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(localStorage.getItem("cf_backend_token") ? { Authorization: `Bearer ${localStorage.getItem("cf_backend_token")}` } : {}) },
         body: JSON.stringify({
           campaign_id: campaign.id,
           amount: finalAmount,
@@ -866,6 +873,34 @@ export default function ProjectDetail() {
           </div>
         </div>
       </footer>
+
+      {/* Eligibility Rules Modal */}
+      {showEligibility && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b"><h2 className="text-xl font-bold text-gray-900">Donation Eligibility & Terms</h2></div>
+            <div className="p-6 space-y-4 text-sm text-gray-600">
+              <p className="font-semibold text-gray-900">By proceeding with this donation, you acknowledge and agree to the following:</p>
+              <div className="space-y-3">
+                <div><h3 className="font-semibold text-gray-800">1. Voluntary Contribution</h3><p>This donation is made voluntarily. You are under no obligation to contribute and do so of your own free will.</p></div>
+                <div><h3 className="font-semibold text-gray-800">2. No Guarantee of Returns</h3><p>Donations are contributions to support campaigns. There is no guarantee of financial return, product delivery, or specific outcomes from your donation.</p></div>
+                <div><h3 className="font-semibold text-gray-800">3. Refund Policy</h3><p>Refunds are handled on a case-by-case basis. Once a donation is processed, it may not be reversible. Contact support for refund inquiries.</p></div>
+                <div><h3 className="font-semibold text-gray-800">4. Platform Fee</h3><p>Community Fundings applies a 5% platform fee to each donation to cover payment processing, platform maintenance, and operational costs.</p></div>
+                <div><h3 className="font-semibold text-gray-800">5. Donor Responsibility</h3><p>You confirm that the payment method used belongs to you or that you are authorized to use it. You take full responsibility for this transaction.</p></div>
+                <div><h3 className="font-semibold text-gray-800">6. Age Requirement</h3><p>You confirm that you are at least 18 years of age or have parental/guardian consent to make this donation.</p></div>
+                <div><h3 className="font-semibold text-gray-800">7. Anti-Money Laundering</h3><p>This platform complies with applicable anti-money laundering (AML) regulations. Suspicious transactions may be reported to relevant authorities.</p></div>
+                <div><h3 className="font-semibold text-gray-800">8. Tax Deductibility</h3><p>Tax deductibility of your donation depends on the campaign and your local tax laws. Consult a tax professional for advice specific to your situation.</p></div>
+                <div><h3 className="font-semibold text-gray-800">9. Data Privacy</h3><p>Your personal and payment information is processed securely via Stripe. We do not store your full card details. See our Privacy Policy for details.</p></div>
+                <div><h3 className="font-semibold text-gray-800">10. Dispute Resolution</h3><p>Any disputes related to donations will be resolved in accordance with our Terms of Service and applicable local laws.</p></div>
+              </div>
+            </div>
+            <div className="p-6 border-t flex gap-3">
+              <button onClick={()=>setShowEligibility(false)} className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">Decline</button>
+              <button onClick={()=>{setEligibilityAccepted(true);setShowEligibility(false);setTimeout(()=>{const btn=document.querySelector("[data-pledge-btn]") as HTMLButtonElement;if(btn)btn.click()},100)}} className="flex-1 py-3 rounded-lg bg-[#7CB342] text-white font-medium hover:bg-[#689F38] transition-colors">I Accept & Continue</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
