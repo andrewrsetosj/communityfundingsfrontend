@@ -236,7 +236,11 @@ export default async function CategoryPage({
 
       <section className="max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-xl font-medium text-gray-900 mb-8">
-          Explore <span className="font-bold">{total.toLocaleString()} campaigns</span> in {categoryName}
+          Explore{" "}
+            <span className="font-bold">
+              {total.toLocaleString()} {total === 1 ? "campaign" : "campaigns"}
+            </span>{" "}
+          in {categoryName}
         </h2>
 
         {campaigns.length === 0 ? (
