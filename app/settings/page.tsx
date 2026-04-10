@@ -429,32 +429,6 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
-                    htmlFor="profileEmail"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="profileEmail"
-                    type="email"
-                    value={profileEmail}
-                    onChange={(e) => setProfileEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    disabled={shouldDisableEmail}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 ${
-                      shouldDisableEmail
-                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "border-gray-200 focus:border-[#8BC34A] focus:ring-[#8BC34A]"
-                    }`}
-                  />
-                  {shouldDisableEmail && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      This email is managed through your Google sign-in.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label
                     htmlFor="username"
                     className="block text-sm font-medium text-gray-700 mb-2"
                   >
@@ -473,45 +447,43 @@ export default function SettingsPage() {
                     Used in your public profile URL. Lowercase letters and underscores only. Max 30 characters.
                   </p>
                 </div>
+
+                <div>
+                  <label
+                    htmlFor="accountType"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Account Type
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="accountType"
+                      value={accountType}
+                      onChange={(e) => {
+                        setAccountType(Number(e.target.value) as 0 | 1);
+                        setIsDirty(true);
+                      }}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] appearance-none bg-white"
+                    >
+                      <option value={1}>Individual</option>
+                      <option value={0}>Business</option>
+                    </select>
+                    <svg
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
-                
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div>
-    <label
-      htmlFor="accountType"
-      className="block text-sm font-medium text-gray-700 mb-2"
-    >
-      Account Type
-    </label>
-    <div className="relative">
-      <select
-        id="accountType"
-        value={accountType}
-        onChange={(e) => {
-          setAccountType(Number(e.target.value) as 0 | 1);
-          setIsDirty(true);
-        }}
-        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] appearance-none bg-white"
-      >
-        <option value={1}>Individual</option>
-        <option value={0}>Business</option>
-      </select>
-      <svg
-        className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 9l-7 7-7-7"
-        />
-      </svg>
-    </div>
-  </div>
-</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
