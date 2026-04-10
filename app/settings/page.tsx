@@ -1,18 +1,59 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
-import Footer from "../components/Footer";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { syncClerkToBackendToken } from "@/lib/backendToken";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const USERNAME_MAX_LENGTH = 30;
+
+const BANNED_WORD_PATTERNS = [
+  /\bfuck(?:ing|er|ed|s)?\b/i,
+  /\bshit(?:ty|s)?\b/i,
+  /\bbitch(?:es)?\b/i,
+  /\basshole(?:s)?\b/i,
+  /\bdamn\b/i,
+];
+
+function normalizeForProfanityCheck(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function containsBlockedWords(value: string) {
+  const normalized = normalizeForProfanityCheck(value);
+  return BANNED_WORD_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeUsernameInput(value: string) {
+  return value.toLowerCase().replace(/[^a-z_]/g, "").replace(/\s+/g, "");
+}
+
+function normalizeWebsiteInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidWebsite(value: string) {
+  if (!value) return true;
+  try {
+    const withProtocol = /^https?:\/\//.test(value) ? value : `https://${value}`;
+    const url = new URL(withProtocol);
+    return !!url.hostname && url.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
 
 type TabType = "account" | "edit-profile" | "payment-methods";
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [activeTab, setActiveTab] = useState<TabType>("edit-profile");
   const [isDirty, setIsDirty] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -20,8 +61,8 @@ export default function SettingsPage() {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
-  // Edit Profile state
   const [profileFirstName, setProfileFirstName] = useState("");
   const [profileLastName, setProfileLastName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
@@ -31,11 +72,11 @@ export default function SettingsPage() {
   const [country, setCountry] = useState("United States");
   const [timeZone, setTimeZone] = useState("");
   const [website, setWebsite] = useState("");
+  const [username, setUsername] = useState("");
   const [aboutYou, setAboutYou] = useState("");
   const [privacyOption1, setPrivacyOption1] = useState(true);
   const [privacyOption2, setPrivacyOption2] = useState(false);
 
-  // Interests state
   const allInterests = [
     "Art", "Comics", "Crafts", "Dance", "Design",
     "Fashion", "Film & Video", "Food", "Games",
@@ -45,7 +86,6 @@ export default function SettingsPage() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const MAX_INTERESTS = 5;
 
-  // Payment Methods state
   const [nameOnCard, setNameOnCard] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [securityCode, setSecurityCode] = useState("");
@@ -57,28 +97,23 @@ export default function SettingsPage() {
   const [billingZip, setBillingZip] = useState("");
   const [billingCountry, setBillingCountry] = useState("United States");
 
-  // Pre-populate from Clerk user data
   useEffect(() => {
     if (!isLoaded || !user) return;
 
     const clerkName = user.fullName || "";
     const clerkEmail = user.primaryEmailAddress?.emailAddress || "";
 
-    // Account tab
     setFullName(clerkName);
     setEmail(clerkEmail);
 
-    // Edit Profile tab — Clerk as initial fallback
     setProfileFirstName(user.firstName || "");
     setProfileLastName(user.lastName || "");
     setProfileEmail(clerkEmail);
 
-    // Payment tab
     setNameOnCard(clerkName);
     setBillingFullName(clerkName);
   }, [isLoaded, user]);
 
-  // Fetch full creator profile from DB (overrides Clerk defaults)
   useEffect(() => {
     if (!isLoaded || !user?.id) return;
 
@@ -95,13 +130,16 @@ export default function SettingsPage() {
         if (data.address) setAddress(data.address);
         if (data.state) setState(data.state);
         if (data.time_zone) setTimeZone(data.time_zone);
+        if (data.website) setWebsite(data.website);
+        if (data.username) setUsername(data.username);
+        else if (user?.id) setUsername(user.id);
       } catch (err) {
         console.error("Error fetching creator profile:", err);
       }
     }
+
     fetchCreator();
 
-    // Fetch user's interests
     const token = localStorage.getItem("cf_backend_token");
     if (token) {
       fetch(`${API_URL}/api/users/me/interests`, {
@@ -122,7 +160,6 @@ export default function SettingsPage() {
     setIsDirty(true);
   };
 
-  // Warn user before leaving with unsaved changes (tab close / external nav)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
@@ -133,7 +170,6 @@ export default function SettingsPage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
-  // Warn user before in-app navigation with unsaved changes
   useEffect(() => {
     if (!isDirty) return;
 
@@ -152,26 +188,88 @@ export default function SettingsPage() {
     return () => document.removeEventListener("click", handleClick, true);
   }, [isDirty]);
 
+  async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!user) return;
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingPhoto(true);
+
+      await user.setProfileImage({ file });
+      await user.reload();
+      await syncClerkToBackendToken(user);
+
+      setIsDirty(true);
+    } catch (err) {
+      console.error("Error updating profile image:", err);
+      alert("Failed to update profile photo. Please try again.");
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
   const handleSave = async () => {
     if (!user?.id) return;
     setIsSaving(true);
+
     try {
+      const normalizedUsername = normalizeUsernameInput(username);
+      const normalizedWebsite = normalizeWebsiteInput(website);
+
+      const valuesToFilter = [
+        { label: "First name", value: profileFirstName },
+        { label: "Last name", value: profileLastName },
+        { label: "Username", value: normalizedUsername },
+        { label: "Contact number", value: contactNumber },
+        { label: "Address", value: address },
+        { label: "State", value: state },
+        { label: "Time zone", value: timeZone },
+        { label: "Website", value: normalizedWebsite },
+        { label: "About you", value: aboutYou },
+      ];
+
+      const blockedField = valuesToFilter.find((item) => item.value && containsBlockedWords(item.value));
+      if (blockedField) {
+        throw new Error(`Please remove profanity from ${blockedField.label.toLowerCase()} and try again.`);
+      }
+
+      if (normalizedUsername && !/^[a-z_]+$/.test(normalizedUsername)) {
+        throw new Error("Username can only contain lowercase letters and underscores.");
+      }
+
+      if (normalizedUsername.includes(" ")) {
+        throw new Error("Username cannot contain spaces.");
+      }
+
+      if (normalizedWebsite && !isValidWebsite(normalizedWebsite)) {
+        throw new Error("Link is invalid.");
+      }
+
+      setUsername(normalizedUsername);
+      setWebsite(normalizedWebsite);
+
       const res = await fetch(`${API_URL}/api/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: profileFirstName,
           last_name: profileLastName,
+          username: normalizedUsername,
           bio: aboutYou,
           phone_number: contactNumber,
-          address: address,
-          state: state,
+          address,
+          state,
           time_zone: timeZone,
+          website: normalizedWebsite,
         }),
       });
       if (!res.ok) throw new Error("Failed to save profile");
 
-      // Save interests
       const token = localStorage.getItem("cf_backend_token");
       if (token) {
         await fetch(`${API_URL}/api/users/me/interests`, {
@@ -187,7 +285,7 @@ export default function SettingsPage() {
       setIsDirty(false);
     } catch (err) {
       console.error("Error saving profile:", err);
-      alert("Failed to save. Please try again.");
+      alert(err instanceof Error ? err.message : "Failed to save. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -197,12 +295,10 @@ export default function SettingsPage() {
     <div className="min-h-screen flex flex-col bg-white" onInput={() => setIsDirty(true)}>
       <Header />
 
-      {/* Settings Header with green background */}
       <div className="bg-[#F5F9F0]">
         <div className="max-w-4xl mx-auto w-full px-6 pt-8 pb-0">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
 
-          {/* Tabs */}
           <div className="border-b border-[#8BC34A]/30">
             <nav className="flex space-x-8">
               <button
@@ -230,18 +326,13 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-8">
-
-        {/* Edit Profile Tab Content */}
         {activeTab === "edit-profile" && (
           <div className="space-y-8">
-            {/* Section Title */}
             <h2 className="text-2xl font-serif font-bold text-gray-900">
               Edit Profile
             </h2>
 
-            {/* Profile Photo */}
             <div className="relative w-24 h-24">
               {user?.imageUrl ? (
                 <Image
@@ -249,12 +340,18 @@ export default function SettingsPage() {
                   alt="Profile"
                   width={96}
                   height={96}
-                  className="rounded-full object-cover"
+                  className="rounded-full object-cover w-24 h-24"
                 />
               ) : (
                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
               )}
-              <button className="absolute bottom-0 right-0 w-7 h-7 bg-[#8BC34A] rounded-full flex items-center justify-center text-white shadow-md hover:bg-[#7CB342] transition-colors">
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPhoto || !user}
+                className="absolute bottom-0 right-0 w-7 h-7 bg-[#8BC34A] rounded-full flex items-center justify-center text-white shadow-md hover:bg-[#7CB342] transition-colors disabled:opacity-50"
+              >
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -269,11 +366,21 @@ export default function SettingsPage() {
                   />
                 </svg>
               </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfileImageChange}
+              />
             </div>
 
-            {/* Form Fields */}
+            <p className="text-sm text-gray-500 -mt-4">
+              {isUploadingPhoto ? "Uploading photo..." : "Click the pencil to change your profile photo."}
+            </p>
+
             <div className="space-y-6">
-              {/* Row 1: First Name & Last Name */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -309,7 +416,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Row 2: Email */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -327,9 +433,28 @@ export default function SettingsPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
                 </div>
+                <div>
+                  <label
+                    htmlFor="username"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(normalizeUsernameInput(e.target.value))}
+                    placeholder="username"
+                    maxLength={USERNAME_MAX_LENGTH}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Used in your public profile URL. Lowercase letters and underscores only. Max 30 characters.
+                  </p>
+                </div>
               </div>
 
-              {/* Row 2: Contact Number & Address */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -342,7 +467,9 @@ export default function SettingsPage() {
                     id="contactNumber"
                     type="tel"
                     value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
+                    onChange={(e) =>
+                    setContactNumber(e.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="Phone number"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
@@ -365,7 +492,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Row 3: State & Country */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -421,9 +547,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="border-t border-gray-200 pt-6">
-                {/* Row 4: Time Zone & Website */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label
@@ -451,24 +575,18 @@ export default function SettingsPage() {
                     >
                       Website
                     </label>
-                    <div className="flex gap-3">
-                      <input
-                        id="website"
-                        type="url"
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        placeholder=""
-                        className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                      />
-                      <button className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors">
-                        Add
-                      </button>
-                    </div>
+                    <input
+                      id="website"
+                      type="url"
+                      value={website}
+                      onChange={(e) => setWebsite(normalizeWebsiteInput(e.target.value))}
+                      placeholder="https://example.com"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* About You */}
               <div>
                 <label
                   htmlFor="aboutYou"
@@ -489,7 +607,6 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              {/* Interests */}
               <div>
                 <h3 className="text-sm font-medium text-gray-900 mb-2">Your Interests</h3>
                 <p className="text-xs text-gray-500 mb-4">
@@ -520,7 +637,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Password Reset */}
               <div>
                 <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -558,41 +674,13 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-
-              {/* Privacy */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4">Privacy</h3>
-                <div className="space-y-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={privacyOption1}
-                      onChange={(e) => setPrivacyOption1(e.target.checked)}
-                      className="mt-0.5 w-5 h-5 rounded border-gray-300 text-[#8BC34A] focus:ring-[#8BC34A]"
-                    />
-                    <span className="text-sm text-gray-600">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={privacyOption2}
-                      onChange={(e) => setPrivacyOption2(e.target.checked)}
-                      className="mt-0.5 w-5 h-5 rounded border-gray-300 text-[#8BC34A] focus:ring-[#8BC34A]"
-                    />
-                    <span className="text-sm text-gray-600">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
               <div className="flex justify-end items-center gap-4 pt-4">
-                <button className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors">
-                  View Profile
-                </button>
+                <Link
+                  href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
+                  className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
+                  >
+                View Profile
+                </Link>
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
@@ -605,17 +693,13 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Payment Methods Tab Content */}
         {activeTab === "payment-methods" && (
           <div className="space-y-8">
-            {/* Section Title */}
             <h2 className="text-2xl font-serif font-bold text-gray-900">
               Edit Payments Details
             </h2>
 
-            {/* Payment Card Fields */}
             <div className="space-y-6">
-              {/* Row 1: Name on Card & Credit Card Number */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -679,7 +763,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Row 2: Security Code, Expiration Date, CVC */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label
@@ -731,14 +814,11 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="border-t border-gray-200 pt-8">
-                {/* Billing Address Section */}
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   Billing Address
                 </h3>
 
-                {/* Row 3: Full Name & Billing Address */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <label
@@ -774,7 +854,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Row 4: City, Zip, Country */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label
@@ -847,11 +926,13 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end items-center gap-4 pt-8">
-                <button className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors">
-                  View Profile
-                </button>
+                <Link
+                  href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
+                  className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
+                  >
+                View Profile
+                </Link>
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
@@ -865,26 +946,8 @@ export default function SettingsPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 py-6 px-6 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">
-          <div className="flex items-center text-sm text-gray-500 mb-4 md:mb-0">
-            <span className="text-[#8BC34A] font-bold mr-2">CF</span>
-            Community Funding, PBC © 2022
-          </div>
-          <div className="flex items-center space-x-6 text-sm text-gray-500">
-            <Link href="#" className="hover:text-[#8BC34A] transition-colors">
-              Trust and Safety
-            </Link>
-            <Link href="#" className="hover:text-[#8BC34A] transition-colors">
-              Lorem ipsum
-            </Link>
-            <Link href="#" className="hover:text-[#8BC34A] transition-colors">
-              Lorem ipsum
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
     </div>
   );
 }

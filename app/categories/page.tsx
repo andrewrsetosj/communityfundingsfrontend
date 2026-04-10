@@ -52,10 +52,8 @@ export default function CategoriesPage() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero Section */}
       <section className="bg-[#F5F5F5] py-12">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Breadcrumb */}
           <div className="mb-6">
             <Link
               href="/"
@@ -78,20 +76,17 @@ export default function CategoriesPage() {
             </Link>
           </div>
 
-          {/* Title */}
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">
             Categories
           </h1>
 
-          {/* Description */}
           <p className="text-gray-600 max-w-xl mb-6">
-            Explore projects by category. Find creative work that inspires you
+            Explore campaigns by category. Find creative work that inspires you
             and support the creators behind them.
           </p>
         </div>
       </section>
 
-      {/* Categories Grid */}
       <section className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {allCategories.map((category) => (
@@ -126,7 +121,7 @@ export default function CategoriesPage() {
         </div>
       </section>
 
-     <Footer />
+      <Footer />
     </div>
   );
 }

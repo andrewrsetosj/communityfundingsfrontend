@@ -26,31 +26,137 @@ const categoryNames: Record<string, string> = {
   "technology": "Technology",
 };
 
-const categoryDescriptions: Record<string, string> = {
-  "comics-illustration": "From webcomics and graphic novels to illustrated children's books, this is the home for visual storytelling. Back independent artists bringing their characters and worlds to life.",
-  "design-tech": "Apps, hardware, software tools, and innovative tech products built by makers and developers. Support the next big idea before it hits the market.",
-  "food-craft": "Artisan food brands, handmade goods, recipe books, and small-batch culinary ventures. Discover makers who put passion into every product.",
-  "arts": "Paintings, sculptures, photography, printmaking, and mixed-media works by independent artists seeking support to create and exhibit their work.",
-  "film": "Short films, feature-length independents, documentaries, and animation projects. Help filmmakers bring their stories to the screen.",
-  "game": "Tabletop games, card games, video games, and interactive experiences crafted by indie creators. Back the next game you can't stop thinking about.",
-  "music": "Albums, EPs, tours, music videos, and recording projects from independent musicians across every genre. Support the artists you love directly.",
-  "publishing": "Books, poetry collections, journals, and print publications seeking readers and backers. Help independent writers get their words into the world.",
+type Campaign = {
+  id: number;
+  title: string;
+  slug: string | null;
+  description?: string | null;
+  goal_amount: number;
+  raised_amount: number;
+  creator_id?: string | null;
+  creator_name?: string | null;
+  status?: string | null;
+  donors_count: number;
+  category?: string | null;
+  location?: string | null;
+  end_date?: string | null;
+  bio?: string | null;
+  duration_days?: number | null;
+  funding_percentage: number;
+  days_left?: number | null;
+  created_at?: string | null;
+  image_url?: string | null;
+  content_type?: string | null;
 };
 
-const projects = [
-  { id: 1, image: "photo-1558618666-fcd25c85cd64" },
-  { id: 2, image: "photo-1493225457124-a3eb161ffa5f" },
-  { id: 3, image: "photo-1514525253161-7a46d19cd819" },
-  { id: 4, image: "photo-1506905925346-21bda4d32df4" },
-  { id: 5, image: "photo-1485846234645-a62644f84728" },
-  { id: 6, image: "photo-1493225457124-a3eb161ffa5f" },
-  { id: 7, image: "photo-1550751827-4bd374c3f58b" },
-  { id: 8, image: "photo-1518837695005-2083093ee35b" },
-  { id: 9, image: "photo-1532012197267-da84d127e765" },
-  { id: 10, image: "photo-1511632765486-a01980e01a18" },
-  { id: 11, image: "photo-1497436072909-60f360e1d4b1" },
-  { id: 12, image: "photo-1469474968028-56623f02e42e" },
-];
+type CampaignListResponse = {
+  campaigns: Campaign[];
+  total: number;
+  page: number;
+  per_page: number;
+};
+
+function slugifyCategory(name: string) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+async function getCategories(): Promise<CategoryItem[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/campaigns/categories`, {
+      next: { revalidate: 60 },
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Failed to load categories:", error);
+    return [];
+  }
+}
+
+async function getCategoryCampaigns(categoryName: string, page: number): Promise<CampaignListResponse> {
+  const params = new URLSearchParams({
+    status: "active",
+    category: categoryName,
+    sort: "recent",
+    page: String(page),
+    per_page: String(PER_PAGE),
+  });
+
+  try {
+    const res = await fetch(`${API_URL}/api/campaigns?${params.toString()}`, {
+      next: { revalidate: 60 },
+    });
+
+    if (!res.ok) {
+      return {
+        campaigns: [],
+        total: 0,
+        page,
+        per_page: PER_PAGE,
+      };
+    }
+
+    const data = await res.json();
+
+    return {
+      campaigns: Array.isArray(data?.campaigns) ? data.campaigns : [],
+      total: typeof data?.total === "number" ? data.total : 0,
+      page: typeof data?.page === "number" ? data.page : page,
+      per_page: typeof data?.per_page === "number" ? data.per_page : PER_PAGE,
+    };
+  } catch (error) {
+    console.error("Failed to load category campaigns:", error);
+    return {
+      campaigns: [],
+      total: 0,
+      page,
+      per_page: PER_PAGE,
+    };
+  }
+}
+
+function getCategoryDescription(categoryName: string) {
+  const descriptions: Record<string, string> = {
+    "Comics & Illustration":
+      "From webcomics and graphic novels to illustrated children's books, this is the home for visual storytelling. Back independent artists bringing their characters and worlds to life.",
+    "Design & Tech":
+      "Apps, hardware, software tools, and innovative tech products built by makers and developers. Support the next big idea before it hits the market.",
+    "Food & Craft":
+      "Artisan food brands, handmade goods, recipe books, and small-batch culinary ventures. Discover makers who put passion into every product.",
+    Arts:
+      "Paintings, sculptures, photography, printmaking, and mixed-media works by independent artists seeking support to create and exhibit their work.",
+    Film:
+      "Short films, feature-length independents, documentaries, and animation projects. Help filmmakers bring their stories to the screen.",
+    Game:
+      "Tabletop games, card games, video games, and interactive experiences crafted by indie creators. Back the next game you can't stop thinking about.",
+    Music:
+      "Albums, EPs, tours, music videos, and recording projects from independent musicians across every genre. Support the artists you love directly.",
+    Publishing:
+      "Books, poetry collections, journals, and print publications seeking readers and backers. Help independent writers get their words into the world.",
+  };
+
+  return (
+    descriptions[categoryName] ||
+    `Explore active campaigns in ${categoryName} and support creators bringing their ideas to life.`
+  );
+}
+
+function formatUSD(amount?: number) {
+  if (typeof amount !== "number") return "";
+  return amount.toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -85,10 +191,8 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero Section */}
       <section className="bg-[#F5F5F5] py-12">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Breadcrumb */}
           <div className="mb-6">
             <Link
               href="/categories"
@@ -111,12 +215,10 @@ export default function CategoryPage() {
             </Link>
           </div>
 
-          {/* Title */}
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">
             {categoryName}
           </h1>
 
-          {/* Description */}
           <p className="text-gray-600 max-w-xl mb-6">
             {categoryDescription}
           </p>
@@ -131,7 +233,6 @@ export default function CategoryPage() {
         </div>
       </section>
 
-      {/* Projects Grid Section */}
       <section className="max-w-7xl mx-auto px-6 py-12">
         {loading ? (
           <>

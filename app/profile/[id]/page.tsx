@@ -10,11 +10,13 @@ import Footer from "../../components/Footer";
 
 type ProfileCreator = {
   creator_id: string;
+  username?: string | null;
   user_type: number;
   name: string;
   last_name?: string | null;
   bio?: string | null;
   website?: string | null;
+  avatar_url?: string | null;
   time_creation: string;
 };
 
@@ -24,6 +26,7 @@ type ProfileCampaign = {
   title: string;
   status: string;
   time_created: string;
+  url?: string | null;
   description_html?: string | null;
   category?: string | null;
   location?: string | null;
@@ -33,12 +36,33 @@ type ProfileCampaign = {
   backers: number;
   image_url?: string | null;
   content_type?: string | null;
+  owner_name?: string | null;
+  owner_last_name?: string | null;
+  owner_username?: string | null;
+};
+
+type ProfileActivity = {
+  activity_type: "commented" | "followed" | "created_campaign" | "joined_as_collaborator";
+  activity_time: string;
+  comment_id?: number | null;
+  activity_text?: string | null;
+  activity_text_preview?: string | null;
+  campaign_id?: number | null;
+  campaign_url?: string | null;
+  campaign_title?: string | null;
+  campaign_status?: string | null;
+  target_creator_id?: string | null;
+  target_name?: string | null;
+  target_last_name?: string | null;
+  target_username?: string | null;
 };
 
 type ProfilePageData = {
   creator: ProfileCreator;
   interests: string[];
   campaigns: ProfileCampaign[];
+  collaborations: ProfileCampaign[];
+  activities: ProfileActivity[];
 };
 
 type FollowSummary = {
@@ -69,9 +93,40 @@ function formatJoinedDate(dateString?: string) {
   });
 }
 
+function formatTimeAgo(dateString?: string) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const seconds = Math.max(1, Math.floor(diffMs / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 30) return `${days}d ago`;
+  return formatJoinedDate(dateString);
+}
+
 function getFullName(creator?: ProfileCreator | null) {
   if (!creator) return "Unknown User";
   return [creator.name, creator.last_name].filter(Boolean).join(" ").trim() || "Unknown User";
+}
+
+function getDisplayHandle(creator?: Pick<ProfileCreator, "username" | "creator_id"> | null) {
+  if (!creator) return "";
+  return `@${creator.username || creator.creator_id}`;
+}
+
+function getProfileHref(person?: { username?: string | null; creator_id?: string | null }) {
+  if (person?.username) return `/profile/${person.username}`;
+  if (person?.creator_id) return `/profile/${person.creator_id}`;
+  return "#";
+}
+
+function getActivityTargetName(activity: ProfileActivity) {
+  return [activity.target_name, activity.target_last_name].filter(Boolean).join(" ").trim() || activity.target_username || activity.target_creator_id || "another user";
 }
 
 function formatUSD(cents?: number) {
@@ -91,6 +146,68 @@ function getPercentFunded(campaign: ProfileCampaign) {
   );
 }
 
+function getCampaignHref(campaign?: { url?: string | null; campaign_id?: number | null }) {
+  if (campaign?.url) return `/project/${campaign.url}`;
+  if (campaign?.campaign_id) return `/project/${campaign.campaign_id}`;
+  return "#";
+}
+
+function ActivityItem({ activity }: { activity: ProfileActivity }) {
+  if (activity.activity_type === "commented") {
+    const href = getCampaignHref({ url: activity.campaign_url, campaign_id: activity.campaign_id });
+    return (
+      <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <p className="text-sm font-semibold text-gray-900">Commented on {activity.campaign_title || "a campaign"}</p>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+        </div>
+        {activity.activity_text_preview ? (
+          <p className="text-sm text-gray-600 line-clamp-3">“{activity.activity_text_preview}”</p>
+        ) : (
+          <p className="text-sm text-gray-600">View comment activity</p>
+        )}
+      </Link>
+    );
+  }
+
+  if (activity.activity_type === "followed") {
+    const href = getProfileHref({ username: activity.target_username, creator_id: activity.target_creator_id });
+    return (
+      <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <p className="text-sm font-semibold text-gray-900">Followed {getActivityTargetName(activity)}</p>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+        </div>
+        <p className="text-sm text-gray-600">Open profile</p>
+      </Link>
+    );
+  }
+
+  const href = getCampaignHref({ url: activity.campaign_url, campaign_id: activity.campaign_id });
+
+  if (activity.activity_type === "joined_as_collaborator") {
+    return (
+      <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <p className="text-sm font-semibold text-gray-900">Joined {activity.campaign_title || "a campaign"} as a collaborator</p>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+        </div>
+        <p className="text-sm text-gray-600">Open campaign</p>
+      </Link>
+    );
+  }
+
+  return (
+    <Link href={href} className="block rounded-xl border border-gray-200 p-4 bg-white hover:border-[#8BC34A]/40 hover:bg-[#F9FCF6] transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <p className="text-sm font-semibold text-gray-900">Created a new campaign: {activity.campaign_title || "Untitled campaign"}</p>
+        <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.activity_time)}</span>
+      </div>
+      <p className="text-sm text-gray-600">Open campaign</p>
+    </Link>
+  );
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -103,19 +220,20 @@ export default function ProfilePage() {
   const [followSummary, setFollowSummary] = useState<FollowSummary | null>(null);
   const [followRelationship, setFollowRelationship] = useState<FollowRelationship | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isReportLoading, setIsReportLoading] = useState(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
+  function getAuthHeaders(): Record<string, string> {
+    if (typeof window === "undefined") return {};
 
-  const token = localStorage.getItem("cf_backend_token");
-  if (!token) return {};
+    const token = localStorage.getItem("cf_backend_token");
+    if (!token) return {};
 
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  }
 
   async function refreshFollowData(profileCreatorId: string) {
     const summaryRes = await fetch(`${API_BASE}/api/follows/${profileCreatorId}/summary`, {
@@ -143,11 +261,32 @@ function getAuthHeaders(): Record<string, string> {
 
   const creator = data?.creator;
   const interests = data?.interests ?? [];
-  const campaigns = data?.campaigns ?? [];
+  const activities = (data?.activities ?? []).filter((activity) => {
+    if (
+      activity.activity_type === "created_campaign" ||
+      activity.activity_type === "joined_as_collaborator"
+    ) {
+      return activity.campaign_status === "active";
+    }
 
-  const isOwnProfile = useMemo(() => {
-    return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
-  }, [user?.id, creator?.creator_id]);
+    return true;
+  });
+
+const isOwnProfile = useMemo(() => {
+  return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
+}, [user?.id, creator?.creator_id]);
+
+  const campaigns = (data?.campaigns ?? []).filter((campaign) => {
+    if (campaign.status === "inactive") return false;
+    if (isOwnProfile) return true;
+    return campaign.status === "active";
+  });
+
+  const collaborations = (data?.collaborations ?? []).filter((campaign) => {
+    if (campaign.status === "inactive") return false;
+    if (isOwnProfile) return true;
+    return campaign.status === "active";
+  });
 
   async function handleFollowClick() {
     if (!creator || !user?.id || isOwnProfile) return;
@@ -192,6 +331,35 @@ function getAuthHeaders(): Record<string, string> {
     }
   }
 
+  async function handleReportProfile() {
+    if (!creator || isOwnProfile) return;
+
+    try {
+      setIsReportLoading(true);
+
+      const res = await fetch(`${API_BASE}/api/profile-page/${profilePathId}/report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Failed to report profile: ${res.status}`);
+      }
+
+      alert("Profile reported. A snapshot was saved for admin review.");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Could not report profile.");
+    } finally {
+      setIsReportLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!id) return;
 
@@ -201,6 +369,7 @@ function getAuthHeaders(): Record<string, string> {
 
         const res = await fetch(`${API_BASE}/api/profile-page/${id}`, {
           cache: "no-store",
+          headers: getAuthHeaders(),
         });
 
         if (!res.ok) {
@@ -219,7 +388,8 @@ function getAuthHeaders(): Record<string, string> {
     })();
   }, [id]);
 
-  const profileImage = isOwnProfile && user?.imageUrl ? user.imageUrl : null;
+  const profileImage = creator?.avatar_url || (isOwnProfile ? user?.imageUrl : null);
+  const profilePathId = creator?.username || creator?.creator_id || id;
 
   return (
     <div className="min-h-screen bg-white">
@@ -260,21 +430,26 @@ function getAuthHeaders(): Record<string, string> {
                   )}
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#8BC34A] mb-2">
                     User Profile
                   </p>
-<div className="flex items-center gap-3 mb-3">
-  <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-    {getFullName(creator)}
-  </h1>
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                      {getFullName(creator)}
+                    </h1>
+                    <p className="text-sm text-gray-500">{getDisplayHandle(creator)}</p>
 
-  {!isOwnProfile && followRelationship?.follows_you && (
-    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-      Follows you
-    </span>
-  )}
-</div>
+                    {!isOwnProfile && followRelationship?.is_friend ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#F5F9F0] text-[#6E9E36] border border-[#8BC34A]/20">
+                        Friend
+                      </span>
+                    ) : !isOwnProfile && followRelationship?.follows_you ? (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                        Follows you
+                      </span>
+                    ) : null}
+                  </div>
 
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
@@ -296,27 +471,27 @@ function getAuthHeaders(): Record<string, string> {
                     </div>
                   </div>
 
-<div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
-  <Link
-    href={`/profile/${creator.creator_id}/followers`}
-    className="hover:text-[#8BC34A] transition-colors"
-  >
-    <span className="font-semibold text-gray-900">
-      {followSummary?.followers_count ?? 0}
-    </span>{" "}
-    Followers
-  </Link>
+                  <div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
+                    <Link
+                      href={`/profile/${creator.username || creator.creator_id}/followers`}
+                      className="hover:text-[#8BC34A] transition-colors"
+                    >
+                      <span className="font-semibold text-gray-900">
+                        {followSummary?.followers_count ?? 0}
+                      </span>{" "}
+                      Followers
+                    </Link>
 
-  <Link
-    href={`/profile/${creator.creator_id}/following`}
-    className="hover:text-[#8BC34A] transition-colors"
-  >
-    <span className="font-semibold text-gray-900">
-      {followSummary?.following_count ?? 0}
-    </span>{" "}
-    Following
-  </Link>
-</div>
+                    <Link
+                      href={`/profile/${creator.username || creator.creator_id}/following`}
+                      className="hover:text-[#8BC34A] transition-colors"
+                    >
+                      <span className="font-semibold text-gray-900">
+                        {followSummary?.following_count ?? 0}
+                      </span>{" "}
+                      Following
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="md:self-start">
@@ -328,21 +503,31 @@ function getAuthHeaders(): Record<string, string> {
                       Edit Profile
                     </Link>
                   ) : (
-                    <button
-                      onClick={handleFollowClick}
-                      disabled={isFollowLoading}
-                      className={`inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium transition-colors ${
-                        followRelationship?.is_following
-                          ? "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
-                          : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
-                      } disabled:opacity-50`}
-                    >
-                      {isFollowLoading
-                        ? "Loading..."
-                        : followRelationship?.is_following
-                        ? "Following"
-                        : "Follow"}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleFollowClick}
+                        disabled={isFollowLoading}
+                        className={`inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium transition-colors ${
+                          followRelationship?.is_following
+                            ? "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50"
+                            : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
+                        } disabled:opacity-50`}
+                      >
+                        {isFollowLoading
+                          ? "Loading..."
+                          : followRelationship?.is_following
+                          ? "Following"
+                          : "Follow"}
+                      </button>
+
+                      <button
+                        onClick={handleReportProfile}
+                        disabled={isReportLoading}
+                        className="inline-flex items-center justify-center px-5 py-3 rounded-lg font-medium bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        {isReportLoading ? "Reporting..." : "Report Profile"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -409,16 +594,16 @@ function getAuthHeaders(): Record<string, string> {
                 <section className="mb-8">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-gray-900">
-                      Projects Started
+                      Campaigns Started
                     </h2>
                     <p className="text-sm text-gray-500">
-                      {campaigns.length} {campaigns.length === 1 ? "project" : "projects"}
+                      {campaigns.length} {campaigns.length === 1 ? "campaign" : "campaigns"}
                     </p>
                   </div>
 
                   {campaigns.length === 0 ? (
                     <div className="border border-gray-200 rounded-2xl p-6 bg-white">
-                      <p className="text-gray-600">No projects yet.</p>
+                      <p className="text-gray-600">No campaigns yet.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -426,7 +611,7 @@ function getAuthHeaders(): Record<string, string> {
                         const percentFunded = getPercentFunded(campaign);
                         const imageSrc =
                           campaign.image_url ||
-                          "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800";
+                          "https://community-fundings-assets.s3.us-east-2.amazonaws.com/Hero/placeholderimg.jpeg";
                         const thumbIsVideo =
                           (campaign.content_type ?? "")
                             .toLowerCase()
@@ -435,7 +620,7 @@ function getAuthHeaders(): Record<string, string> {
                         return (
                           <Link
                             key={campaign.campaign_id}
-                            href={`/project/${campaign.campaign_id}`}
+                            href={getCampaignHref(campaign)}
                             className="group block"
                           >
                             <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
@@ -458,9 +643,17 @@ function getAuthHeaders(): Record<string, string> {
                             </div>
 
                             <div>
-                              <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                                {campaign.title}
-                              </h3>
+                             <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
+                                  {campaign.title}
+                                </h3>
+
+                            {isOwnProfile && campaign.status !== "active" && (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                Only visible to you
+                              </span>
+                            )}
+                            </div>
 
                               <p className="text-xs text-gray-500 mb-1">
                                 {percentFunded}% funded · By:{" "}
@@ -483,44 +676,98 @@ function getAuthHeaders(): Record<string, string> {
                                   style={{ width: `${percentFunded}%` }}
                                 />
                               </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
 
-                              <div className="flex items-center text-xs text-gray-500 space-x-4">
-                                <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                                  <svg
-                                    className="w-4 h-4 mr-1"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                                    />
-                                  </svg>
-                                  Save
+                <section className="mb-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Collaborating On
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {collaborations.length} {collaborations.length === 1 ? "campaign" : "campaigns"}
+                    </p>
+                  </div>
+
+                  {collaborations.length === 0 ? (
+                    <div className="border border-gray-200 rounded-2xl p-6 bg-white">
+                      <p className="text-gray-600">No collaborations yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {collaborations.map((campaign) => {
+                        const percentFunded = getPercentFunded(campaign);
+                        const imageSrc =
+                          campaign.image_url ||
+                          "https://community-fundings-assets.s3.us-east-2.amazonaws.com/Hero/placeholderimg.jpeg";
+                        const thumbIsVideo =
+                          (campaign.content_type ?? "")
+                            .toLowerCase()
+                            .startsWith("video/");
+
+                        return (
+                          <Link
+                            key={`collab-${campaign.campaign_id}`}
+                            href={getCampaignHref(campaign)}
+                            className="group block"
+                          >
+                            <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
+                              {thumbIsVideo ? (
+                                <video
+                                  src={imageSrc}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              ) : (
+                                <Image
+                                  src={imageSrc}
+                                  alt={campaign.title}
+                                  fill
+                                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              )}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
+                                  {campaign.title}
+                                </h3>
+
+                                {isOwnProfile && campaign.status !== "active" && (
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                    Only visible to you
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-xs text-gray-500 mb-1">
+                                {percentFunded}% funded · By{" "}
+                                <span className="font-semibold text-gray-700">
+                                  {[campaign.owner_name, campaign.owner_last_name].filter(Boolean).join(" ").trim() ||
+                                    campaign.owner_username ||
+                                    "Unknown creator"}
                                 </span>
-                                <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                                  <span className="mr-1">$</span>
-                                  Fund
-                                </span>
-                                <span className="flex items-center hover:text-[#8BC34A] transition-colors">
-                                  <svg
-                                    className="w-4 h-4 mr-1"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 5l7 7-7 7"
-                                    />
-                                  </svg>
-                                  View
-                                </span>
+                              </p>
+
+                              <p className="text-xs text-gray-500 mb-2">
+                                {campaign.backers} {campaign.backers === 1 ? "backer" : "backers"} · <span className="font-medium text-gray-700">
+                                  {formatUSD(campaign.amount_raised_cents)}
+                                </span> raised
+                              </p>
+
+                              <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">
+                                <div
+                                  className="h-2 bg-[#8BC34A]"
+                                  style={{ width: `${percentFunded}%` }}
+                                />
                               </div>
                             </div>
                           </Link>
@@ -534,45 +781,20 @@ function getAuthHeaders(): Record<string, string> {
               <div className="lg:col-span-1">
                 <div className="sticky top-8 space-y-6">
                   <section className="border border-gray-200 rounded-2xl p-6 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Basics</h3>
-
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          Full Name
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {getFullName(creator)}
-                        </p>
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          User Type
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatUserType(creator.user_type)}
-                        </p>
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          Member Since
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatJoinedDate(creator.time_creation)}
-                        </p>
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-                          Projects Started
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {campaigns.length}
-                        </p>
-                      </div>
+                    <div className="flex items-center justify-between mb-4 gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                      <span className="text-xs text-gray-500">Newest first</span>
                     </div>
+
+                    {activities.length === 0 ? (
+                      <p className="text-sm text-gray-600">No recent activity yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {activities.map((activity, index) => (
+                          <ActivityItem key={`${activity.activity_type}-${activity.activity_time}-${index}`} activity={activity} />
+                        ))}
+                      </div>
+                    )}
                   </section>
                 </div>
               </div>

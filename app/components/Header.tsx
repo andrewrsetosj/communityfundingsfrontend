@@ -3,38 +3,38 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
 
 const categories = [
   {
-    name: "Comics & Illustration",
-    slug: "comics-illustration",
-    iconPath: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
+    name: "Health",
+    slug: "health",
+    iconPath: "M4.5 12.75l6 6 9-13.5",
   },
   {
-    name: "Design & Tech",
-    slug: "design-tech",
+    name: "Technology",
+    slug: "technology",
     iconPath: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
   },
   {
-    name: "Food & Craft",
-    slug: "food-craft",
+    name: "Food",
+    slug: "food",
     iconPath: "M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z",
   },
   {
-    name: "Arts",
-    slug: "arts",
+    name: "Art",
+    slug: "art",
     iconPath: "M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42",
   },
   {
-    name: "Film",
-    slug: "film",
+    name: "Film & Video",
+    slug: "film-and-video",
     iconPath: "M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z",
   },
   {
-    name: "Game",
-    slug: "game",
+    name: "Games",
+    slug: "games",
     iconPath: "M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z",
   },
   {
@@ -51,9 +51,11 @@ const categories = [
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,6 +105,43 @@ export default function Header() {
     signOut({ redirectUrl: "/" });
   };
 
+
+useEffect(() => {
+  if (!user?.id) {
+    setProfileUsername(null);
+    return;
+  }
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!cancelled) setProfileUsername(json.username || json.id || null);
+    } catch (err) {
+      console.error("Error fetching username:", err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id]);
+
+const profileHref =
+  pathname === "/settings"
+    ? user?.id
+      ? `/profile/${user.id}`
+      : "#"
+    : profileUsername
+      ? `/profile/${profileUsername}`
+      : user?.id
+        ? `/profile/${user.id}`
+        : "#";
+
   return (
     <header className="w-full">
       {/* Top Banner */}
@@ -136,7 +175,7 @@ export default function Header() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search projects..."
+                    placeholder="Search campaigns..."
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
                     onKeyDown={(e) => {
                       if (e.key === "Escape") closeSearch();
@@ -166,7 +205,7 @@ export default function Header() {
                   How it Works
                 </Link>
                 <Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
-                  Projects We Love
+                  Campaigns We Love
                 </Link>
                 <div className="relative" ref={categoriesRef}>
                   <button
@@ -276,13 +315,14 @@ export default function Header() {
                       className="flex items-center focus:outline-none"
                     >
                       {user?.imageUrl ? (
-                        <Image
-                          src={user.imageUrl}
-                          alt="Profile"
-                          width={50}
-                          height={50}
-                          className="rounded-full"
-                        />
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden">
+  <Image
+    src={user.imageUrl}
+    alt="Profile"
+    fill
+    className="object-cover"
+  />
+</div>
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500" />
                       )}
@@ -292,7 +332,7 @@ export default function Header() {
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                         <Link
-                        href={`/profile/${user?.id}`}
+                        href={profileHref}
                         onClick={() => setIsDropdownOpen(false)}
                         className="block px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
@@ -327,7 +367,7 @@ export default function Header() {
                               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                             />
                           </svg>
-                          Settings
+                          Profile Settings
                         </Link>
                         <Link
                           href="/ledger"
@@ -355,7 +395,7 @@ export default function Header() {
                               d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                             />
                           </svg>
-                          My Projects
+                          My Campaigns
                         </Link>
                         <Link
                           href="/drafts"
@@ -375,7 +415,7 @@ export default function Header() {
                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                             />
                           </svg>
-                          Drafts
+                          My Drafts
                         </Link>
                         <Link
                           href="/saved"
@@ -395,7 +435,7 @@ export default function Header() {
                               d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                             />
                           </svg>
-                          Saved Projects
+                          Saved Campaigns
                         </Link>
                         <div className="border-t border-gray-100 mt-2 pt-2">
                           <button

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,9 +9,11 @@ import Footer from "../../../components/Footer";
 
 type FollowListUser = {
   creator_id: string;
+  username?: string | null;
   name: string;
   last_name?: string | null;
   user_type?: number | null;
+  avatar_url?: string | null;
   follows_you: boolean;
   is_friend: boolean;
   is_you: boolean;
@@ -18,11 +21,18 @@ type FollowListUser = {
 
 type FollowersResponse = {
   creator_id: string;
+  username?: string | null;
   followers: FollowListUser[];
 };
 
 function getFullName(user: FollowListUser) {
   return [user.name, user.last_name].filter(Boolean).join(" ").trim() || "Unknown User";
+}
+
+function getProfileHref(user?: { username?: string | null; creator_id?: string | null }) {
+  if (user?.username) return `/profile/${user.username}`;
+  if (user?.creator_id) return `/profile/${user.creator_id}`;
+  return "#";
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -49,10 +59,24 @@ export default function FollowersPage() {
 
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-        const res = await fetch(`${API_BASE}/api/follows/${id}/followers`, {
-          cache: "no-store",
-          headers: getAuthHeaders(),
-        });
+let followLookupId = id;
+try {
+  const profileRes = await fetch(`${API_BASE}/api/profile-page/${id}`, {
+    cache: "no-store",
+    headers: getAuthHeaders(),
+  });
+  if (profileRes.ok) {
+    const profileJson = await profileRes.json();
+    followLookupId = profileJson?.creator?.creator_id || id;
+  }
+} catch (err) {
+  console.error("Error resolving profile id:", err);
+}
+
+const res = await fetch(`${API_BASE}/api/follows/${followLookupId}/followers`, {
+  cache: "no-store",
+  headers: getAuthHeaders(),
+});
 
         if (!res.ok) {
           throw new Error(`Failed: ${res.status}`);
@@ -97,13 +121,23 @@ export default function FollowersPage() {
             ) : (
               followers.map((person) => (
                 <Link
-                  key={person.creator_id}
-                  href={`/profile/${person.creator_id}`}
+                  key={person.username ? `@${person.username}` : person.creator_id}
+                  href={getProfileHref(person)}
                   className="flex items-center gap-4 p-5 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                    {person.name?.[0]?.toUpperCase() ?? "U"}
-                  </div>
+                  {person.avatar_url ? (
+                    <Image
+                      src={person.avatar_url}
+                      alt={getFullName(person)}
+                      width={56}
+                      height={56}
+                      className="w-14 h-14 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                      {person.name?.[0]?.toUpperCase() ?? "U"}
+                    </div>
+                  )}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -124,7 +158,7 @@ export default function FollowersPage() {
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-500 truncate">{person.creator_id}</p>
+                    <p className="text-sm text-gray-500 truncate">{person.username ? `@${person.username}` : person.creator_id}</p>
                   </div>
 
                   <svg className="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
