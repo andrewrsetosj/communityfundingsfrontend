@@ -116,7 +116,7 @@ useEffect(() => {
 
   (async () => {
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
       if (!res.ok) return;
       const json = await res.json();

@@ -16,7 +16,7 @@ interface Campaign {
   backers: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // Deterministic shuffle using a week-based seed so the selection
 // stays the same for the entire week, then refreshes automatically.

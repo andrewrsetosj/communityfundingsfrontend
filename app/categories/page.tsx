@@ -25,7 +25,7 @@ const allCategories = [
   { name: "Technology", slug: "technology" },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function CategoriesPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});

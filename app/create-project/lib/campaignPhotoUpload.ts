@@ -1,6 +1,6 @@
 import type { CampaignPhotoRef } from "../store/useCampaignDraft";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const fallbackRegion = process.env.NEXT_PUBLIC_AWS_REGION || "us-east-2";
 

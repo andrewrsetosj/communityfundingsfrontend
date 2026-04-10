@@ -53,7 +53,7 @@ export default function OnboardingPage() {
     const token = localStorage.getItem("cf_backend_token");
     if (token && selected.length > 0) {
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/users/me/interests`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/me/interests`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

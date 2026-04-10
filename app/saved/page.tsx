@@ -108,7 +108,7 @@ export default function SavedCampaignsPage() {
       setLoading(true);
       setError(null);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const res = await fetch(`${API_BASE}/api/saved-campaigns`, {
         cache: "no-store",
         headers: getAuthHeaders(),
@@ -136,7 +136,7 @@ export default function SavedCampaignsPage() {
   async function handleUnsave(campaignUrl: string, campaignId: number) {
     try {
       setRemovingId(campaignId);
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(`${API_BASE}/api/saved-campaigns/${campaignUrl}`, {
         method: "DELETE",

@@ -27,7 +27,7 @@
 //         }
 
 //         // call your backend
-//         const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
+//         const res = await fetch("http://localhost:8000/api/auth/verify-and-store", {
 //           method: "POST",
 //           headers: {
 //             "Content-Type": "application/json",
@@ -84,7 +84,7 @@ export default function SignInWatcher() {
           image_url: user.profileImageUrl ?? null,
         };
 
-        await fetch("http://localhost:4000/api/auth/verify-and-store", {
+        await fetch("http://localhost:8000/api/auth/verify-and-store", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

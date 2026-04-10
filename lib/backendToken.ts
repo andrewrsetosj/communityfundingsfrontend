@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /** Backend JWT payload exp check (no signature verification). */
 export function backendJwtExpired(token: string, skewSeconds = 120): boolean {

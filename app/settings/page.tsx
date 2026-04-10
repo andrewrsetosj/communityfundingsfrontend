@@ -8,7 +8,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { syncClerkToBackendToken } from "@/lib/backendToken";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const USERNAME_MAX_LENGTH = 30;
 
 const BANNED_WORD_PATTERNS = [

@@ -14,7 +14,7 @@ import {
   uploadCampaignFilesToS3,
 } from "@/app/create-project/lib/campaignPhotoUpload";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 import LocationAutocomplete from "@/app/create-project/component/LocationAutocomplete";
 
