@@ -320,8 +320,8 @@ export default function SignUpPage() {
                   className="w-4 h-4 mt-0.5 border-gray-300 rounded text-[#8BC34A] focus:ring-[#8BC34A]"
                 />
                 <span className="ml-3 text-sm text-gray-600">
-                  Send me a weekly mix of handpicked projects, plus occasional
-                  Kickstarter news
+                  Send me a weekly mix of handpicked campaigns, plus occasional
+                  Community Fundings news
                 </span>
               </label>
 
