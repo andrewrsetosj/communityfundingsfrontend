@@ -3,7 +3,29 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import Header from "../../components/Header";
+
+const categoryDescriptions: Record<string, string> = {
+  "art": "Discover creative art projects seeking funding.",
+  "comics": "Support independent comic creators.",
+  "crafts": "Fund handmade craft projects.",
+  "dance": "Support dance performances and education.",
+  "design": "Back innovative design projects.",
+  "fashion": "Support emerging fashion designers.",
+  "film-and-video": "Help bring films and videos to life.",
+  "food": "Support food entrepreneurs and projects.",
+  "games": "Back indie game developers.",
+  "journalism": "Support independent journalism.",
+  "music": "Help musicians create new work.",
+  "photography": "Support photography projects.",
+  "publishing": "Help authors and publishers.",
+  "technology": "Back innovative tech projects.",
+  "theater": "Support theater productions.",
+  "environment": "Fund environmental initiatives.",
+  "education": "Support educational programs.",
+  "community": "Back community-driven projects.",
+  "animals": "Support animal welfare projects.",
+  "health": "Fund health and wellness initiatives.",
+};import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
 const categoryNames: Record<string, string> = {

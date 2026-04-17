@@ -18,6 +18,7 @@ type ProfileCreator = {
   website?: string | null;
   avatar_url?: string | null;
   time_creation: string;
+  pinned_campaign_id?: number | null;
 };
 
 type ProfileCampaign = {
@@ -221,6 +222,7 @@ export default function ProfilePage() {
   const [followRelationship, setFollowRelationship] = useState<FollowRelationship | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [isReportLoading, setIsReportLoading] = useState(false);
+  const [pinningCampaignId, setPinningCampaignId] = useState<number | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -272,15 +274,26 @@ export default function ProfilePage() {
     return true;
   });
 
-const isOwnProfile = useMemo(() => {
-  return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
-}, [user?.id, creator?.creator_id]);
+  const isOwnProfile = useMemo(() => {
+    return !!user?.id && !!creator?.creator_id && user.id === creator.creator_id;
+  }, [user?.id, creator?.creator_id]);
 
-  const campaigns = (data?.campaigns ?? []).filter((campaign) => {
-    if (campaign.status === "inactive") return false;
-    if (isOwnProfile) return true;
-    return campaign.status === "active";
-  });
+  const campaigns = useMemo(() => {
+    const visibleCampaigns = (data?.campaigns ?? []).filter((campaign) => {
+      if (campaign.status === "inactive") return false;
+      if (isOwnProfile) return true;
+      return campaign.status === "active";
+    });
+
+    const pinnedCampaignId = creator?.pinned_campaign_id;
+    if (!pinnedCampaignId) return visibleCampaigns;
+
+    return [...visibleCampaigns].sort((a, b) => {
+      if (a.campaign_id === pinnedCampaignId) return -1;
+      if (b.campaign_id === pinnedCampaignId) return 1;
+      return 0;
+    });
+  }, [data?.campaigns, isOwnProfile, creator?.pinned_campaign_id]);
 
   const collaborations = (data?.collaborations ?? []).filter((campaign) => {
     if (campaign.status === "inactive") return false;
@@ -328,6 +341,48 @@ const isOwnProfile = useMemo(() => {
       alert("Something went wrong. Please try again.");
     } finally {
       setIsFollowLoading(false);
+    }
+  }
+
+  async function handleTogglePin(campaignId: number) {
+    if (!creator || !isOwnProfile) return;
+
+    const isCurrentlyPinned = creator.pinned_campaign_id === campaignId;
+
+    try {
+      setPinningCampaignId(campaignId);
+
+      const res = await fetch(`${API_BASE}/api/profile-page/me/pinned-campaign`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          campaign_id: isCurrentlyPinned ? null : campaignId,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to update pinned campaign");
+      }
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          creator: {
+            ...prev.creator,
+            pinned_campaign_id: isCurrentlyPinned ? null : campaignId,
+          },
+        };
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Could not update pinned campaign.");
+    } finally {
+      setPinningCampaignId(null);
     }
   }
 
@@ -616,44 +671,73 @@ const isOwnProfile = useMemo(() => {
                           (campaign.content_type ?? "")
                             .toLowerCase()
                             .startsWith("video/");
+                        const isPinned = creator?.pinned_campaign_id === campaign.campaign_id;
+                        const canPin = isOwnProfile && campaign.status === "active";
 
                         return (
-                          <Link
-                            key={campaign.campaign_id}
-                            href={getCampaignHref(campaign)}
-                            className="group block"
-                          >
-                            <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
-                              {thumbIsVideo ? (
-                                <video
-                                  src={imageSrc}
-                                  muted
-                                  playsInline
-                                  preload="metadata"
-                                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              ) : (
-                                <Image
-                                  src={imageSrc}
-                                  alt={campaign.title}
-                                  fill
-                                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              )}
-                            </div>
+                          <div key={campaign.campaign_id} className="group">
+                            <Link href={getCampaignHref(campaign)} className="block">
+                              <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
+                                {thumbIsVideo ? (
+                                  <video
+                                    src={imageSrc}
+                                    muted
+                                    playsInline
+                                    preload="metadata"
+                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                ) : (
+                                  <Image
+                                    src={imageSrc}
+                                    alt={campaign.title}
+                                    fill
+                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                )}
+
+                                {isPinned && (
+                                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium bg-white/95 text-gray-900 border border-gray-200 shadow-sm">
+                                    Pinned
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
 
                             <div>
-                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
-                                  {campaign.title}
-                                </h3>
+                              <div className="flex items-start justify-between gap-3 mb-1">
+                                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                  <Link href={getCampaignHref(campaign)} className="min-w-0">
+                                    <h3 className="text-sm font-medium text-gray-900 line-clamp-2 hover:text-[#7CB342]">
+                                      {campaign.title}
+                                    </h3>
+                                  </Link>
 
-                            {isOwnProfile && campaign.status !== "active" && (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                                Only visible to you
-                              </span>
-                            )}
-                            </div>
+                                  {isOwnProfile && campaign.status !== "active" && (
+                                    <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                      Only visible to you
+                                    </span>
+                                  )}
+                                </div>
+
+                                {canPin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePin(campaign.campaign_id)}
+                                    disabled={pinningCampaignId === campaign.campaign_id}
+                                    className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                                      isPinned
+                                        ? "bg-[#F5F9F0] text-[#6E9E36] border-[#8BC34A]/30 hover:bg-[#EDF7E3]"
+                                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                    } disabled:opacity-50`}
+                                  >
+                                    {pinningCampaignId === campaign.campaign_id
+                                      ? "Saving..."
+                                      : isPinned
+                                      ? "Unpin"
+                                      : "Pin"}
+                                  </button>
+                                )}
+                              </div>
 
                               <p className="text-xs text-gray-500 mb-1">
                                 {percentFunded}% funded · By:{" "}
@@ -677,7 +761,7 @@ const isOwnProfile = useMemo(() => {
                                 />
                               </div>
                             </div>
-                          </Link>
+                          </div>
                         );
                       })}
                     </div>
