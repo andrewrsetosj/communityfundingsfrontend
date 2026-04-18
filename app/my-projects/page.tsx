@@ -440,7 +440,24 @@ export default function MyProjectsPage() {
     <>
       <Header />
 
-      <div className="max-w-6xl mx-auto px-6 py-12 flex gap-10">
+      <div className="max-w-6xl mx-auto px-6 pt-8">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center text-sm text-[#8BC34A] hover:text-[#7CB342] transition-colors"
+        >
+          <svg
+            className="w-4 h-4 mr-1.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-6 flex gap-10">
         <div className="w-56 flex-shrink-0">
           <nav className="space-y-1">
             <button
