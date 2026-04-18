@@ -24,13 +24,16 @@ export default function Footer() {
             <h3 className="font-bold text-gray-900 mb-4 text-sm">Quick Links</h3>
             <div className="space-y-2 text-sm text-gray-600">
               <Link href="/faq" className="block hover:text-[#8BC34A] transition-colors">
-                FAQ&apos;s
+                FAQ
               </Link>
               <Link href="/terms-of-service" className="block hover:text-[#8BC34A] transition-colors">
                 Terms of Service
               </Link>
               <Link href="/privacy-notice" className="block hover:text-[#8BC34A] transition-colors">
                 Privacy Notice
+              </Link>
+              <Link href="/report" className="block hover:text-[#8BC34A] transition-colors">
+                Submit a Report
               </Link>
             </div>
           </div>
