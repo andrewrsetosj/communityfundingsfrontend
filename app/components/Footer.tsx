@@ -14,6 +14,7 @@ export default function Footer() {
                 alt="Community Fundings"
                 width={140}
                 height={42}
+                style={{ width: "auto", height: "auto" }}
                 className="object-contain"
               />
             </Link>
