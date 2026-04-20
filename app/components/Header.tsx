@@ -495,6 +495,16 @@ const profileHref =
                   Campaigns We Love
                 </Link>
 
+                <div className="relative group">
+                  <button className="flex items-center hover:text-[#8BC34A] transition-colors gap-1">
+                    Admin
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg py-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    <a href="/site-admin?mode=register" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Get Registered</a>
+                    <a href="/site-admin" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Login</a>
+                  </div>
+                </div>
                 <div className="relative" ref={categoriesRef}>
                   <button
                     onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
