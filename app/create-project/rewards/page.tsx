@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -50,7 +50,7 @@ function rewardDraftToUI(r: RewardDraft, idx: number): RewardUI {
   };
 }
 
-export default function RewardsPage() {
+function RewardsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUser();
@@ -321,5 +321,13 @@ export default function RewardsPage() {
 
       <DraftDebug />
     </div>
+  );
+}
+
+export default function RewardsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RewardsPageContent />
+    </Suspense>
   );
 }

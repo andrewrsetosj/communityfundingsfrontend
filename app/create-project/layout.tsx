@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import Header from "../components/Header";
 import { useCampaignDraft } from "./store/useCampaignDraft";
 
@@ -16,7 +16,7 @@ const steps = [
   { number: "05", label: "Payments Details", path: "/create-project/payment" },
 ];
 
-export default function CreateProjectLayout({
+function CreateProjectLayoutInner({
   children,
 }: {
   children: React.ReactNode;
@@ -163,5 +163,24 @@ export default function CreateProjectLayout({
       {/* Page Content */}
       {children}
     </div>
+  );
+}
+
+export default function CreateProjectLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white">
+          <Header />
+          <div className="bg-gradient-to-b from-[#F5F9F0] to-white px-6 pt-8 pb-24" />
+        </div>
+      }
+    >
+      <CreateProjectLayoutInner>{children}</CreateProjectLayoutInner>
+    </Suspense>
   );
 }

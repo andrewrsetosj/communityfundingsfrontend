@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -58,7 +58,7 @@ interface UserResult {
 // subsequent client-side navigations within the same browser session.
 let reloadCheckRan = false;
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") || "";
@@ -709,5 +709,13 @@ export default function SearchPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchPageContent />
+    </Suspense>
   );
 }
