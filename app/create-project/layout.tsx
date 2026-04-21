@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
-import { useUser } from "@clerk/nextjs";
+import { Suspense, useEffect, useRef } from "react";
+import Header from "../components/Header";
 import { useCampaignDraft } from "./store/useCampaignDraft";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -17,14 +16,13 @@ const steps = [
   { number: "05", label: "Payments Details", path: "/create-project/payment" },
 ];
 
-export default function CreateProjectLayout({
+function CreateProjectLayoutInner({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user } = useUser();
 
   const reset = useCampaignDraft((s) => s.reset);
   const loadDraft = useCampaignDraft((s) => s.loadDraft);
@@ -76,29 +74,7 @@ export default function CreateProjectLayout({
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-[#8BC34A] font-bold tracking-widest text-sm uppercase">
-            Community Fundings
-          </Link>
-          {user?.imageUrl ? (
-            <Image
-              src={user.imageUrl}
-              alt="Profile"
-              width={36}
-              height={36}
-              className="rounded-full cursor-pointer"
-            />
-          ) : (
-            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-          )}
-        </div>
-      </header>
+      <Header />
 
       {/* Green Header Section with Stepper */}
       <div className="bg-gradient-to-b from-[#F5F9F0] to-white px-6 pt-8 pb-12">
@@ -187,5 +163,24 @@ export default function CreateProjectLayout({
       {/* Page Content */}
       {children}
     </div>
+  );
+}
+
+export default function CreateProjectLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white">
+          <Header />
+          <div className="bg-gradient-to-b from-[#F5F9F0] to-white px-6 pt-8 pb-24" />
+        </div>
+      }
+    >
+      <CreateProjectLayoutInner>{children}</CreateProjectLayoutInner>
+    </Suspense>
   );
 }

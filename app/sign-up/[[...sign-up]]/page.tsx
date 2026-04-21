@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSignUp } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function SignUpPage() {
+function SignUpPageContent() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -19,6 +19,12 @@ export default function SignUpPage() {
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const q = searchParams.get("email");
+    if (q) setEmail(decodeURIComponent(q));
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -333,8 +339,8 @@ export default function SignUpPage() {
                   className="w-4 h-4 mt-0.5 border-gray-300 rounded text-[#8BC34A] focus:ring-[#8BC34A]"
                 />
                 <span className="ml-3 text-sm text-gray-600">
-                  Send me a weekly mix of handpicked projects, plus occasional
-                  Kickstarter news
+                  Send me a weekly mix of handpicked campaigns, plus occasional
+                  Community Fundings news
                 </span>
               </label>
 
@@ -419,5 +425,13 @@ export default function SignUpPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpPageContent />
+    </Suspense>
   );
 }

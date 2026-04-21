@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -12,7 +12,7 @@ type FAQ = {
   answer: string;
 };
 
-export default function StoryPage() {
+function StoryPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUser();
@@ -333,5 +333,13 @@ export default function StoryPage() {
 
       <DraftDebug />
     </div>
+  );
+}
+
+export default function StoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <StoryPageContent />
+    </Suspense>
   );
 }

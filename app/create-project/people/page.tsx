@@ -4,7 +4,11 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCampaignDraft } from "../store/useCampaignDraft";
+import { useUser } from "@clerk/nextjs";
+import {
+  useCampaignDraft,
+  saveDraftToBackend,
+} from "../store/useCampaignDraft";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 
 interface CollaboratorUI {
@@ -28,6 +32,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export default function PeoplePage() {
   const router = useRouter();
+  const { user } = useUser();
 
   // Store selectors (hooks)
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
@@ -47,6 +52,9 @@ export default function PeoplePage() {
   // Slug availability check
   const [slugCheckLoading, setSlugCheckLoading] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [continueSaving, setContinueSaving] = useState(false);
 
   // Debounced slug check
   const checkSlugDebounced = useCallback(
@@ -102,7 +110,7 @@ export default function PeoplePage() {
     setSlugAvailable(null);
   };
 
-  const handleAddCollaborator = () => {
+  const handleAddCollaborator = async () => {
     const email = newCollaboratorEmail.trim().toLowerCase();
     if (!email) return;
 
@@ -122,9 +130,22 @@ export default function PeoplePage() {
 
     const next = [...(coCreators ?? []), { email }];
 
-    // write immediately to store
     setPeople({ co_creators: next });
     setNewCollaboratorEmail("");
+    setInviteError(null);
+
+    // Persist to backend so invite emails can send (Resend) — local-only state does not trigger mail.
+    setInviteSaving(true);
+    try {
+      await saveDraftToBackend(user ?? undefined);
+    } catch (e) {
+      console.error(e);
+      setInviteError(
+        e instanceof Error ? e.message : "Could not save draft or send invite.",
+      );
+    } finally {
+      setInviteSaving(false);
+    }
   };
 
   const handleRemoveCollaborator = (emailToRemove: string) => {
@@ -148,12 +169,22 @@ export default function PeoplePage() {
   const urlIsValid = (vanitySlug ?? "").trim().length > 0;
   const canContinue = bioIsValid && urlIsValid && slugAvailable === true;
 
-  const handleNext = () => {
-    // ✅ hard guard
+  const handleNext = async () => {
     if (!canContinue) return;
 
-    // Store is already updated on add/delete, so just navigate
-    router.push("/create-project/payment");
+    setContinueSaving(true);
+    setInviteError(null);
+    try {
+      await saveDraftToBackend(user ?? undefined);
+      router.push("/create-project/payment");
+    } catch (e) {
+      console.error(e);
+      setInviteError(
+        e instanceof Error ? e.message : "Could not save draft. Try again.",
+      );
+    } finally {
+      setContinueSaving(false);
+    }
   };
 
   return (
@@ -375,7 +406,7 @@ export default function PeoplePage() {
               <button
                 type="button"
                 onClick={handleAddCollaborator}
-                disabled={!emailIsValid}
+                disabled={!emailIsValid || inviteSaving}
                 className="
                   w-full px-4 py-3 rounded-lg font-medium transition-colors
                   border border-[#8BC34A]
@@ -385,12 +416,19 @@ export default function PeoplePage() {
                   disabled:opacity-40 disabled:cursor-not-allowed
                 "
               >
-                Send Invite
+                {inviteSaving ? "Saving…" : "Send Invite"}
               </button>
             </div>
 
+            {inviteError && (
+              <p className="mt-2 text-sm text-red-600" role="alert">
+                {inviteError}
+              </p>
+            )}
+
             <p className="mt-2 text-sm text-gray-500">
               Co-creators can edit this project and manage campaign details. Must be a valid email.
+              Invites are sent after your draft is saved to the server (this button and Save &amp; Continue both save).
             </p>
           </div>
         </div>
@@ -406,17 +444,17 @@ export default function PeoplePage() {
           <button
             type="button"
             onClick={handleNext}
-            disabled={!canContinue}
+            disabled={!canContinue || continueSaving}
             className={[
               "bg-[#8BC34A] text-white px-8 py-3 rounded-full font-medium transition-colors",
-              canContinue
+              canContinue && !continueSaving
                 ? "hover:bg-[#7CB342]"
                 : "opacity-50 cursor-not-allowed",
             ].join(" ")}
-            aria-disabled={!canContinue}
+            aria-disabled={!canContinue || continueSaving}
             title={!canContinue ? "Please fill out the short bio, enter a valid and available URL to continue." : undefined}
           >
-            Save &amp; Continue
+            {continueSaving ? "Saving…" : "Save &amp; Continue"}
           </button>
         </div>
       </div>

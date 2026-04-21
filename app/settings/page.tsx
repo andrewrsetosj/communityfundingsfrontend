@@ -47,6 +47,42 @@ function isValidWebsite(value: string) {
   }
 }
 
+const BANNED_WORD_PATTERNS = [
+  /\bfuck(?:ing|er|ed|s)?\b/i,
+  /\bshit(?:ty|s)?\b/i,
+  /\bbitch(?:es)?\b/i,
+  /\basshole(?:s)?\b/i,
+  /\bdamn\b/i,
+];
+
+function normalizeForProfanityCheck(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function containsBlockedWords(value: string) {
+  const normalized = normalizeForProfanityCheck(value);
+  return BANNED_WORD_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeUsernameInput(value: string) {
+  return value.toLowerCase().replace(/[^a-z_]/g, "").replace(/\s+/g, "");
+}
+
+function normalizeWebsiteInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidWebsite(value: string) {
+  if (!value) return true;
+  try {
+    const withProtocol = /^https?:\/\//.test(value) ? value : `https://${value}`;
+    const url = new URL(withProtocol);
+    return !!url.hostname && url.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
 
 type TabType = "account" | "edit-profile" | "payment-methods" | "create-business";
 
@@ -59,6 +95,14 @@ export default function SettingsPage() {
   const canChangePassword = !!user?.passwordEnabled;
   const shouldDisableEmail = isGoogleAccount;
   const shouldDisablePassword = !canChangePassword;
+
+  const isGoogleAccount = !!user?.externalAccounts?.some(
+    (account) => account.provider === "google"
+  );
+
+  const canChangePassword = !!user?.passwordEnabled;
+  const shouldShowPasswordSection = canChangePassword;
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<TabType>("edit-profile");
@@ -386,9 +430,13 @@ export default function SettingsPage() {
         { label: "About you", value: aboutYou },
       ];
 
-      const blockedField = valuesToFilter.find((item) => item.value && containsBlockedWords(item.value));
+      const blockedField = valuesToFilter.find(
+        (item) => item.value && containsBlockedWords(item.value)
+      );
       if (blockedField) {
-        throw new Error(`Please remove profanity from ${blockedField.label.toLowerCase()} and try again.`);
+        throw new Error(
+          `Please remove profanity from ${blockedField.label.toLowerCase()} and try again.`
+        );
       }
 
       if (normalizedUsername && !/^[a-z_]+$/.test(normalizedUsername)) {
@@ -405,6 +453,21 @@ export default function SettingsPage() {
 
       setUsername(normalizedUsername);
       setWebsite(normalizedWebsite);
+
+      if (canChangePassword) {
+        if (!oldPassword) throw new Error("Enter your current password.");
+        if (!newPassword) throw new Error("Enter a new password.");
+
+        await user.updatePassword({
+          currentPassword: oldPassword,
+          newPassword,
+          signOutOfOtherSessions: true,
+        });
+
+        await user.reload();
+        setOldPassword("");
+        setNewPassword("");
+      }
 
       const res = await fetch(`${API_URL}/api/users/${user.id}`, {
         method: "PUT",
@@ -580,26 +643,65 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="username"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Username
-                </label>
-                <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(normalizeUsernameInput(e.target.value))}
-                  placeholder="username"
-                  maxLength={USERNAME_MAX_LENGTH}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  Used in your public profile URL. Lowercase letters and underscores only. Max 30 characters.
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label
+                    htmlFor="username"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(normalizeUsernameInput(e.target.value))}
+                    placeholder="username"
+                    maxLength={USERNAME_MAX_LENGTH}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Used in your public profile URL. Lowercase letters and underscores only. Max 30 characters.
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="accountType"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Account Type
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="accountType"
+                      value={accountType}
+                      onChange={(e) => {
+                        setAccountType(Number(e.target.value) as 0 | 1);
+                        setIsDirty(true);
+                      }}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] appearance-none bg-white"
+                    >
+                      <option value={1}>Individual</option>
+                      <option value={0}>Business</option>
+                    </select>
+                    <svg
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -612,9 +714,7 @@ export default function SettingsPage() {
                     id="contactNumber"
                     type="tel"
                     value={contactNumber}
-                    onChange={(e) =>
-                    setContactNumber(e.target.value.replace(/\D/g, ""))
-                    }
+                    onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, ""))}
                     placeholder="Phone number"
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                   />
@@ -782,65 +882,52 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label
-                      htmlFor="oldPassword"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Old Password
-                    </label>
-                    <input
-                      id="oldPassword"
-                      type="password"
-                      value={oldPassword}
-                      onChange={(e) => setOldPassword(e.target.value)}
-                      placeholder="••••••••"
-                      disabled={shouldDisablePassword}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 ${
-                        shouldDisablePassword
-                          ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "border-gray-200 focus:border-[#8BC34A] focus:ring-[#8BC34A]"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="newPassword"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      New Password
-                    </label>
-                    <input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••"
-                      disabled={shouldDisablePassword}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 ${
-                        shouldDisablePassword
-                          ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "border-gray-200 focus:border-[#8BC34A] focus:ring-[#8BC34A]"
-                      }`}
-                    />
+              {shouldShowPasswordSection && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label
+                        htmlFor="oldPassword"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Old Password
+                      </label>
+                      <input
+                        id="oldPassword"
+                        type="password"
+                        value={oldPassword}
+                        onChange={(e) => setOldPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="newPassword"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        New Password
+                      </label>
+                      <input
+                        id="newPassword"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
+                      />
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {shouldDisablePassword && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Password changes are unavailable because this account signs in through Google.
-                  </p>
-                )}
-              </div>
               <div className="flex justify-end items-center gap-4 pt-4">
                 <Link
                   href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
                   className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
-                  >
-                View Profile
+                >
+                  View Profile
                 </Link>
                 <button
                   onClick={handleSave}
@@ -1091,8 +1178,8 @@ export default function SettingsPage() {
                 <Link
                   href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
                   className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
-                  >
-                View Profile
+                >
+                  View Profile
                 </Link>
                 <button
                   onClick={handleSave}
@@ -1389,7 +1476,6 @@ export default function SettingsPage() {
       </main>
 
       <Footer />
-
     </div>
   );
 }
