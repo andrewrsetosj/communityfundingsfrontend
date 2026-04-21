@@ -625,44 +625,6 @@ export default function SettingsPage() {
                     htmlFor="accountType"
                     className="block text-sm font-medium text-gray-700 mb-2"
                   >
-                    Account Type
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="accountType"
-                      value={accountType}
-                      onChange={(e) => {
-                        setAccountType(Number(e.target.value) as 0 | 1);
-                        setIsDirty(true);
-                      }}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] appearance-none bg-white"
-                    >
-                      <option value={1}>Individual</option>
-                      <option value={0}>Business</option>
-                    </select>
-                    <svg
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="contactNumber"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
                     Contact Number
                   </label>
                   <input
