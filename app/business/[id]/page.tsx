@@ -618,37 +618,44 @@ export default function BusinessDashboard() {
                   return publishedCampaigns.length === 0 ? (
                   <p className="text-sm text-gray-400 italic">No published campaigns yet.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {publishedCampaigns.map((c) => (
                       <a
                         key={c.campaign_id}
                         href={c.slug ? `/project/${c.slug}` : "#"}
-                        className="flex items-center gap-4 px-4 py-4 border border-gray-200 rounded-xl hover:border-[#8BC34A]/40 hover:bg-[#F5F9F0] transition-colors"
+                        className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 block"
                       >
-                        <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                        <div className="relative h-40 bg-gray-200 flex items-center justify-center text-gray-400">
                           {c.image_url ? (
-                            <Image src={c.image_url} alt={c.title} width={48} height={48} className="object-cover w-full h-full" />
+                            <Image src={c.image_url} alt={c.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" unoptimized />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
+                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{c.title}</p>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusColors[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                        <div className="p-5">
+                          <div className="flex items-start gap-2 mb-1">
+                            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">{c.title}</h3>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColors[c.status] ?? "bg-gray-100 text-gray-600"}`}>
                               {statusLabel[c.status] ?? c.status}
                             </span>
                           </div>
-                          <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
-                            <div className="bg-[#8BC34A] h-1.5 rounded-full" style={{ width: `${Math.min(c.funding_percentage, 100)}%` }} />
+                          {c.category && (
+                            <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs mb-3">{c.category}</span>
+                          )}
+                          <div className="mt-2">
+                            <div className="flex items-center justify-between text-sm mb-1">
+                              <span className="text-gray-700 font-medium">${c.raised_amount.toLocaleString()}</span>
+                              <span className="text-[#8BC34A] font-medium">{c.funding_percentage}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div className="bg-[#8BC34A] h-1.5 rounded-full" style={{ width: `${Math.min(c.funding_percentage, 100)}%` }} />
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              <span>{c.donors_count} backers</span>
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-400">
-                            ${c.raised_amount.toLocaleString()} raised · {c.funding_percentage}% · {c.donors_count} donor{c.donors_count !== 1 ? "s" : ""}
-                          </p>
                         </div>
                       </a>
                     ))}
@@ -700,36 +707,42 @@ export default function BusinessDashboard() {
                 pending_review: "In Review",
               };
 
-              const CampaignRow = ({ c, href }: { c: BizCampaign; href: string }) => (
+              const BizLiveCard = ({ c }: { c: BizCampaign }) => (
                 <a
-                  key={c.campaign_id}
-                  href={href}
-                  className="flex items-center gap-4 px-4 py-4 border border-gray-200 rounded-xl hover:border-[#8BC34A]/40 hover:bg-[#F5F9F0] transition-colors"
+                  href={c.slug ? `/project/${c.slug}` : "#"}
+                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 block"
                 >
-                  <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                  <div className="relative h-40 bg-gray-200 flex items-center justify-center text-gray-400">
                     {c.image_url ? (
-                      <Image src={c.image_url} alt={c.title} width={56} height={56} className="object-cover w-full h-full" />
+                      <Image src={c.image_url} alt={c.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" unoptimized />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
+                      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{c.title}</p>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${statusColors[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                  <div className="p-5">
+                    <div className="flex items-start gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">{c.title}</h3>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColors[c.status] ?? "bg-gray-100 text-gray-600"}`}>
                         {statusLabel[c.status] ?? c.status}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
-                      <div className="bg-[#8BC34A] h-1.5 rounded-full" style={{ width: `${Math.min(c.funding_percentage, 100)}%` }} />
+                    {c.category && (
+                      <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs mb-3">{c.category}</span>
+                    )}
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-gray-700 font-medium">${c.raised_amount.toLocaleString()}</span>
+                        <span className="text-[#8BC34A] font-medium">{c.funding_percentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div className="bg-[#8BC34A] h-1.5 rounded-full" style={{ width: `${Math.min(c.funding_percentage, 100)}%` }} />
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        <span>{c.donors_count} backers</span>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-400">
-                      ${c.raised_amount.toLocaleString()} raised · {c.funding_percentage}% · {c.donors_count} donor{c.donors_count !== 1 ? "s" : ""}
-                    </p>
                   </div>
                 </a>
               );
@@ -815,13 +828,9 @@ export default function BusinessDashboard() {
                       {draftCampaigns.length > 0 && (
                         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Published</h3>
                       )}
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {liveCampaigns.map((c) => (
-                          <CampaignRow
-                            key={c.campaign_id}
-                            c={c}
-                            href={c.slug ? `/project/${c.slug}` : "#"}
-                          />
+                          <BizLiveCard key={c.campaign_id} c={c} />
                         ))}
                       </div>
                     </div>
@@ -1130,12 +1139,18 @@ export default function BusinessDashboard() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <span className={`text-xs ${settingsBio.length > 2000 ? "text-red-500" : "text-gray-400"}`}>
+                    {settingsBio.length}/2000
+                  </span>
+                </div>
                 <textarea
                   value={settingsBio}
-                  onChange={(e) => setSettingsBio(e.target.value)}
+                  onChange={(e) => setSettingsBio(e.target.value.slice(0, 2000))}
                   placeholder="Tell people about your organization..."
                   rows={4}
+                  maxLength={2000}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A] resize-none"
                 />
               </div>
