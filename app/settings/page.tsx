@@ -47,55 +47,10 @@ function isValidWebsite(value: string) {
   }
 }
 
-const BANNED_WORD_PATTERNS = [
-  /\bfuck(?:ing|er|ed|s)?\b/i,
-  /\bshit(?:ty|s)?\b/i,
-  /\bbitch(?:es)?\b/i,
-  /\basshole(?:s)?\b/i,
-  /\bdamn\b/i,
-];
-
-function normalizeForProfanityCheck(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function containsBlockedWords(value: string) {
-  const normalized = normalizeForProfanityCheck(value);
-  return BANNED_WORD_PATTERNS.some((pattern) => pattern.test(normalized));
-}
-
-function normalizeUsernameInput(value: string) {
-  return value.toLowerCase().replace(/[^a-z_]/g, "").replace(/\s+/g, "");
-}
-
-function normalizeWebsiteInput(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function isValidWebsite(value: string) {
-  if (!value) return true;
-  try {
-    const withProtocol = /^https?:\/\//.test(value) ? value : `https://${value}`;
-    const url = new URL(withProtocol);
-    return !!url.hostname && url.hostname.includes(".");
-  } catch {
-    return false;
-  }
-}
-
-
 type TabType = "account" | "edit-profile" | "payment-methods" | "create-business";
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser();
-  const isGoogleAccount =
-  !!user?.externalAccounts?.some(
-    (account) => account.provider === "google"
-  );
-  const canChangePassword = !!user?.passwordEnabled;
-  const shouldDisableEmail = isGoogleAccount;
-  const shouldDisablePassword = !canChangePassword;
-
   const isGoogleAccount = !!user?.externalAccounts?.some(
     (account) => account.provider === "google"
   );
