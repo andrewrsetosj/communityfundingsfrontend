@@ -2,22 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
-  useCampaignDraft,
-  saveDraftToBackend,
-} from "@/app/create-project/store/useCampaignDraft";
+  useOrgCampaignDraft,
+  saveOrgDraftToBackend,
+} from "../store/useOrgCampaignDraft";
 import { photosPayloadForApi } from "@/app/create-project/lib/campaignPhotoUpload";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export default function PaymentPage() {
+export default function OrgPaymentPage() {
+  const { orgId } = useParams<{ orgId: string }>();
   const router = useRouter();
   const { user, isLoaded: userLoaded } = useUser();
 
-  const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
-  const setPayment = useCampaignDraft((s) => s.setPayment);
+  const hasHydrated = useOrgCampaignDraft((s) => s.hasHydrated);
+  const setPayment = useOrgCampaignDraft((s) => s.setPayment);
 
   const [contactEmail, setContactEmail] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
@@ -35,7 +36,7 @@ export default function PaymentPage() {
   useEffect(() => {
     if (!hasHydrated || hydratedPaymentOnce.current) return;
     hydratedPaymentOnce.current = true;
-    const p = useCampaignDraft.getState().draft.payment;
+    const p = useOrgCampaignDraft.getState().draft.payment;
     setAccountHolderName(p.account_holder_name);
     setRoutingNumber(p.routing_number.replace(/\D/g, "").slice(0, 9));
     setAccountNumber(p.account_number);
@@ -84,7 +85,7 @@ export default function PaymentPage() {
     setSubmitting(true);
     try {
       setPayment({
-        account_type: "individual",
+        account_type: "business",
         account_holder_name: accountHolderName.trim(),
         routing_number: routingNumber,
         account_number: accountNumber,
@@ -95,18 +96,22 @@ export default function PaymentPage() {
         throw new Error("You must be signed in to submit your campaign.");
       }
 
-      await saveDraftToBackend(user);
+      await saveOrgDraftToBackend(orgId, user);
 
-      const { draft: d } = useCampaignDraft.getState();
+      const { draft: d } = useOrgCampaignDraft.getState();
       if (!d.campaign_id) {
         throw new Error("Could not save your draft. Please try again.");
       }
 
-      const res = await fetch(`${API_URL}/api/campaigns/finalize`, {
+      const token = localStorage.getItem("cf_backend_token");
+      const res = await fetch(`${API_URL}/api/organizations/${orgId}/campaigns/finalize`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
-          creator_id: user.id,
+          creator_id: orgId,
           campaign_id: d.campaign_id,
           title: d.title,
           vanity_slug: d.vanity_slug,
@@ -121,7 +126,7 @@ export default function PaymentPage() {
           co_creators: d.co_creators,
           photos: photosPayloadForApi(d.photos),
           payment: {
-            account_type: "individual",
+            account_type: "business",
             account_holder_name: accountHolderName.trim(),
             routing_number: routingNumber,
             account_number: accountNumber,
@@ -135,7 +140,7 @@ export default function PaymentPage() {
         throw new Error(text || "Submission failed");
       }
 
-      router.push("/create-project/submitted");
+      router.push(`/business-create-project/${orgId}/submitted`);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -391,7 +396,7 @@ export default function PaymentPage() {
       {/* Submit Button */}
       <div className="mt-12 flex justify-between items-center gap-4 flex-wrap">
         <Link
-          href="/create-project/people"
+          href={`/business-create-project/${orgId}/people`}
           className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
         >
           Back
@@ -411,7 +416,7 @@ export default function PaymentPage() {
               : "bg-[#8BC34A] text-white hover:bg-[#7CB342]"
           }`}
         >
-          {submitting ? "Submitting…" : "Submit for Review"}
+          {submitting ? "Submitting..." : "Submit for Review"}
         </button>
       </div>
     </div>
@@ -420,7 +425,6 @@ export default function PaymentPage() {
     {openModal === "tos" && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50" onClick={() => setOpenModal(null)}>
         <div className="relative bg-white rounded-2xl shadow-xl border-4 border-gray-300 w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-          {/* X button */}
           <button
             type="button"
             onClick={() => setOpenModal(null)}
@@ -431,27 +435,17 @@ export default function PaymentPage() {
             </svg>
           </button>
 
-          {/* Modal Header */}
           <div className="px-6 pt-6 pb-4 border-b border-gray-200">
             <h2 className="font-bold text-gray-900 pr-8">Terms of Service</h2>
           </div>
 
-          {/* Modal Body */}
           <div className="overflow-y-auto px-6 py-6 text-sm text-gray-700 space-y-6" style={{ maxHeight: "55vh" }}>
             <p className="text-xs text-gray-400 font-mono">Effective Date: February 22, 2026 | Jurisdiction: Las Vegas, Nevada</p>
             <p className="text-xs text-gray-500 border-l-4 border-gray-200 pl-3 italic">PLEASE READ THESE TERMS CAREFULLY. BY USING THE PLATFORM YOU AGREE TO BE BOUND BY THEM.</p>
             {[
               { title: "I. PLATFORM ROLE & OVERVIEW", body: ["1.1 Nature of Service. Community Fundings is a crowdfunding platform that connects Campaign Organizers with Backers. We are a facilitator, not a creator, manufacturer, or guarantor.", "1.2 No Guarantee. Community Fundings does not guarantee the success, completion, legality, or quality of any project. Backing a campaign carries inherent risk.", "1.3 Independent Contracts. When a campaign is successfully funded, a contract forms directly between the Organizer and each Backer. Community Fundings is not a party to that contract.", "1.4 Platform Changes. We reserve the right to modify, suspend, or discontinue any part of our services at any time."] },
-              { title: "II. ELIGIBILITY", body: ["2.1 Minimum Age. You must be at least 18 years of age. Users 13–17 may use the platform only with verifiable parental consent.", "2.2 Legal Capacity. You represent that you have the legal capacity to enter into a binding agreement.", "2.3 Account Accuracy. You agree to provide accurate, current, and complete information during registration.", "2.4 Account Security. You are responsible for maintaining the confidentiality of your account credentials."] },
-              { title: "III. BENEFIT CORPORATION STATUS", body: ["3.1 Mission-Driven Entity. Community Fundings is a Nevada Benefit Corporation (NRS Chapter 78B), legally required to consider stakeholder interests and mission alongside financial performance.", "3.2 Mission Charter. Our mission is to bring creative projects to life and fight inequality.", "3.3 Annual Benefit Statement. We publish an Annual Benefit Statement using aggregated, non-identifiable campaign data.", "3.4 Campaign Rejection. We reserve the right to reject or remove campaigns that contradict our Mission Charter."] },
-              { title: "IV. PLATFORM FEES", body: ["4.1 Platform Fee. Community Fundings retains 5% of total funds raised upon successful campaign conclusion. Non-refundable.", "4.2 Processing Fees. Third-party processors charge approximately 2.9% + $0.30 per transaction. Non-refundable.", "4.3 Failed Campaigns. If a campaign does not reach its goal, backers are not charged and no fees are collected.", "4.4 Fee Changes. We reserve the right to modify fees with 30 days' notice.", "4.5 Payouts. Funds are disbursed within 14 business days of successful conclusion, pending KYC completion."] },
-              { title: "V. ACCEPTABLE USE POLICY", body: ["5.1 Prohibited Content. You may not use the platform for: illegal activities; weapons; MLM schemes; misleading claims; hate speech; IP violations; or content violating our Non-Discrimination Policy.", "5.2 Honesty Requirement. All campaign representations must be truthful. Organizers must distinguish between finished products and prototypes.", "5.3 Enforcement. Violations may result in campaign removal, account suspension, forfeiture of fees, and/or referral to law enforcement."] },
-              { title: "VI. CAMPAIGN ORGANIZER AGREEMENT", body: ["6.1 Independent Creator. Organizers are independent creators. No partnership, joint venture, or employment relationship is created.", "6.2 Fulfillment Obligation. Upon successful funding, Organizers must fulfill all promised rewards or refund backers.", "6.3 Update Requirement. Organizers must post updates at least every 30 days if a project is delayed.", "6.4 Nevada Consumer Protection. Organizers agree to comply with all applicable Nevada consumer protection statutes.", "6.5 Tax Responsibility. Organizers are solely responsible for all applicable taxes. IRS Form 1099-K may apply.", "6.6 IP License. Organizers retain 100% ownership of their work and grant Community Fundings a non-exclusive license to use campaign media for promotion.", "6.7 Indemnification. Organizers agree to hold Community Fundings harmless from claims arising from their project."] },
-              { title: "VII. NON-DISCRIMINATION POLICY", body: ["7.1 Commitment. We prohibit discrimination based on race, ethnicity, national origin, religion, sex, gender identity, sexual orientation, disability, age, genetic information, military status, or pregnancy.", "7.2 Zero Tolerance for Hate Speech. Campaigns containing hate speech will be removed immediately without refund of platform fees.", "7.3 Equity Initiatives. We actively seek to highlight campaigns from underrepresented communities.", "7.4 Accessibility. We strive to meet WCAG 2.1 Level AA standards.", "7.5 Reporting. Report violations via the Report this Project button or equity@communityfundings.com."] },
-              { title: "VIII. REFUND POLICY", body: ["8.1 Nature of Crowdfunding. Backing a project is not purchasing a finished product.", "8.2 Pre-Campaign Cancellation. Backers may cancel pledges before the campaign deadline via Account Settings.", "8.3 Post-Campaign. Once a campaign is funded and closed, Community Fundings does not issue refunds.", "8.4 Organizer Responsibility. Refund requests after close must go directly to the Campaign Organizer.", "8.5 Fraudulent Campaigns. We reserve the right to issue refunds if a campaign is found fraudulent prior to disbursement.", "8.6 Chargebacks. Unwarranted chargebacks may result in permanent account suspension."] },
-              { title: "IX. PRIVACY & COOKIES", body: ["9.1 Data Collection. We collect identifiers, payment info (via processor), creative data, and technical data.", "9.2 Use of Data. Data is used to facilitate crowdfunding, verify identity, and produce social impact reports.", "9.3 Data Sharing. We do not sell personal information. We share only with Organizers (for reward fulfillment), service providers, and as required by law.", "9.4 Nevada/CCPA/GDPR Rights. Contact privacy@communityfundings.com to exercise your data rights.", "9.5 Cookies. We use essential and performance cookies. We honor Global Privacy Control (GPC) signals."] },
-              { title: "X. LIMITATION OF LIABILITY", body: ["10.1 No Warranty. THE PLATFORM IS PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND.", "10.2 Liability Cap. COMMUNITY FUNDINGS' TOTAL LIABILITY SHALL NOT EXCEED PLATFORM FEES COLLECTED FROM YOUR SPECIFIC CAMPAIGN OR $100, WHICHEVER IS GREATER.", "10.3 Exclusion of Damages. WE ARE NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES."] },
-              { title: "XI. GOVERNING LAW & DISPUTES", body: ["11.1 Governing Law. These Terms are governed by Nevada law.", "11.2 Venue. Legal actions must be filed in Clark County, Nevada.", "11.3 Informal Resolution. Both parties agree to attempt mediation for 30 days before filing a formal claim.", "11.4 Class Action Waiver. TO THE EXTENT PERMITTED BY LAW, YOU WAIVE ANY RIGHT TO CLASS ACTION LITIGATION AGAINST COMMUNITY FUNDINGS."] },
+              { title: "II. ELIGIBILITY", body: ["2.1 Minimum Age. You must be at least 18 years of age.", "2.2 Legal Capacity. You represent that you have the legal capacity to enter into a binding agreement.", "2.3 Account Accuracy. You agree to provide accurate, current, and complete information during registration.", "2.4 Account Security. You are responsible for maintaining the confidentiality of your account credentials."] },
+              { title: "IV. PLATFORM FEES", body: ["4.1 Platform Fee. Community Fundings retains 5% of total funds raised upon successful campaign conclusion. Non-refundable.", "4.2 Processing Fees. Third-party processors charge approximately 2.9% + $0.30 per transaction. Non-refundable.", "4.3 Failed Campaigns. If a campaign does not reach its goal, backers are not charged and no fees are collected."] },
             ].map(({ title, body }) => (
               <div key={title}>
                 <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">{title}</h3>
@@ -462,7 +456,6 @@ export default function PaymentPage() {
             ))}
           </div>
 
-          {/* Agree Button */}
           <div className="px-6 py-4 border-t border-gray-200">
             <button
               type="button"

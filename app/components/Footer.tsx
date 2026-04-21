@@ -32,6 +32,15 @@ export default function Footer() {
               <Link href="/privacy-notice" className="block hover:text-[#8BC34A] transition-colors">
                 Privacy Notice
               </Link>
+              <Link href="/trust-safety" className="block hover:text-[#8BC34A] transition-colors">
+                Trust &amp; Safety
+              </Link>
+              <Link href="/non-discrimination" className="block hover:text-[#8BC34A] transition-colors">
+                Non-Discrimination &amp; Equity
+              </Link>
+              <Link href="/organizer-agreement" className="block hover:text-[#8BC34A] transition-colors">
+                Campaign Organizer Agreement
+              </Link>
             </div>
           </div>
 

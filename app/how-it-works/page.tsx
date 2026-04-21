@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
@@ -86,7 +85,7 @@ const businessSteps = [
     step: "04",
     title: "Invite Your Team",
     description:
-      "Add team members and assign roles: Owner, Admin, Finance, Editor, or Viewer. Each role controls what team members can see and do on your campaigns.",
+      "Add team members and assign roles: Owner, Admin, Editor, or Viewer. Each role controls what team members can see and do on your campaigns.",
   },
   {
     step: "05",
@@ -97,15 +96,64 @@ const businessSteps = [
 ];
 
 const teamRoles = [
-  { role: "Owner", description: "Full control of the account and all campaigns" },
-  { role: "Admin", description: "Manage campaigns, team members, and settings" },
-  { role: "Finance", description: "Access financial reports, campaign status, and payout information." },
-  { role: "Editor", description: "Create and edit campaign content and updates" },
-  { role: "Viewer", description: "View-only access to campaigns and analytics" },
+  {
+    role: "Owner",
+    singleOnly: true,
+    description:
+      "The business account is created from this individual. The Owner has full control of all account settings and every campaign. They have full edit and view access to all financial information and are the only role that can assign or change team member roles within the business.",
+    permissions: [
+      { label: "Campaigns", access: "Full edit & view", level: "full" },
+      { label: "Financials", access: "Full edit & view", level: "full" },
+      { label: "Team Roles", access: "Assign & manage", level: "full" },
+    ],
+  },
+  {
+    role: "Admin",
+    singleOnly: false,
+    description:
+      "Admins have full edit and view access to all campaigns and full access to financial data. Admins cannot change or reassign team member roles — that is reserved for the Owner only.",
+    permissions: [
+      { label: "Campaigns", access: "Full edit & view", level: "full" },
+      { label: "Financials", access: "Full edit & view", level: "full" },
+      { label: "Team Roles", access: "No access", level: "none" },
+    ],
+  },
+  {
+    role: "Finance",
+    singleOnly: false,
+    description:
+      "Finance have full edit and view access to all financial information and view only access to campaigns.",
+    permissions: [
+      { label: "Campaigns", access: "View only", level: "view" },
+      { label: "Financials", access: "Full edit & view", level: "full" },
+      { label: "Team Roles", access: "No access", level: "none" },
+    ],
+  },
+  {
+    role: "Editor",
+    singleOnly: false,
+    description:
+      "Editors can create, edit, and view all campaign content and updates. They are focused entirely on campaign management and have no access to any financial data or team role settings.",
+    permissions: [
+      { label: "Campaigns", access: "Full edit & view", level: "full" },
+      { label: "Financials", access: "No access", level: "none" },
+      { label: "Team Roles", access: "No access", level: "none" },
+    ],
+  },
+  {
+    role: "Viewer",
+    singleOnly: false,
+    description:
+      "Viewers are associated with the business but have read-only access to campaigns. They cannot edit any campaign content and have no access to financial information or team settings.",
+    permissions: [
+      { label: "Campaigns", access: "View only", level: "view" },
+      { label: "Financials", access: "No access", level: "none" },
+      { label: "Team Roles", access: "No access", level: "none" },
+    ],
+  },
 ];
 
 export default async function HowItWorksPage() {
-  const { userId } = await auth();
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -301,16 +349,50 @@ export default async function HowItWorksPage() {
           </div>
 
           {/* Team Roles */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Business Team Roles</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-              {teamRoles.map(({ role, description }) => (
-                <div key={role} className="text-center">
-                  <div className="w-12 h-12 bg-[#8BC34A]/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-[#8BC34A] font-bold">{role[0]}</span>
+          <div id="team-roles" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+            <div className="text-center mb-10">
+              <h3 className="text-2xl font-serif font-bold text-gray-900 mb-3">Business Team Roles</h3>
+              <div className="w-16 h-1 bg-[#8BC34A] mx-auto rounded-full mb-4" />
+              <p className="text-sm text-gray-500 max-w-xl mx-auto">
+                Every business account has five roles that control what each team member can see and do.
+                The Owner role is limited to one person per business — all other roles can be assigned to multiple team members.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {teamRoles.map(({ role, singleOnly, description, permissions }) => (
+                <div
+                  key={role}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow flex flex-col gap-4"
+                >
+                  {/* Title row */}
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-base font-bold text-gray-900">{role}</h4>
+                    {singleOnly && (
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-[#8BC34A]/10 text-[#8BC34A] font-medium whitespace-nowrap">
+                        1 per business
+                      </span>
+                    )}
                   </div>
-                  <p className="font-semibold text-gray-900 text-sm mb-1">{role}</p>
-                  <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
+
+                  {/* Description */}
+                  <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
+
+                  {/* Permissions — labeled rows */}
+                  <div className="flex flex-col gap-2 pt-4 border-t border-gray-100">
+                    {permissions.map(({ label, access, level }) => (
+                      <div key={label} className="flex items-center justify-between gap-4">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide shrink-0">{label}</span>
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                          level === "full" ? "bg-[#8BC34A]/10 text-[#8BC34A]" :
+                          level === "view" ? "bg-gray-100 text-gray-600" :
+                          "bg-gray-50 text-gray-400"
+                        }`}>
+                          {access}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

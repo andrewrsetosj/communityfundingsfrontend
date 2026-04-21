@@ -5,6 +5,38 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
+import { backendJwtExpired, syncClerkToBackendToken } from "@/lib/backendToken";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+type BusinessRole = "owner" | "admin" | "viewer" | "editor" | "campaign_editor" | "finance";
+
+interface BusinessMembership {
+  organization_id: string;
+  name: string;
+  bio: string;
+  logo_url: string | null;
+  role: BusinessRole;
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  owner:            "Owner",
+  admin:            "Admin",
+  finance:          "Finance",
+  campaign_editor:  "Editor",
+  viewer:           "Viewer",
+};
+
+const roleBadgeStyle = (role: string) => {
+  const styles: Record<string, string> = {
+    owner:           "bg-purple-100 text-purple-700",
+    admin:           "bg-red-100 text-red-700",
+    finance:         "bg-yellow-100 text-yellow-700",
+    campaign_editor: "bg-blue-100 text-blue-700",
+    viewer:          "bg-gray-100 text-gray-600",
+  };
+  return styles[role] ?? "bg-gray-100 text-gray-600";
+};
 
 const categories = [
   {
@@ -55,6 +87,9 @@ export default function Header() {
   const { signOut } = useClerk();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [myBusinesses, setMyBusinesses] = useState<BusinessMembership[]>([]);
+  const [businessesLoading, setBusinessesLoading] = useState(false);
+  const [isBizExpanded, setIsBizExpanded] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -98,6 +133,35 @@ export default function Header() {
       closeSearch();
     }
   };
+
+  // Fetch businesses when dropdown opens — ensures token is ready first
+  useEffect(() => {
+    if (!isDropdownOpen || !user) return;
+    let cancelled = false;
+    const run = async () => {
+      setBusinessesLoading(true);
+      try {
+        let token = localStorage.getItem("cf_backend_token");
+        if (!token || backendJwtExpired(token)) {
+          await syncClerkToBackendToken(user);
+          token = localStorage.getItem("cf_backend_token");
+        }
+        if (!token || cancelled) return;
+        const res = await fetch(`${API_URL}/api/organizations/my-memberships`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+        const data = res.ok ? await res.json() : [];
+        setMyBusinesses(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) setMyBusinesses([]);
+      } finally {
+        if (!cancelled) setBusinessesLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [isDropdownOpen, user]);
 
   const handleSignOut = () => {
     signOut({ redirectUrl: "/" });
@@ -290,7 +354,7 @@ export default function Header() {
 
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                         <Link
                         href={`/profile/${user?.id}`}
                         onClick={() => setIsDropdownOpen(false)}
@@ -389,7 +453,77 @@ export default function Header() {
                           </svg>
                           Saved Projects
                         </Link>
-                        <div className="border-t border-gray-100 mt-2 pt-2">
+                        {/* My Businesses */}
+                        <div className="border-t border-gray-100 mt-1 pt-1">
+                          <button
+                            onClick={() => setIsBizExpanded((v) => !v)}
+                            className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                              My Businesses
+                            </span>
+                            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isBizExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+
+                          {isBizExpanded && (
+                            <div className="mx-3 mb-2 rounded-lg border border-gray-100 overflow-hidden">
+                              {/* Business list */}
+                              {businessesLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <svg className="w-4 h-4 animate-spin text-[#8BC34A]" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                  </svg>
+                                </div>
+                              ) : myBusinesses.length === 0 ? (
+                                <p className="text-xs text-gray-400 text-center py-3 px-3">
+                                  No businesses yet.
+                                </p>
+                              ) : (
+                                <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
+                                  {myBusinesses.map((biz) => (
+                                    <Link key={biz.organization_id} href={`/business/${biz.organization_id}`} onClick={() => setIsDropdownOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+                                      <div className="w-7 h-7 rounded-md bg-[#F5F9F0] flex items-center justify-center shrink-0 overflow-hidden">
+                                        {biz.logo_url ? (
+                                          <Image src={biz.logo_url} alt={biz.name} width={28} height={28} className="object-cover w-full h-full" />
+                                        ) : (
+                                          <svg className="w-3.5 h-3.5 text-[#8BC34A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                          </svg>
+                                        )}
+                                      </div>
+                                      <span className="flex-1 text-xs font-medium text-gray-800 truncate">{biz.name}</span>
+                                      <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-xs font-medium capitalize ${roleBadgeStyle(biz.role)}`}>
+                                        {ROLE_LABEL[biz.role] ?? biz.role}
+                                      </span>
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Create Business link */}
+                              <div className="border-t border-gray-100">
+                                <Link
+                                  href="/settings?tab=create-business"
+                                  onClick={() => setIsDropdownOpen(false)}
+                                  className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-[#8BC34A] hover:bg-[#F5F9F0] transition-colors"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                  Create Business
+                                </Link>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t border-gray-100 mt-1 pt-1">
                           <button
                             onClick={handleSignOut}
                             className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

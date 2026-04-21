@@ -31,13 +31,13 @@ export default function PeoplePage() {
 
   // Store selectors (hooks)
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
+  const campaignId = useCampaignDraft((s) => s.draft.campaign_id);
   const bio = useCampaignDraft((s) => s.draft.bio);
   const vanitySlug = useCampaignDraft((s) => s.draft.vanity_slug);
   const coCreators = useCampaignDraft((s) => s.draft.co_creators);
   const setPeople = useCampaignDraft((s) => s.setPeople);
 
   // Local state (hooks)
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
 
   // ✅ NEW: touched flags (only show required UI after interaction)
@@ -50,7 +50,7 @@ export default function PeoplePage() {
 
   // Debounced slug check
   const checkSlugDebounced = useCallback(
-    debounce(async (slug: string) => {
+    debounce(async (slug: string, excludeId: number | null) => {
       if (!slug || !slug.trim()) {
         setSlugAvailable(null);
         return;
@@ -59,24 +59,26 @@ export default function PeoplePage() {
       setSlugCheckLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(slug)}`);
+        const params = new URLSearchParams({ slug });
+        if (excludeId != null) params.set("campaign_id", String(excludeId));
+        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?${params}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setSlugAvailable(data.available);
       } catch (err) {
         console.error("Slug check failed:", err);
-        setSlugAvailable(null); // Reset on error
+        setSlugAvailable(null);
       } finally {
         setSlugCheckLoading(false);
       }
-    }, 500), // 500ms debounce
+    }, 500),
     []
   );
 
   // Effect to trigger check when slug changes
   useEffect(() => {
-    checkSlugDebounced(vanitySlug || "");
-  }, [vanitySlug, checkSlugDebounced]);
+    checkSlugDebounced(vanitySlug || "", campaignId);
+  }, [vanitySlug, campaignId, checkSlugDebounced]);
 
   // Derived state (hook)
   const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
@@ -88,11 +90,6 @@ export default function PeoplePage() {
       status: "pending",
     }));
   }, [coCreators]);
-
-  // Side effects (hooks)
-  useEffect(() => {
-    setAgreedToTerms(false);
-  }, []);
 
   // ✅ Now it's safe to return early (after hooks)
   if (!hasHydrated) return null;
@@ -399,7 +396,13 @@ export default function PeoplePage() {
         </div>
 
         {/* Save & Continue */}
-        <div className="mt-12 flex justify-end">
+        <div className="mt-12 flex justify-between items-center gap-4 flex-wrap">
+          <Link
+            href="/create-project/story"
+            className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            Back
+          </Link>
           <button
             type="button"
             onClick={handleNext}
