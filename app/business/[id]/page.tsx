@@ -9,6 +9,29 @@ import Footer from "../../components/Footer";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+const BIZ_STATUS_COLORS: Record<string, string> = {
+  active: "bg-green-100 text-green-700",
+  live: "bg-green-100 text-green-700",
+  funded: "bg-blue-100 text-blue-700",
+  expired: "bg-red-100 text-red-600",
+  ended: "bg-red-100 text-red-600",
+  cancelled: "bg-red-100 text-red-600",
+  suspended: "bg-orange-100 text-orange-700",
+  pending_review: "bg-yellow-100 text-yellow-700",
+  draft: "bg-gray-100 text-gray-600",
+};
+
+const BIZ_STATUS_LABEL: Record<string, string> = {
+  active: "Live", live: "Live", funded: "Funded", expired: "Ended",
+  ended: "Ended", cancelled: "Cancelled", suspended: "Suspended",
+  pending_review: "In Review", draft: "Draft",
+};
+
+function formatCampaignDate(s: string | null): string {
+  if (!s) return "";
+  return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 type Tab = "overview" | "campaigns" | "members" | "finance" | "settings";
 
 interface Membership {
@@ -43,6 +66,48 @@ interface BizCampaign {
   goal_amount: number;
   funding_percentage: number;
   donors_count: number;
+}
+
+function BizLiveCard({ c }: { c: BizCampaign }) {
+  return (
+    <a
+      href={c.slug ? `/project/${c.slug}` : "#"}
+      className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 block"
+    >
+      <div className="relative h-40 bg-gray-200 flex items-center justify-center text-gray-400">
+        {c.image_url ? (
+          <Image src={c.image_url} alt={c.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" unoptimized />
+        ) : (
+          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        )}
+      </div>
+      <div className="p-5">
+        <div className="flex items-start gap-2 mb-1">
+          <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">{c.title}</h3>
+          <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${BIZ_STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+            {BIZ_STATUS_LABEL[c.status] ?? c.status}
+          </span>
+        </div>
+        {c.category && (
+          <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs mb-3">{c.category}</span>
+        )}
+        <div className="mt-2">
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="text-gray-700 font-medium">${c.raised_amount.toLocaleString()}</span>
+            <span className="text-[#8BC34A] font-medium">{c.funding_percentage}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="bg-[#8BC34A] h-1.5 rounded-full" style={{ width: `${Math.min(c.funding_percentage, 100)}%` }} />
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            <span>{c.donors_count} backers</span>
+          </div>
+        </div>
+      </div>
+    </a>
+  );
 }
 
 interface OrgMember {
@@ -519,13 +584,6 @@ export default function BusinessDashboard() {
 
         {/* Overview */}
         {safeTab === "overview" && (() => {
-          const statusColors: Record<string, string> = {
-            live: "bg-green-100 text-green-700", draft: "bg-gray-100 text-gray-600",
-            funded: "bg-blue-100 text-blue-700", ended: "bg-red-100 text-red-600",
-          };
-          const statusLabel: Record<string, string> = {
-            live: "Live", draft: "Draft", funded: "Funded", ended: "Ended",
-          };
           const sortedCampaigns = [...campaigns].sort((a, b) => {
             if (campaignSort === "most_funded") return b.funding_percentage - a.funding_percentage;
             if (campaignSort === "least_funded") return a.funding_percentage - b.funding_percentage;
@@ -637,8 +695,8 @@ export default function BusinessDashboard() {
                         <div className="p-5">
                           <div className="flex items-start gap-2 mb-1">
                             <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">{c.title}</h3>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColors[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                              {statusLabel[c.status] ?? c.status}
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${BIZ_STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                              {BIZ_STATUS_LABEL[c.status] ?? c.status}
                             </span>
                           </div>
                           {c.category && (
@@ -693,59 +751,6 @@ export default function BusinessDashboard() {
             ) : (() => {
               const draftCampaigns = campaigns.filter((c) => c.status === "draft" || c.status === "pending_review");
               const liveCampaigns = campaigns.filter((c) => c.status !== "draft" && c.status !== "pending_review");
-              const statusColors: Record<string, string> = {
-                active: "bg-green-100 text-green-700",
-                funded: "bg-blue-100 text-blue-700",
-                expired: "bg-red-100 text-red-600",
-                cancelled: "bg-red-100 text-red-600",
-                suspended: "bg-orange-100 text-orange-700",
-                pending_review: "bg-yellow-100 text-yellow-700",
-              };
-              const statusLabel: Record<string, string> = {
-                active: "Live", funded: "Funded", expired: "Ended",
-                cancelled: "Cancelled", suspended: "Suspended",
-                pending_review: "In Review",
-              };
-
-              const BizLiveCard = ({ c }: { c: BizCampaign }) => (
-                <a
-                  href={c.slug ? `/project/${c.slug}` : "#"}
-                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 block"
-                >
-                  <div className="relative h-40 bg-gray-200 flex items-center justify-center text-gray-400">
-                    {c.image_url ? (
-                      <Image src={c.image_url} alt={c.title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" unoptimized />
-                    ) : (
-                      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-start gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">{c.title}</h3>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColors[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {statusLabel[c.status] ?? c.status}
-                      </span>
-                    </div>
-                    {c.category && (
-                      <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs mb-3">{c.category}</span>
-                    )}
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-700 font-medium">${c.raised_amount.toLocaleString()}</span>
-                        <span className="text-[#8BC34A] font-medium">{c.funding_percentage}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div className="bg-[#8BC34A] h-1.5 rounded-full" style={{ width: `${Math.min(c.funding_percentage, 100)}%` }} />
-                      </div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        <span>{c.donors_count} backers</span>
-                      </div>
-                    </div>
-                  </div>
-                </a>
-              );
 
               return (
                 <div className="space-y-8">
@@ -754,12 +759,7 @@ export default function BusinessDashboard() {
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Drafts</h3>
                     {draftCampaigns.length > 0 ? (
                       <div className="space-y-4">
-                        {draftCampaigns.map((c) => {
-                          const formatDate = (s: string | null) => {
-                            if (!s) return "";
-                            return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-                          };
-                          return (
+                        {draftCampaigns.map((c) => (
                             <div key={c.campaign_id} className="border border-gray-200 rounded-xl p-6 hover:border-[#8BC34A] transition-colors bg-white">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -769,7 +769,7 @@ export default function BusinessDashboard() {
                                       <span className="bg-gray-100 px-2 py-1 rounded text-xs">{c.category}</span>
                                     )}
                                     {c.created_at && (
-                                      <span>Created {formatDate(c.created_at)}</span>
+                                      <span>Created {formatCampaignDate(c.created_at)}</span>
                                     )}
                                   </div>
                                 </div>
@@ -809,8 +809,7 @@ export default function BusinessDashboard() {
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
+                          ))}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-10 border border-dashed border-gray-200 rounded-xl text-center">

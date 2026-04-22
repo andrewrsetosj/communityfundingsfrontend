@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useReverification } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "../components/Header";
@@ -66,7 +66,11 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [profileFirstName, setProfileFirstName] = useState("");
@@ -352,6 +356,45 @@ export default function SettingsPage() {
 
 
 
+  const updatePasswordWithReverification = useReverification(
+    async (currentPw: string, newPw: string) => {
+      if (!user) throw new Error("User not loaded");
+      await user.updatePassword({
+        currentPassword: currentPw,
+        newPassword: newPw,
+        signOutOfOtherSessions: true,
+      });
+    }
+  );
+
+  const handlePasswordChange = async () => {
+    if (!oldPassword) { setPasswordError("Enter your current password."); return; }
+    if (!newPassword) { setPasswordError("Enter a new password."); return; }
+    setPasswordSaving(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+    try {
+      await updatePasswordWithReverification(oldPassword, newPassword);
+      await user!.reload();
+      setOldPassword("");
+      setNewPassword("");
+      setPasswordSuccess("Password updated successfully.");
+    } catch (err: unknown) {
+      let message = "Failed to update password. Please try again.";
+      if (err && typeof err === "object" && "errors" in err) {
+        const clerkErrors = (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors;
+        if (Array.isArray(clerkErrors) && clerkErrors.length > 0) {
+          message = clerkErrors[0].longMessage || clerkErrors[0].message || message;
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      setPasswordError(message);
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user?.id) return;
     setIsSaving(true);
@@ -409,55 +452,58 @@ export default function SettingsPage() {
       setUsername(normalizedUsername);
       setWebsite(normalizedWebsite);
 
-      if (canChangePassword) {
-        if (!oldPassword) throw new Error("Enter your current password.");
-        if (!newPassword) throw new Error("Enter a new password.");
-
-        await user.updatePassword({
-          currentPassword: oldPassword,
-          newPassword,
-          signOutOfOtherSessions: true,
-        });
-
-        await user.reload();
-        setOldPassword("");
-        setNewPassword("");
-      }
-
-      const res = await fetch(`${API_URL}/api/users/${user.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: profileFirstName,
-          last_name: profileLastName,
-          username: normalizedUsername,
-          bio: aboutYou,
-          phone_number: contactNumber,
-          address,
-          state,
-          time_zone: timeZone,
-          website: normalizedWebsite,
-          user_type: accountType,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to save profile");
-
       const token = localStorage.getItem("cf_backend_token");
-      if (token) {
-        await fetch(`${API_URL}/api/users/me/interests`, {
+
+      const requests: Promise<Response>[] = [
+        fetch(`${API_URL}/api/users/${user.id}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ interest_names: selectedInterests }),
-        });
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: profileFirstName,
+            last_name: profileLastName,
+            username: normalizedUsername,
+            bio: aboutYou,
+            phone_number: contactNumber,
+            address,
+            state,
+            time_zone: timeZone,
+            website: normalizedWebsite,
+            user_type: accountType,
+          }),
+        }),
+      ];
+
+      if (token) {
+        requests.push(
+          fetch(`${API_URL}/api/users/me/interests`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ interest_names: selectedInterests }),
+          })
+        );
       }
+
+      const [profileRes] = await Promise.all(requests);
+      if (!profileRes.ok) throw new Error("Failed to save profile");
 
       setIsDirty(false);
-    } catch (err) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: unknown) {
       console.error("Error saving profile:", err);
-      alert(err instanceof Error ? err.message : "Failed to save. Please try again.");
+      let message = "Failed to save. Please try again.";
+      if (err && typeof err === "object" && "errors" in err) {
+        const clerkErrors = (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors;
+        if (Array.isArray(clerkErrors) && clerkErrors.length > 0) {
+          message = clerkErrors[0].longMessage || clerkErrors[0].message || message;
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      alert(message);
     } finally {
       setIsSaving(false);
     }
@@ -799,22 +845,41 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              <div className="flex justify-end items-center gap-4 pt-4">
+                {saveSuccess && (
+                  <span className="text-sm text-green-600 font-medium">Profile saved!</span>
+                )}
+                <Link
+                  href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
+                  className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
+                >
+                  View Profile
+                </Link>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+
               {shouldShowPasswordSection && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-4">Change Password</h3>
+                <div className="border border-gray-200 rounded-xl p-6 space-y-4">
+                  <h3 className="text-sm font-medium text-gray-900">Change Password</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label
                         htmlFor="oldPassword"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
-                        Old Password
+                        Current Password
                       </label>
                       <input
                         id="oldPassword"
                         type="password"
                         value={oldPassword}
-                        onChange={(e) => setOldPassword(e.target.value)}
+                        onChange={(e) => { setOldPassword(e.target.value); setPasswordError(""); setPasswordSuccess(""); }}
                         placeholder="••••••••"
                         className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                       />
@@ -830,30 +895,26 @@ export default function SettingsPage() {
                         id="newPassword"
                         type="password"
                         value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); setPasswordSuccess(""); }}
                         placeholder="••••••••"
                         className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8BC34A] focus:ring-1 focus:ring-[#8BC34A]"
                       />
                     </div>
                   </div>
+                  {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+                  {passwordSuccess && <p className="text-sm text-[#8BC34A] font-medium">{passwordSuccess}</p>}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handlePasswordChange}
+                      disabled={passwordSaving}
+                      className="px-6 py-2.5 bg-[#8BC34A] text-white rounded-lg text-sm font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50"
+                    >
+                      {passwordSaving ? "Updating…" : "Update Password"}
+                    </button>
+                  </div>
                 </div>
               )}
-
-              <div className="flex justify-end items-center gap-4 pt-4">
-                <Link
-                  href={username ? `/profile/${username}` : user?.id ? `/profile/${user.id}` : "#"}
-                  className="px-6 py-3 text-gray-700 font-medium hover:text-gray-900 transition-colors"
-                >
-                  View Profile
-                </Link>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="px-8 py-3 bg-[#8BC34A] text-white rounded-lg font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
             </div>
           </div>
         )}
