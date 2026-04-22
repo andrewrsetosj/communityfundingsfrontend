@@ -64,18 +64,30 @@ import { useUser, useAuth } from "@clerk/nextjs";
 export default function SignInWatcher() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
-  const sentRef = useRef(false); // avoid repeated sends during re-renders
+  /** Clerk user id we already finished verify-and-store for (success or terminal failure). */
+  const verifyDoneForUserId = useRef(null);
 
   useEffect(() => {
-    if (!isSignedIn || !user) return;
-    if (sentRef.current) return; // already sent for this session
-    sentRef.current = true;
+    if (!isSignedIn || !user) {
+      verifyDoneForUserId.current = null;
+      return;
+    }
+    if (verifyDoneForUserId.current === user.id) return;
 
     async function send() {
       try {
-        console.log("SignInWatcher: user object:", user);
-        const token = await getToken({ template: "standard" });
-        console.log("SignInWatcher: token present? ", !!token, "len:", token?.length);
+        // Default session JWT — verifiable with CLERK_JWKS_URI on the backend.
+        // Named templates (e.g. template: "standard") only work if that JWT template exists in Clerk.
+        let token = await getToken();
+        if (!token) {
+          await new Promise((r) => setTimeout(r, 400));
+          token = await getToken();
+        }
+        if (!token) {
+          console.warn("SignInWatcher: no Clerk JWT after retry; skipping verify-and-store.");
+          verifyDoneForUserId.current = user.id;
+          return;
+        }
 
         const payload = {
           id: user.id,
@@ -85,22 +97,16 @@ export default function SignInWatcher() {
           image_url: user.profileImageUrl ?? null,
         };
 
-        // console.log("SignInWatcher: payload to send:", payload);
-        // console.log("SignInWatcher: token preview:", token?.slice?.(0, 40));
-
-        // perform the fetch and handle response synchronously inside the same scope
-        const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const res = await fetch(`${apiBase}/api/auth/verify-and-store`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ user: payload }),
         });
 
-        console.log("SignInWatcher: fetch response status:", res.status, res.statusText);
-
-        // try to parse body safely
         const text = await res.text();
         let parsed = null;
         try {
@@ -108,12 +114,15 @@ export default function SignInWatcher() {
         } catch (_) {
           parsed = text;
         }
-        console.log("SignInWatcher: fetch response body:", parsed);
+
+        verifyDoneForUserId.current = user.id;
 
         if (!res.ok) {
-          console.error("SignInWatcher: server returned error:", res.status, parsed);
+          console.error("SignInWatcher: verify-and-store failed:", res.status, parsed);
+          return;
         }
       } catch (err) {
+        verifyDoneForUserId.current = user.id;
         console.error("SignInWatcher: error sending token:", err);
       }
     }
