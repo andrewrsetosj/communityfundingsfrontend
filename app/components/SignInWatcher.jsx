@@ -118,7 +118,17 @@ export default function SignInWatcher() {
         verifyDoneForUserId.current = user.id;
 
         if (!res.ok) {
-          console.error("SignInWatcher: verify-and-store failed:", res.status, parsed);
+          const detail =
+            parsed && typeof parsed === "object" && "detail" in parsed
+              ? parsed.detail
+              : null;
+          const errBody =
+            detail ?? parsed ?? (text ? text.slice(0, 500) : "");
+          console.error(
+            "SignInWatcher: verify-and-store failed:",
+            res.status,
+            errBody || "(empty body)",
+          );
           return;
         }
       } catch (err) {
