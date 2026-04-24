@@ -2,8 +2,17 @@
 
 import { useCampaignDraft } from "../store/useCampaignDraft";
 
+/** Opt-in only: `npm run dev` still sets NODE_ENV=development, so we gate on this flag. */
+function isDraftDebugVisible() {
+  return process.env.NEXT_PUBLIC_SHOW_DRAFT_DEBUG === "true";
+}
+
 export function DraftDebug() {
   const { draft } = useCampaignDraft();
+
+  if (!isDraftDebugVisible()) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 right-4 w-[360px] max-w-[90vw] border bg-white rounded-lg shadow-lg z-50">
