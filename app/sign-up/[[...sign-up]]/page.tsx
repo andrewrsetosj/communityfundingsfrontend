@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function SignUpPage() {
+function SignUpPageContent() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -406,5 +406,13 @@ export default function SignUpPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpPageContent />
+    </Suspense>
   );
 }

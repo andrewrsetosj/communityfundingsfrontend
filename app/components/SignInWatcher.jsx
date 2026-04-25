@@ -64,17 +64,30 @@ import { useUser, useAuth } from "@clerk/nextjs";
 export default function SignInWatcher() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
-  const sentRef = useRef(false); // avoid repeated sends during re-renders
+  /** Clerk user id we already finished verify-and-store for (success or terminal failure). */
+  const verifyDoneForUserId = useRef(null);
 
   useEffect(() => {
-    if (!isSignedIn || !user) return;
-    if (sentRef.current) return; // already sent for this session
-    sentRef.current = true;
+    if (!isSignedIn || !user) {
+      verifyDoneForUserId.current = null;
+      return;
+    }
+    if (verifyDoneForUserId.current === user.id) return;
 
     async function send() {
       try {
-        const token = await getToken();
-        if (!token) return;
+// Default session JWT — verifiable with CLERK_JWKS_URI on the backend.
+        // Named templates (e.g. template: "standard") only work if that JWT template exists in Clerk.
+        let token = await getToken();
+        if (!token) {
+          await new Promise((r) => setTimeout(r, 400));
+          token = await getToken();
+        }
+        if (!token) {
+          console.warn("SignInWatcher: no Clerk JWT after retry; skipping verify-and-store.");
+          verifyDoneForUserId.current = user.id;
+          return;
+        }
 
         const payload = {
           id: user.id,
@@ -84,16 +97,42 @@ export default function SignInWatcher() {
           image_url: user.profileImageUrl ?? null,
         };
 
-        await fetch("http://localhost:8000/api/auth/verify-and-store", {
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiBase}/api/auth/verify-and-store`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ user: payload }),
         });
-      } catch {
-        // Auth sync failed silently — non-blocking
+const text = await res.text();
+        let parsed = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch (_) {
+          parsed = text;
+        }
+
+        verifyDoneForUserId.current = user.id;
+
+        if (!res.ok) {
+          const detail =
+            parsed && typeof parsed === "object" && "detail" in parsed
+              ? parsed.detail
+              : null;
+          const errBody =
+            detail ?? parsed ?? (text ? text.slice(0, 500) : "");
+          console.error(
+            "SignInWatcher: verify-and-store failed:",
+            res.status,
+            errBody || "(empty body)",
+          );
+          return;
+        }
+      } catch (err) {
+        verifyDoneForUserId.current = user.id;
+        console.error("SignInWatcher: error sending token:", err);
       }
     }
 

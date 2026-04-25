@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -103,8 +103,6 @@ export default function Header() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -114,9 +112,7 @@ export default function Header() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -127,11 +123,6 @@ export default function Header() {
     return { Authorization: `Bearer ${token}` };
   }
 
-  const closeSearch = useCallback(() => {
-    setIsSearchOpen(false);
-    setSearchQuery("");
-  }, []);
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -140,9 +131,6 @@ export default function Header() {
       if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
         setIsCategoriesOpen(false);
       }
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        closeSearch();
-      }
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
       }
@@ -150,13 +138,7 @@ export default function Header() {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [closeSearch]);
-
-  useEffect(() => {
-    if (isSearchOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isSearchOpen]);
+  }, []);
 
 useEffect(() => {
   if (!user?.id) {
@@ -385,14 +367,6 @@ useEffect(() => {
     }
   }
 
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      closeSearch();
-    }
-  };
-
   const handleSignOut = () => {
     signOut({ redirectUrl: "/" });
   };
@@ -442,48 +416,7 @@ const profileHref =
 
       <nav className="bg-white border-b border-gray-100 px-20 py-4">
         <div className="mx-auto flex items-center justify-between">
-          {isSearchOpen ? (
-            <div ref={searchRef} className="flex items-center gap-3 w-full">
-              <form onSubmit={handleSearchSubmit} className="flex items-center gap-3 w-full">
-                <div className="relative flex-1">
-                  <svg
-                    className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search campaigns..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent"
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") closeSearch();
-                    }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={closeSearch}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 shrink-0"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </form>
-            </div>
-          ) : (
-            <>
+          <>
               <div className="hidden md:flex items-center space-x-10 text-md text-gray-700 flex-1">
                 <Link href="/about-us" className="hover:text-[#8BC34A] transition-colors">
                   About Us
@@ -491,7 +424,7 @@ const profileHref =
                 <Link href="/how-it-works" className="hover:text-[#8BC34A] transition-colors">
                   How it Works
                 </Link>
-                <Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
+<Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
                   Campaigns We Love
                 </Link>
 
@@ -569,19 +502,19 @@ const profileHref =
                   alt="Community Fundings"
                   width={160}
                   height={48}
+                  style={{ width: "auto", height: "auto" }}
                   className="object-contain"
                   priority
                 />
               </Link>
 
-              <div className="flex items-center space-x-6 flex-1 justify-end">
-                <button
-                  onClick={() => setIsSearchOpen(true)}
-                  className="text-gray-500 hover:text-[#8BC34A] transition-colors"
+              <div className="flex items-center gap-4 flex-1 justify-end">
+                <Link
+                  href="/search"
+                  className="flex items-center gap-1.5 pr-4 text-gray-700 hover:text-[#8BC34A] transition-colors"
                 >
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-7 w-7"
+                    className="h-5 w-5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -593,7 +526,8 @@ const profileHref =
                       d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     />
                   </svg>
-                </button>
+                  <span className="text-md">Search</span>
+                </Link>
 
                 <SignedOut>
                   <Link
@@ -765,6 +699,7 @@ const profileHref =
                             src={user.imageUrl}
                             alt="Profile"
                             fill
+                            sizes="40px"
                             className="object-cover"
                           />
                         </div>
@@ -921,7 +856,6 @@ const profileHref =
                 </SignedIn>
               </div>
             </>
-          )}
         </div>
       </nav>
     </header>

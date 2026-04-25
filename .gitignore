@@ -2,7 +2,9 @@ node_modules/
 .next/
 .env.local
 .env
+.env.production
 .DS_Store
 
 # clerk configuration (can include secrets)
 /.clerk/
+tsconfig.tsbuildinfo

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   useCampaignDraft,
@@ -20,7 +20,6 @@ import LocationAutocomplete from "@/app/create-project/component/LocationAutocom
 
 export default function BasicsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useUser();
 
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);

@@ -87,6 +87,35 @@ interface CollaborationCampaign {
   owner_username?: string | null;
 }
 
+interface SavedCampaignCreator {
+  creator_id: string;
+  username: string | null;
+  name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+}
+
+interface SavedCampaign {
+  campaign_id: number;
+  creator_id: string;
+  title: string;
+  status: string | null;
+  time_created: string | null;
+  url: string | null;
+  description_html?: string | null;
+  category: string | null;
+  location?: string | null;
+  funding_goal_cents: number;
+  duration_days?: number | null;
+  amount_raised_cents: number;
+  backers: number;
+  end_date?: string | null;
+  saved_at: string | null;
+  is_saved: boolean;
+  image_url?: string | null;
+  creator?: SavedCampaignCreator | null;
+}
+
 type ProjectFilterValue = "all" | "active" | "draft" | "pending_review" | "inactive";
 type ProjectSortValue = "newest" | "oldest" | "ending_soonest";
 
@@ -112,6 +141,11 @@ function getInviterHandle(inviter?: InviteCreator | null) {
   if (!inviter) return "";
   const handle = inviter.username || inviter.creator_id;
   return handle ? `@${handle}` : "";
+}
+
+function getCreatorDisplayName(creator?: SavedCampaignCreator | null) {
+  if (!creator) return "Unknown creator";
+  return [creator.name, creator.last_name].filter(Boolean).join(" ").trim() || creator.username || creator.creator_id || "Unknown creator";
 }
 
 function matchesProjectFilter(status: string | null | undefined, filterValue: ProjectFilterValue) {
@@ -239,8 +273,9 @@ export default function MyProjectsPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [invites, setInvites] = useState<CollaboratorInvite[]>([]);
   const [collaborations, setCollaborations] = useState<CollaborationCampaign[]>([]);
+  const [savedCampaigns, setSavedCampaigns] = useState<SavedCampaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"personal" | "organizations" | "invites" | "collaborating">("personal");
+  const [activeTab, setActiveTab] = useState<"personal" | "organizations" | "invites" | "collaborating" | "backed">("personal");
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [processingInviteId, setProcessingInviteId] = useState<number | null>(null);
 
@@ -275,12 +310,22 @@ export default function MyProjectsPage() {
       fetch(`${API_URL}/api/campaigns/my-collaborations`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => (res.ok ? res.json() : [])),
+      fetch(`${API_URL}/api/saved-campaigns`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => (res.ok ? res.json() : { campaigns: [] })),
     ])
-      .then(([campaignsData, orgsData, invitesData, collaborationsData]) => {
+      .then(([campaignsData, orgsData, invitesData, collaborationsData, savedCampaignsData]) => {
         setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
         setOrganizations(Array.isArray(orgsData) ? orgsData : []);
         setInvites(Array.isArray(invitesData) ? invitesData : Array.isArray((invitesData as any)?.invites) ? (invitesData as any).invites : []);
         setCollaborations(Array.isArray(collaborationsData) ? collaborationsData : []);
+        setSavedCampaigns(
+          Array.isArray(savedCampaignsData)
+            ? savedCampaignsData
+            : Array.isArray((savedCampaignsData as any)?.campaigns)
+              ? (savedCampaignsData as any).campaigns
+              : []
+        );
       })
       .catch((err) => console.error("Failed to load campaigns:", err))
       .finally(() => setLoading(false));
@@ -395,7 +440,24 @@ export default function MyProjectsPage() {
     <>
       <Header />
 
-      <div className="max-w-6xl mx-auto px-6 py-12 flex gap-10">
+      <div className="max-w-6xl mx-auto px-6 pt-8">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center text-sm text-[#8BC34A] hover:text-[#7CB342] transition-colors"
+        >
+          <svg
+            className="w-4 h-4 mr-1.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-6 flex gap-10">
         <div className="w-56 flex-shrink-0">
           <nav className="space-y-1">
             <button
@@ -407,6 +469,22 @@ export default function MyProjectsPage() {
               }`}
             >
               My Personal Campaigns
+            </button>
+
+            <button
+              onClick={() => { setActiveTab("backed"); setSelectedOrgId(null); }}
+              className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === "backed"
+                  ? "bg-[#8BC34A]/10 text-[#8BC34A]"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Campaigns Backed
+              {savedCampaigns.length > 0 && (
+                <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#8BC34A] px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                  {savedCampaigns.length}
+                </span>
+              )}
             </button>
 
             <button
@@ -479,24 +557,28 @@ export default function MyProjectsPage() {
               <h1 className="text-3xl font-serif font-bold text-gray-900">
                 {activeTab === "personal"
                   ? "My Personal Campaigns"
-                  : activeTab === "collaborating"
-                    ? "Collaborating On"
-                    : activeTab === "invites"
-                      ? "Invites Received"
-                      : selectedOrgId
-                        ? organizations.find((o) => o.organization_id === selectedOrgId)?.name || "Organization"
-                        : "My Organizations"}
+                  : activeTab === "backed"
+                    ? "Campaigns Backed"
+                    : activeTab === "collaborating"
+                      ? "Collaborating On"
+                      : activeTab === "invites"
+                        ? "Invites Received"
+                        : selectedOrgId
+                          ? organizations.find((o) => o.organization_id === selectedOrgId)?.name || "Organization"
+                          : "My Organizations"}
               </h1>
               <p className="text-gray-600 mt-1">
                 {activeTab === "personal"
                   ? "Manage and track all of your campaigns."
-                  : activeTab === "collaborating"
-                    ? "Campaigns where you've joined as a collaborator."
-                    : activeTab === "invites"
-                      ? "Review collaboration invites and choose whether to join each campaign."
-                      : selectedOrgId
-                        ? organizations.find((o) => o.organization_id === selectedOrgId)?.bio || "Organization campaigns."
-                        : "Select an organization to view its campaign."}
+                  : activeTab === "backed"
+                    ? "Campaigns you've saved for now, until donation tracking is wired up."
+                    : activeTab === "collaborating"
+                      ? "Campaigns where you've joined as a collaborator."
+                      : activeTab === "invites"
+                        ? "Review collaboration invites and choose whether to join each campaign."
+                        : selectedOrgId
+                          ? organizations.find((o) => o.organization_id === selectedOrgId)?.bio || "Organization campaigns."
+                          : "Select an organization to view its campaign."}
               </p>
             </div>
 
@@ -519,7 +601,66 @@ export default function MyProjectsPage() {
             </div>
           </div>
 
-          {activeTab === "collaborating" ? (
+          {activeTab === "backed" ? (
+            savedCampaigns.length === 0 ? (
+              <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
+                <h3 className="text-lg font-medium text-gray-700 mb-2">
+                  No backed campaigns yet
+                </h3>
+                <p className="text-gray-500">
+                  Saved campaigns will show up here for now.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {savedCampaigns.map((campaign) => (
+                  <Link
+                    key={campaign.campaign_id}
+                    href={`/project/${campaign.url || campaign.campaign_id}`}
+                    className="block border border-gray-200 rounded-xl p-6 hover:border-[#8BC34A] transition-colors bg-white"
+                  >
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="text-lg font-semibold text-gray-900">{campaign.title}</h3>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(campaign.status)}`}>
+                        {campaign.status?.replaceAll("_", " ") || "unknown"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3 flex-wrap">
+                      {campaign.category && (
+                        <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>
+                      )}
+                      {campaign.time_created && <span>Created {formatDate(campaign.time_created)}</span>}
+                      {campaign.saved_at && <span>Saved {formatDate(campaign.saved_at)}</span>}
+                      {campaign.creator && (
+                        <span>By {getCreatorDisplayName(campaign.creator)}</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-gray-700 font-medium">
+                        {formatUSD((campaign.amount_raised_cents || 0) / 100)} raised of {formatUSD((campaign.funding_goal_cents || 0) / 100)}
+                      </span>
+                      <span className="text-[#8BC34A] font-medium">
+                        {campaign.funding_goal_cents > 0 ? Math.round(((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100) : 0}%
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-[#8BC34A] h-2 rounded-full"
+                        style={{ width: `${Math.min(100, campaign.funding_goal_cents > 0 ? ((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100 : 0)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      <span>{campaign.backers || 0} backers</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : activeTab === "collaborating" ? (
             visibleCollaborationCampaigns.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
                 <h3 className="text-lg font-medium text-gray-700 mb-2">
