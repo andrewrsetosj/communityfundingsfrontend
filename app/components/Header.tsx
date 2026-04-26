@@ -123,6 +123,38 @@ export default function Header() {
     return { Authorization: `Bearer ${token}` };
   }
 
+useEffect(() => {
+  if (!user?.id) {
+    setProfileUsername(null);
+    return;
+  }
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/profile-page/${user.id}`, {
+        cache: "no-store",
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (!cancelled) {
+        setProfileUsername(data.creator?.username || null);
+      }
+    } catch (err) {
+      console.error("Error fetching profile username:", err);
+      if (!cancelled) setProfileUsername(null);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id, API_BASE]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
