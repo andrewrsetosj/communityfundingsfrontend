@@ -98,7 +98,7 @@ export const emptyDraft: CampaignDraft = {
   },
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type DraftStore = {
   draft: CampaignDraft;

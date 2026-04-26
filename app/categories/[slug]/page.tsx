@@ -1,38 +1,51 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import Header from "../../components/Header";
+import { useParams } from "next/navigation";
+
+const categoryDescriptions: Record<string, string> = {
+  "art": "Discover creative art projects seeking funding.",
+  "comics": "Support independent comic creators.",
+  "crafts": "Fund handmade craft projects.",
+  "dance": "Support dance performances and education.",
+  "design": "Back innovative design projects.",
+  "fashion": "Support emerging fashion designers.",
+  "film-and-video": "Help bring films and videos to life.",
+  "food": "Support food entrepreneurs and projects.",
+  "games": "Back indie game developers.",
+  "journalism": "Support independent journalism.",
+  "music": "Help musicians create new work.",
+  "photography": "Support photography projects.",
+  "publishing": "Help authors and publishers.",
+  "technology": "Back innovative tech projects.",
+  "theater": "Support theater productions.",
+  "environment": "Fund environmental initiatives.",
+  "education": "Support educational programs.",
+  "community": "Back community-driven projects.",
+  "animals": "Support animal welfare projects.",
+  "health": "Fund health and wellness initiatives.",
+};import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-const PER_PAGE = 12;
-const PLACEHOLDER_IMAGE =
-  "https://community-fundings-assets.s3.us-east-2.amazonaws.com/Hero/placeholderimg.jpeg";
-
-  const ALL_CATEGORIES = [
-  "Art",
-  "Comics",
-  "Crafts",
-  "Dance",
-  "Design",
-  "Environment",
-  "Education",
-  "Health",
-  "Fashion",
-  "Film & Video",
-  "Food",
-  "Games",
-  "Journalism",
-  "Music",
-  "Photography",
-  "Publishing",
-  "Technology",
-  "Theater",
-] as const;
-
-type CategoryItem = {
-  name: string;
-  count: number;
+const categoryNames: Record<string, string> = {
+  "arts": "Arts",
+  "comics-illustration": "Comics & Illustration",
+  "community": "Community",
+  "creative": "Creative",
+  "design-tech": "Design & Tech",
+  "disaster-relief": "Disaster Relief",
+  "education": "Education",
+  "emergency": "Emergency",
+  "film": "Film",
+  "food-craft": "Food & Craft",
+  "game": "Game",
+  "music": "Music",
+  "nonprofit": "Nonprofit",
+  "pets": "Pets",
+  "publishing": "Publishing",
+  "sports": "Sports",
+  "technology": "Technology",
 };
 
 type Campaign = {
@@ -167,27 +180,34 @@ function formatUSD(amount?: number) {
   });
 }
 
-export default async function CategoryPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ page?: string }>;
-}) {
-  const { slug } = await params;
-  const resolvedSearchParams = searchParams ? await searchParams : {};
-  const page = Math.max(1, Number(resolvedSearchParams?.page || "1") || 1);
-  const categoryName = ALL_CATEGORIES.find(
-    (name) => slugifyCategory(name) === slug
-  );
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-  if (!categoryName) {
-    notFound();
-  }
-  const categoryDescription = getCategoryDescription(categoryName);
-  const { campaigns, total, per_page } = await getCategoryCampaigns(categoryName, page);
+export default function CategoryPage() {
+  const params = useParams();
+  const slug = params.slug as string;
+  const categoryName = categoryNames[slug] || "Category";
+  const categoryDescription = categoryDescriptions[slug] || "";
 
-  const totalPages = Math.max(1, Math.ceil(total / per_page));
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCampaigns() {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/campaigns?status=active&category=${encodeURIComponent(categoryName)}&per_page=50`
+        );
+        if (!res.ok) throw new Error("Failed to fetch campaigns");
+        const data = await res.json();
+        setCampaigns(data.campaigns || []);
+      } catch (err) {
+        console.error("Error fetching campaigns:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCampaigns();
+  }, [categoryName]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -225,134 +245,124 @@ export default async function CategoryPage({
             {categoryDescription}
           </p>
 
+          {/* CTA Button */}
           <Link
             href="/create-project/basics"
-            className="inline-flex bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+            className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
           >
-            Start a Campaign
+            Start a Project
           </Link>
         </div>
       </section>
 
       <section className="max-w-7xl mx-auto px-6 py-12">
-        <h2 className="text-xl font-medium text-gray-900 mb-8">
-          Explore{" "}
-            <span className="font-bold">
-              {total.toLocaleString()} {total === 1 ? "campaign" : "campaigns"}
-            </span>{" "}
-          in {categoryName}
-        </h2>
-
-        {campaigns.length === 0 ? (
-          <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-            <h3 className="text-lg font-medium text-gray-700 mb-2">
-              No campaigns found
-            </h3>
-            <p className="text-gray-500">
-              There are no active campaigns in this category yet.
+        {loading ? (
+          <>
+            <h2 className="text-xl font-medium text-gray-900 mb-8">
+              Loading projects in {categoryName}...
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div
+                  key={i}
+                  className="bg-gray-100 rounded-lg h-72 animate-pulse"
+                />
+              ))}
+            </div>
+          </>
+        ) : campaigns.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-gray-600 text-lg mb-2">
+              No projects in {categoryName} yet.
             </p>
+            <p className="text-gray-500 text-sm mb-6">
+              Be the first to start a project in this category!
+            </p>
+            <Link
+              href="/create-project/basics"
+              className="inline-block px-6 py-3 bg-[#8BC34A] text-white rounded-full font-medium hover:bg-[#7CB342] transition-colors"
+            >
+              Start a Project
+            </Link>
           </div>
         ) : (
           <>
+            <h2 className="text-xl font-medium text-gray-900 mb-8">
+              Explore{" "}
+              <span className="font-bold">
+                {campaigns.length} {campaigns.length === 1 ? "project" : "projects"}
+              </span>{" "}
+              in {categoryName}
+            </h2>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {campaigns.map((campaign) => {
-                const imageSrc = campaign.image_url || PLACEHOLDER_IMAGE;
-                const thumbIsVideo = (campaign.content_type ?? "")
-                  .toLowerCase()
-                  .startsWith("video/");
-
-                return (
-                  <Link
-                    key={campaign.id}
-                    href={`/project/${campaign.slug || campaign.id}`}
-                    className="group block"
-                  >
-                    <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-200 mb-3">
-                      {thumbIsVideo ? (
-                        <video
-                          src={imageSrc}
-                          muted
-                          playsInline
-                          preload="metadata"
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <Image
-                          src={imageSrc}
-                          alt={campaign.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                        {campaign.title}
-                      </h3>
-
+              {campaigns.map((campaign) => (
+                <Link
+                  key={campaign.id}
+                  href={`/campaign/${campaign.slug}`}
+                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow block border border-gray-100"
+                >
+                  <div className="relative h-36 bg-gray-200">
+                    {campaign.image_url && campaign.image_url.startsWith("http") ? (
+                      <img
+                        src={campaign.image_url}
+                        alt={campaign.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                        <svg
+                          className="w-10 h-10"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">
+                      {campaign.title}
+                    </h3>
+                    {campaign.creator_name && (
                       <p className="text-xs text-gray-500 mb-1">
-                        {Math.round(campaign.funding_percentage || 0)}% funded · By{" "}
-                        <span className="font-semibold text-gray-700">
-                          {campaign.creator_name || "Unknown creator"}
+                        By:{" "}
+                        <span className="font-medium">
+                          {campaign.creator_name}
                         </span>
                       </p>
-
-                      <p className="text-xs text-gray-500 mb-2">
-                        {campaign.donors_count} {campaign.donors_count === 1 ? "backer" : "backers"} ·{" "}
-                        <span className="font-medium text-gray-700">
-                          {formatUSD(campaign.raised_amount)}
-                        </span>{" "}
-                        raised
-                      </p>
-
-                      <div className="w-full bg-gray-100 rounded-full h-2 mb-3 overflow-hidden">
-                        <div
-                          className="h-2 bg-[#8BC34A]"
-                          style={{
-                            width: `${Math.min(100, Math.round(campaign.funding_percentage || 0))}%`,
-                          }}
-                        />
-                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mb-3">
+                      ${campaign.raised_amount.toLocaleString()} raised of $
+                      {campaign.goal_amount.toLocaleString()}
+                    </p>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                      <div
+                        className="bg-[#8BC34A] h-1.5 rounded-full"
+                        style={{
+                          width: `${Math.min(campaign.funding_percentage, 100)}%`,
+                        }}
+                      />
                     </div>
-                  </Link>
-                );
-              })}
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span className="font-medium text-[#8BC34A]">
+                        {campaign.funding_percentage}% funded
+                      </span>
+                      {campaign.days_left !== null && (
+                        <span>{campaign.days_left} days left</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
-
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3 mt-12">
-                {page > 1 ? (
-                  <Link
-                    href={`/categories/${slug}?page=${page - 1}`}
-                    className="px-8 py-3 border border-gray-300 rounded-full text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Previous
-                  </Link>
-                ) : (
-                  <span className="px-8 py-3 border border-gray-200 rounded-full text-gray-300 font-medium">
-                    Previous
-                  </span>
-                )}
-
-                <span className="text-sm text-gray-500">
-                  Page {page} of {totalPages}
-                </span>
-
-                {page < totalPages ? (
-                  <Link
-                    href={`/categories/${slug}?page=${page + 1}`}
-                    className="px-8 py-3 border border-gray-300 rounded-full text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Next
-                  </Link>
-                ) : (
-                  <span className="px-8 py-3 border border-gray-200 rounded-full text-gray-300 font-medium">
-                    Next
-                  </span>
-                )}
-              </div>
-            )}
           </>
         )}
       </section>

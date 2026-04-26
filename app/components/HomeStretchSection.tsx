@@ -18,7 +18,7 @@ interface Campaign {
   image_url: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function HomeStretchSection() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -27,9 +27,7 @@ export default function HomeStretchSection() {
   useEffect(() => {
     async function fetchHomeStretch() {
       try {
-        const res = await fetch(
-          `${API_URL}/api/campaigns?status=active&sort=most_funded&per_page=50`
-        );
+        const res = await fetch(`${API_URL}/api/campaigns?status=active`);
         if (!res.ok) throw new Error("Failed to fetch campaigns");
         const data = await res.json();
         const homeStretch = data.campaigns.filter(

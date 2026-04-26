@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Header from "../components/Header";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface DraftSummary {
   campaign_id: number;

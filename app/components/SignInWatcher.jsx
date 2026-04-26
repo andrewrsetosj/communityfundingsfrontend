@@ -27,7 +27,7 @@
 //         }
 
 //         // call your backend
-//         const res = await fetch("http://localhost:4000/api/auth/verify-and-store", {
+//         const res = await fetch("http://localhost:8000/api/auth/verify-and-store", {
 //           method: "POST",
 //           headers: {
 //             "Content-Type": "application/json",
@@ -76,7 +76,7 @@ export default function SignInWatcher() {
 
     async function send() {
       try {
-        // Default session JWT — verifiable with CLERK_JWKS_URI on the backend.
+// Default session JWT — verifiable with CLERK_JWKS_URI on the backend.
         // Named templates (e.g. template: "standard") only work if that JWT template exists in Clerk.
         let token = await getToken();
         if (!token) {
@@ -97,7 +97,7 @@ export default function SignInWatcher() {
           image_url: user.profileImageUrl ?? null,
         };
 
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         const res = await fetch(`${apiBase}/api/auth/verify-and-store`, {
           method: "POST",
           headers: {
@@ -106,8 +106,7 @@ export default function SignInWatcher() {
           },
           body: JSON.stringify({ user: payload }),
         });
-
-        const text = await res.text();
+const text = await res.text();
         let parsed = null;
         try {
           parsed = JSON.parse(text);

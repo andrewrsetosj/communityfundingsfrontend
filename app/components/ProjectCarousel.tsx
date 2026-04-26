@@ -50,13 +50,13 @@ export default function ProjectCarousel({
   };
 
   return (
-    <div className="relative flex items-center gap-3">
+    <div className="relative">
       {/* Left Arrow */}
       <button
         onClick={() => scroll("left")}
         disabled={!canScrollLeft}
         aria-label="Scroll left"
-        className="flex-shrink-0 hidden sm:block"
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-8 z-10 hidden sm:block"
       >
         <svg className={`w-6 h-6 transition-colors ${canScrollLeft ? "text-gray-900" : "text-gray-300"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -90,7 +90,7 @@ export default function ProjectCarousel({
         onClick={() => scroll("right")}
         disabled={!canScrollRight}
         aria-label="Scroll right"
-        className="flex-shrink-0 hidden sm:block"
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-8 z-10 hidden sm:block"
       >
         <svg className={`w-6 h-6 transition-colors ${canScrollRight ? "text-gray-900" : "text-gray-300"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

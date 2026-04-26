@@ -114,7 +114,7 @@ export default function Header() {
   const categoriesRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   function getAuthHeaders(): Record<string, string> {
     if (typeof window === "undefined") return {};
@@ -371,16 +371,42 @@ useEffect(() => {
     signOut({ redirectUrl: "/" });
   };
 
-  const profileHref =
-    pathname === "/settings"
-      ? user?.id
+
+useEffect(() => {
+  if (!user?.id) {
+    setProfileUsername(null);
+    return;
+  }
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!cancelled) setProfileUsername(json.username || json.id || null);
+    } catch (err) {
+      console.error("Error fetching username:", err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id]);
+
+const profileHref =
+  pathname === "/settings"
+    ? user?.id
+      ? `/profile/${user.id}`
+      : "#"
+    : profileUsername
+      ? `/profile/${profileUsername}`
+      : user?.id
         ? `/profile/${user.id}`
-        : "#"
-      : profileUsername
-        ? `/profile/${profileUsername}`
-        : user?.id
-          ? `/profile/${user.id}`
-          : "#";
+        : "#";
 
   return (
     <header className="w-full">
@@ -398,6 +424,20 @@ useEffect(() => {
                 <Link href="/how-it-works" className="hover:text-[#8BC34A] transition-colors">
                   How it Works
                 </Link>
+<Link href="/projects-we-love" className="hover:text-[#8BC34A] transition-colors">
+                  Campaigns We Love
+                </Link>
+
+                <div className="relative group">
+                  <button className="flex items-center hover:text-[#8BC34A] transition-colors gap-1">
+                    Admin
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg py-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    <a href="/site-admin?mode=register" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Get Registered</a>
+                    <a href="/site-admin" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Login</a>
+                  </div>
+                </div>
                 <div className="relative" ref={categoriesRef}>
                   <button
                     onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
@@ -710,6 +750,22 @@ useEffect(() => {
                           Profile Settings
                         </Link>
 
+                        <Link
+                          href="/ledger"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          Ledger
+                        </Link>
+                        <Link
+                          href="/admin"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                          Business Admin
+                        </Link>
                         <Link
                           href="/my-projects"
                           onClick={() => setIsDropdownOpen(false)}

@@ -224,7 +224,7 @@ export default function ProfilePage() {
   const [isReportLoading, setIsReportLoading] = useState(false);
   const [pinningCampaignId, setPinningCampaignId] = useState<number | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   function getAuthHeaders(): Record<string, string> {
     if (typeof window === "undefined") return {};

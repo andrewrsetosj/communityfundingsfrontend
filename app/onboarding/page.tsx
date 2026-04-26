@@ -6,19 +6,27 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 const interests = [
-  { name: "Art", icon: "🎨" },
+  { name: "Arts", icon: "🎨" },
   { name: "Comics", icon: "💬" },
+  { name: "Community", icon: "🤝" },
   { name: "Crafts", icon: "✂️" },
+  { name: "Creative", icon: "✨" },
   { name: "Dance", icon: "💃" },
   { name: "Design", icon: "🖌️" },
+  { name: "Disaster Relief", icon: "🆘" },
+  { name: "Education", icon: "📖" },
+  { name: "Emergency", icon: "🚨" },
   { name: "Fashion", icon: "👗" },
   { name: "Film & Video", icon: "🎬" },
   { name: "Food", icon: "🍽️" },
   { name: "Games", icon: "🎮" },
   { name: "Journalism", icon: "📰" },
   { name: "Music", icon: "🎵" },
+  { name: "Nonprofit", icon: "💚" },
+  { name: "Pets", icon: "🐾" },
   { name: "Photography", icon: "📷" },
   { name: "Publishing", icon: "📚" },
+  { name: "Sports", icon: "⚽" },
   { name: "Technology", icon: "💻" },
   { name: "Theater", icon: "🎭" },
 ];
@@ -45,7 +53,7 @@ export default function OnboardingPage() {
     const token = localStorage.getItem("cf_backend_token");
     if (token && selected.length > 0) {
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/users/me/interests`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/me/interests`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

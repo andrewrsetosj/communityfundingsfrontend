@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function ReportPage() {
   const router = useRouter();

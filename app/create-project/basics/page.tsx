@@ -14,7 +14,7 @@ import {
   uploadCampaignFilesToS3,
 } from "@/app/create-project/lib/campaignPhotoUpload";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 import { DraftDebug } from "@/app/create-project/component/draftDebug";
 import LocationAutocomplete from "@/app/create-project/component/LocationAutocomplete";
 
@@ -44,7 +44,7 @@ export default function BasicsPage() {
     return String(dollars);
   }, [draft.funding_goal_cents]);
 
-  // --- image picker local state ---
+  // --- your image picker local state can stay local ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectImages, setProjectImages] = useState<File[]>([]);
   const [projectImagePreviewUrls, setProjectImagePreviewUrls] = useState<string[]>([]);
@@ -202,24 +202,8 @@ export default function BasicsPage() {
   };
 
   const categories = [
-    "Art",
-    "Comics",
-    "Crafts",
-    "Dance",
-    "Design",
-    "Environment",
-    "Education",
-    "Health",
-    "Fashion",
-    "Film & Video",
-    "Food",
-    "Games",
-    "Journalism",
-    "Music",
-    "Photography",
-    "Publishing",
-    "Technology",
-    "Theater",
+    "Art","Comics","Crafts","Dance","Design","Fashion","Film & Video","Food","Games",
+    "Journalism","Music","Photography","Publishing","Technology","Theater",
   ];
 
   const emailIsValid = true; // not used here; keeping file minimal

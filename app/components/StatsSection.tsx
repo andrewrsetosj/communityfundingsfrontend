@@ -10,20 +10,25 @@ interface Stats {
   total_pledges: number;
 }
 
-export default function PlatformStats() {
+export default function StatsSection() {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/campaigns/stats`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setStats(data);
-      })
-      .catch((err) => console.error("Failed to load stats:", err));
+    async function fetchStats() {
+      try {
+        const res = await fetch(`${API_URL}/api/stats`);
+        if (!res.ok) throw new Error("Failed to fetch stats");
+        const data = await res.json();
+        setStats(data);
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      }
+    }
+    fetchStats();
   }, []);
 
   const projectsFunded = stats?.projects_funded ?? 0;
-  const totalRaised = stats ? stats.total_raised_cents / 100 : 0;
+  const totalRaised = stats ? (stats.total_raised_cents / 100) : 0;
   const totalPledges = stats?.total_pledges ?? 0;
 
   return (
@@ -33,19 +38,19 @@ export default function PlatformStats() {
           <p className="text-3xl md:text-4xl font-bold text-gray-900">
             {projectsFunded.toLocaleString()}
           </p>
-          <p className="text-gray-500 text-sm">Campaigns Funded</p>
+          <p className="text-gray-500 text-sm">Projects funded</p>
         </div>
         <div className="text-center border-x border-gray-200">
           <p className="text-3xl md:text-4xl font-bold text-gray-900">
-            ${totalRaised.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            ${totalRaised.toLocaleString()}
           </p>
-          <p className="text-gray-500 text-sm">Raised in Total</p>
+          <p className="text-gray-500 text-sm">Towards creative work</p>
         </div>
         <div className="text-center">
           <p className="text-3xl md:text-4xl font-bold text-gray-900">
             {totalPledges.toLocaleString()}
           </p>
-          <p className="text-gray-500 text-sm">Backers</p>
+          <p className="text-gray-500 text-sm">Pledges</p>
         </div>
       </div>
     </div>

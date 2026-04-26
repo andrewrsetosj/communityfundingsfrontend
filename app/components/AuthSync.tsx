@@ -2,10 +2,6 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
-import {
-  backendJwtExpired,
-  syncClerkToBackendToken,
-} from "@/lib/backendToken";
 
 export default function AuthSync() {
   const { user, isSignedIn } = useUser();
@@ -16,12 +12,25 @@ export default function AuthSync() {
     const sync = async () => {
       const existing = localStorage.getItem("cf_backend_token");
       const syncedEmail = localStorage.getItem("cf_synced_email");
-      const email = user.primaryEmailAddress?.emailAddress;
-      const tokenOk =
-        existing && syncedEmail === email && !backendJwtExpired(existing);
-      if (tokenOk) return;
+      if (existing && syncedEmail === user.primaryEmailAddress?.emailAddress) return;
 
-      await syncClerkToBackendToken(user);
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/clerk-sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.primaryEmailAddress?.emailAddress,
+            name: user.fullName || user.firstName || "User",
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("cf_backend_token", data.access_token);
+          localStorage.setItem("cf_synced_email", user.primaryEmailAddress?.emailAddress || "");
+        }
+      } catch {
+        // Silent fail — will retry on next page load
+      }
     };
     sync();
   }, [isSignedIn, user]);

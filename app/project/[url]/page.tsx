@@ -396,7 +396,7 @@ export default function ProjectDetail() {
 
     try {
       setError(null);
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const params = new URLSearchParams({
         page: String(targetPage),
@@ -430,7 +430,7 @@ export default function ProjectDetail() {
 
     try {
       setIsSaveSubmitting(true);
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const isSaved = Boolean(data.viewer_engagement?.is_saved);
 
       const res = await fetch(`${API_BASE}/api/saved-campaigns/${url}`, {
@@ -470,7 +470,7 @@ export default function ProjectDetail() {
     try {
       setIsCommentSubmitting(true);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments`, {
         method: "POST",
@@ -505,7 +505,7 @@ export default function ProjectDetail() {
     try {
       setIsReplySubmitting(true);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments`, {
         method: "POST",
@@ -563,7 +563,7 @@ export default function ProjectDetail() {
     if (!confirmed) return;
 
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(
         `${API_BASE}/api/campaign-page/${url}/comments/${commentId}`,
@@ -616,7 +616,7 @@ export default function ProjectDetail() {
 
     try {
       setIsEditSubmitting(true);
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments/${commentId}`, {
         method: "PATCH",
@@ -663,7 +663,7 @@ export default function ProjectDetail() {
   async function handleToggleLike(comment: Comment) {
     if (!url || !user) return;
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     const method = comment.liked_by_viewer ? "DELETE" : "POST";
 
     try {
@@ -713,7 +713,7 @@ export default function ProjectDetail() {
 
     try {
       setReportingCommentId(comment.comment_id);
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(`${API_BASE}/api/campaign-page/${url}/comments/${comment.comment_id}/report`, {
         method: "POST",
@@ -743,7 +743,7 @@ export default function ProjectDetail() {
     try {
       setIsCampaignReporting(true);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(`${API_BASE}/api/campaign-page/${url}/report`, {
         method: "POST",
@@ -782,7 +782,7 @@ export default function ProjectDetail() {
 
     try {
       setIsLeavingCampaign(true);
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(
         `${API_BASE}/api/campaigns/invites/${viewerCollaborator.collaborator_id}/decline`,
@@ -815,7 +815,7 @@ export default function ProjectDetail() {
     try {
       setLoadingRepliesFor(parentCommentId);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
       const res = await fetch(
         `${API_BASE}/api/campaign-page/${url}/comments/${parentCommentId}/replies`,
@@ -1531,7 +1531,7 @@ export default function ProjectDetail() {
                           const confirmed = window.confirm("Delete this draft campaign? This cannot be undone.");
                           if (!confirmed) return;
                           try {
-                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/campaign-page/${campaign.url || campaign.campaign_id}`, {
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/campaign-page/${campaign.url || campaign.campaign_id}`, {
                               method: "DELETE",
                               headers: getAuthHeaders(),
                             });

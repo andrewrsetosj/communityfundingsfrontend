@@ -6,7 +6,7 @@ import { Suspense, useEffect, useRef } from "react";
 import Header from "../components/Header";
 import { useCampaignDraft } from "./store/useCampaignDraft";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const steps = [
   { number: "01", label: "Basics", path: "/create-project/basics" },
