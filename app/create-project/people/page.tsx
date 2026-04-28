@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -36,17 +35,15 @@ export default function PeoplePage() {
 
   // Store selectors (hooks)
   const hasHydrated = useCampaignDraft((s) => s.hasHydrated);
-  const bio = useCampaignDraft((s) => s.draft.bio);
+  const campaignId = useCampaignDraft((s) => s.draft.campaign_id);
   const vanitySlug = useCampaignDraft((s) => s.draft.vanity_slug);
   const coCreators = useCampaignDraft((s) => s.draft.co_creators);
   const setPeople = useCampaignDraft((s) => s.setPeople);
 
   // Local state (hooks)
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState("");
 
   // ✅ NEW: touched flags (only show required UI after interaction)
-  const [bioTouched, setBioTouched] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
 
   // Slug availability check
@@ -58,7 +55,7 @@ export default function PeoplePage() {
 
   // Debounced slug check
   const checkSlugDebounced = useCallback(
-    debounce(async (slug: string) => {
+    debounce(async (slug: string, excludeId: number | null) => {
       if (!slug || !slug.trim()) {
         setSlugAvailable(null);
         return;
@@ -67,24 +64,26 @@ export default function PeoplePage() {
       setSlugCheckLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?slug=${encodeURIComponent(slug)}`);
+        const params = new URLSearchParams({ slug });
+        if (excludeId != null) params.set("campaign_id", String(excludeId));
+        const res = await fetch(`${apiUrl}/api/campaigns/check-slug?${params}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setSlugAvailable(data.available);
       } catch (err) {
         console.error("Slug check failed:", err);
-        setSlugAvailable(null); // Reset on error
+        setSlugAvailable(null);
       } finally {
         setSlugCheckLoading(false);
       }
-    }, 500), // 500ms debounce
+    }, 500),
     []
   );
 
   // Effect to trigger check when slug changes
   useEffect(() => {
-    checkSlugDebounced(vanitySlug || "");
-  }, [vanitySlug, checkSlugDebounced]);
+    checkSlugDebounced(vanitySlug || "", campaignId);
+  }, [vanitySlug, campaignId, checkSlugDebounced]);
 
   // Derived state (hook)
   const collaboratorsUI: CollaboratorUI[] = useMemo(() => {
@@ -96,11 +95,6 @@ export default function PeoplePage() {
       status: "pending",
     }));
   }, [coCreators]);
-
-  // Side effects (hooks)
-  useEffect(() => {
-    setAgreedToTerms(false);
-  }, []);
 
   // ✅ Now it's safe to return early (after hooks)
   if (!hasHydrated) return null;
@@ -163,14 +157,8 @@ export default function PeoplePage() {
     newCollaboratorEmail.trim()
   );
 
-  const BIO_LIMIT = 500;
-  const bioLength = (bio ?? "").length;
-
-  // ✅ REQUIRED FIELDS: bio + vanitySlug (bio within limit)
-  const bioIsValid =
-    (bio ?? "").trim().length > 0 && bioLength <= BIO_LIMIT;
   const urlIsValid = (vanitySlug ?? "").trim().length > 0;
-  const canContinue = bioIsValid && urlIsValid && slugAvailable === true;
+  const canContinue = urlIsValid && slugAvailable === true;
 
   const handleNext = async () => {
     if (!canContinue) return;
@@ -200,90 +188,6 @@ export default function PeoplePage() {
       </p>
 
       <div className="space-y-8">
-        {/* Creator Profile Card */}
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-4">
-            Creator Profile
-          </label>
-
-          <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-            <div className="flex items-start gap-6">
-              <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
-                  <Image
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200"
-                    alt="Profile"
-                    width={96}
-                    height={96}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#8BC34A] rounded-full flex items-center justify-center text-white hover:bg-[#7CB342] transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="flex-1">
-                <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  Your Name
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Creator • 0 projects created
-                </p>
-                <Link
-                  href="/settings"
-                  className="text-sm text-[#8BC34A] font-medium hover:underline"
-                >
-                  Edit profile settings
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-900">
-                  Short Bio{" "}
-                </label>
-                <span
-                  className={`text-sm ${
-                    bioLength > BIO_LIMIT ? "text-red-500" : "text-gray-500"
-                  }`}
-                >
-                  {bioLength}/{BIO_LIMIT}
-                </span>
-              </div>
-              <textarea
-                maxLength={BIO_LIMIT}
-                value={bio ?? ""}
-                onChange={(e) =>
-                  setPeople({ bio: e.target.value.slice(0, BIO_LIMIT) })
-                }
-                onBlur={() => setBioTouched(true)}
-                placeholder="Tell backers a bit about yourself..."
-                rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8BC34A] focus:border-transparent resize-none bg-white"
-              />
-              {bioTouched && !bioIsValid && (
-                <p className="mt-2 text-sm text-red-500">
-                  {bioLength > BIO_LIMIT
-                    ? `Please reduce the bio to ${BIO_LIMIT} characters or fewer.`
-                    : "Please enter a short bio to continue."}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Vanity URL */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -437,7 +341,13 @@ export default function PeoplePage() {
         </div>
 
         {/* Save & Continue */}
-        <div className="mt-12 flex justify-end">
+        <div className="mt-12 flex justify-between items-center gap-4 flex-wrap">
+          <Link
+            href="/create-project/story"
+            className="text-gray-500 px-8 py-3 rounded-full font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            Back
+          </Link>
           <button
             type="button"
             onClick={handleNext}
@@ -451,7 +361,7 @@ export default function PeoplePage() {
             aria-disabled={!canContinue || continueSaving}
             title={!canContinue ? "Please fill out the short bio, enter a valid and available URL to continue." : undefined}
           >
-            {continueSaving ? "Saving…" : "Save &amp; Continue"}
+            {continueSaving ? "Saving…" : "Save and Continue"}
           </button>
         </div>
       </div>

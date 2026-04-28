@@ -5,22 +5,22 @@ import Footer from "../components/Footer";
 
 const teamMembers = [
   {
-    name: "Joel",
-    title: "Co-Founder & CEO",
-    bio: "Joel has spent over a decade building community-first financial platforms and believes that access to funding should never be a barrier to creativity or impact.",
-    photo: "photo-1472099645785-5658abf4ff4e",
+    name: "Joel Pederson",
+    title: "Founder & CEO",
+    bio: "Joel brings over 15 years of experience in business management, with a diverse background spanning retail, entertainment, app development, and consulting.",
+    photo: "/Joel.png",
   },
   {
-    name: "Bryan",
-    title: "Co-Founder & CEO",
+    name: "Bryan Zagury",
+    title: "Head of Business Development",
     bio: " Bryan brings a background in nonprofit leadership and social enterprise, guiding Community Fundings' commitment to equity and transparent operations.",
-    photo: "photo-1494790108377-be9c29b29330",
+    photo: "/bryan.png",
   },
   {
     name: "Name Here",
     title: "Head of Community",
     bio: "NAME _INSERT BIO.",
-    photo: "photo-1507003211169-0a1dd7228f2d",
+    photo: "/Joel.png",
   },
 ];
 
@@ -245,7 +245,7 @@ export default function AboutUsPage() {
               <div key={member.name} className="text-center">
                 <div className="relative w-36 h-36 mx-auto mb-5">
                   <Image
-                    src={`https://images.unsplash.com/${member.photo}?w=300`}
+                    src={member.photo}
                     alt={member.name}
                     fill
                     className="object-cover rounded-full"

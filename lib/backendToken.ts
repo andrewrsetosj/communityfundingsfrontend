@@ -32,16 +32,14 @@ export async function syncClerkToBackendToken(user: ClerkLikeUser): Promise<bool
         clerk_id: user.id,
         email: user.primaryEmailAddress?.emailAddress,
         name: user.fullName || user.firstName || "User",
-        image_url: user.imageUrl, 
+        image_url: user.imageUrl ?? null,
       }),
     });
     if (!res.ok) return false;
     const data = (await res.json()) as { access_token: string };
     localStorage.setItem("cf_backend_token", data.access_token);
-    localStorage.setItem(
-      "cf_synced_email",
-      user.primaryEmailAddress?.emailAddress || "",
-    );
+    localStorage.setItem("cf_synced_email", user.primaryEmailAddress?.emailAddress || "");
+    localStorage.setItem("cf_synced_image", user.imageUrl || "");
     return true;
   } catch {
     return false;
