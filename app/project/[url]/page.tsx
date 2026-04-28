@@ -484,14 +484,16 @@ export default function ProjectDetail() {
       });
 
       if (!res.ok) {
-        throw new Error(`Failed to post comment: ${res.status}`);
+        const text = await res.text();
+        throw new Error(text || `Failed to post comment: ${res.status}`);
       }
 
       setCommentText("");
       await loadCampaignPage(1);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      alert("Could not post comment.");
+      const msg = err instanceof Error ? err.message : "Could not post comment.";
+      alert(msg.length > 200 ? `${msg.slice(0, 200)}…` : msg);
     } finally {
       setIsCommentSubmitting(false);
     }

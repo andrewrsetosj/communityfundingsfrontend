@@ -87,7 +87,7 @@ interface CollaborationCampaign {
   owner_username?: string | null;
 }
 
-interface SavedCampaignCreator {
+interface CampaignCreator {
   creator_id: string;
   username: string | null;
   name: string | null;
@@ -95,7 +95,7 @@ interface SavedCampaignCreator {
   avatar_url: string | null;
 }
 
-interface SavedCampaign {
+interface BackedCampaign {
   campaign_id: number;
   creator_id: string;
   title: string;
@@ -110,10 +110,10 @@ interface SavedCampaign {
   amount_raised_cents: number;
   backers: number;
   end_date?: string | null;
-  saved_at: string | null;
+  backed_at: string | null;
   is_saved: boolean;
   image_url?: string | null;
-  creator?: SavedCampaignCreator | null;
+  creator?: CampaignCreator | null;
 }
 
 type ProjectFilterValue = "all" | "active" | "draft" | "pending_review" | "inactive";
@@ -143,7 +143,7 @@ function getInviterHandle(inviter?: InviteCreator | null) {
   return handle ? `@${handle}` : "";
 }
 
-function getCreatorDisplayName(creator?: SavedCampaignCreator | null) {
+function getCreatorDisplayName(creator?: CampaignCreator | null) {
   if (!creator) return "Unknown creator";
   return [creator.name, creator.last_name].filter(Boolean).join(" ").trim() || creator.username || creator.creator_id || "Unknown creator";
 }
@@ -179,9 +179,7 @@ function sortPersonalCampaigns(items: Campaign[], sortValue: ProjectSortValue) {
       const aStatusRank = statusRank(a.status);
       const bStatusRank = statusRank(b.status);
 
-      if (aStatusRank !== bStatusRank) {
-        return aStatusRank - bStatusRank;
-      }
+      if (aStatusRank !== bStatusRank) return aStatusRank - bStatusRank;
 
       const aDays = a.days_left ?? Number.POSITIVE_INFINITY;
       const bDays = b.days_left ?? Number.POSITIVE_INFINITY;
@@ -211,9 +209,12 @@ function sortCollaborationCampaigns(items: CollaborationCampaign[], sortValue: P
         if (status === "inactive") return 3;
         return 4;
       };
+
       const aRank = rank(a.status);
       const bRank = rank(b.status);
+
       if (aRank !== bRank) return aRank - bRank;
+
       return compareNullableDates(a.time_created, b.time_created, false);
     }
 
@@ -269,11 +270,13 @@ function FilterAndSortControls({
 export default function MyProjectsPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [invites, setInvites] = useState<CollaboratorInvite[]>([]);
   const [collaborations, setCollaborations] = useState<CollaborationCampaign[]>([]);
-  const [savedCampaigns, setSavedCampaigns] = useState<SavedCampaign[]>([]);
+  const [backedCampaigns, setBackedCampaigns] = useState<BackedCampaign[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"personal" | "organizations" | "invites" | "collaborating" | "backed">("personal");
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
@@ -286,12 +289,14 @@ export default function MyProjectsPage() {
 
   useEffect(() => {
     if (!isLoaded) return;
+
     if (!user) {
       router.push("/sign-in");
       return;
     }
 
     const token = localStorage.getItem("cf_backend_token");
+
     if (!token) {
       setLoading(false);
       return;
@@ -301,29 +306,39 @@ export default function MyProjectsPage() {
       fetch(`${API_URL}/api/campaigns/my-campaigns`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => (res.ok ? res.json() : [])),
+
       fetch(`${API_URL}/api/campaigns/my-organizations`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => (res.ok ? res.json() : [])),
+
       fetch(`${API_URL}/api/campaigns/invites/received`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => (res.ok ? res.json() : [])),
+
       fetch(`${API_URL}/api/campaigns/my-collaborations`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => (res.ok ? res.json() : [])),
-      fetch(`${API_URL}/api/saved-campaigns`, {
+
+      fetch(`${API_URL}/api/donations/my-backed-campaigns`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => (res.ok ? res.json() : { campaigns: [] })),
     ])
-      .then(([campaignsData, orgsData, invitesData, collaborationsData, savedCampaignsData]) => {
+      .then(([campaignsData, orgsData, invitesData, collaborationsData, backedCampaignsData]) => {
         setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
         setOrganizations(Array.isArray(orgsData) ? orgsData : []);
-        setInvites(Array.isArray(invitesData) ? invitesData : Array.isArray((invitesData as any)?.invites) ? (invitesData as any).invites : []);
+        setInvites(
+          Array.isArray(invitesData)
+            ? invitesData
+            : Array.isArray((invitesData as any)?.invites)
+              ? (invitesData as any).invites
+              : []
+        );
         setCollaborations(Array.isArray(collaborationsData) ? collaborationsData : []);
-        setSavedCampaigns(
-          Array.isArray(savedCampaignsData)
-            ? savedCampaignsData
-            : Array.isArray((savedCampaignsData as any)?.campaigns)
-              ? (savedCampaignsData as any).campaigns
+        setBackedCampaigns(
+          Array.isArray(backedCampaignsData)
+            ? backedCampaignsData
+            : Array.isArray((backedCampaignsData as any)?.campaigns)
+              ? (backedCampaignsData as any).campaigns
               : []
         );
       })
@@ -342,7 +357,11 @@ export default function MyProjectsPage() {
   };
 
   const formatUSD = (dollars: number) =>
-    dollars.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+    dollars.toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    });
 
   const statusColor = (status: string | null | undefined) => {
     switch (status) {
@@ -353,9 +372,7 @@ export default function MyProjectsPage() {
       case "cancelled":
         return "bg-red-100 text-red-700";
       case "pending_review":
-        return "bg-yellow-100 text-yellow-700";
       case "draft":
-        return "bg-yellow-100 text-yellow-700";
       case "pending":
         return "bg-yellow-100 text-yellow-700";
       case "accepted":
@@ -373,23 +390,22 @@ export default function MyProjectsPage() {
     try {
       setProcessingInviteId(collaboratorId);
 
-      const response = await fetch(
-        `${API_URL}/api/campaigns/invites/${collaboratorId}/${action}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
-      );
+      const response = await fetch(`${API_URL}/api/campaigns/invites/${collaboratorId}/${action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
 
       if (!response.ok) {
         let detail = `Failed to ${action} invite`;
+
         try {
           const errorData = await response.json();
           if (errorData?.detail) detail = errorData.detail;
         } catch {}
+
         throw new Error(detail);
       }
 
@@ -397,10 +413,12 @@ export default function MyProjectsPage() {
 
       if (action === "accept") {
         const token = localStorage.getItem("cf_backend_token");
+
         if (token) {
           const res = await fetch(`${API_URL}/api/campaigns/my-collaborations`, {
             headers: { Authorization: `Bearer ${token}` },
           });
+
           if (res.ok) {
             const collaborationsData = await res.json();
             setCollaborations(Array.isArray(collaborationsData) ? collaborationsData : []);
@@ -445,12 +463,7 @@ export default function MyProjectsPage() {
           onClick={() => router.back()}
           className="inline-flex items-center text-sm text-[#8BC34A] hover:text-[#7CB342] transition-colors"
         >
-          <svg
-            className="w-4 h-4 mr-1.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back
@@ -461,38 +474,41 @@ export default function MyProjectsPage() {
         <div className="w-56 flex-shrink-0">
           <nav className="space-y-1">
             <button
-              onClick={() => { setActiveTab("personal"); setSelectedOrgId(null); }}
+              onClick={() => {
+                setActiveTab("personal");
+                setSelectedOrgId(null);
+              }}
               className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "personal"
-                  ? "bg-[#8BC34A]/10 text-[#8BC34A]"
-                  : "text-gray-600 hover:bg-gray-100"
+                activeTab === "personal" ? "bg-[#8BC34A]/10 text-[#8BC34A]" : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               My Personal Campaigns
             </button>
 
             <button
-              onClick={() => { setActiveTab("backed"); setSelectedOrgId(null); }}
+              onClick={() => {
+                setActiveTab("backed");
+                setSelectedOrgId(null);
+              }}
               className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "backed"
-                  ? "bg-[#8BC34A]/10 text-[#8BC34A]"
-                  : "text-gray-600 hover:bg-gray-100"
+                activeTab === "backed" ? "bg-[#8BC34A]/10 text-[#8BC34A]" : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               Campaigns Backed
-              {savedCampaigns.length > 0 && (
+              {backedCampaigns.length > 0 && (
                 <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#8BC34A] px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                  {savedCampaigns.length}
+                  {backedCampaigns.length}
                 </span>
               )}
             </button>
 
             <button
-              onClick={() => { setActiveTab("collaborating"); setSelectedOrgId(null); }}
+              onClick={() => {
+                setActiveTab("collaborating");
+                setSelectedOrgId(null);
+              }}
               className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "collaborating"
-                  ? "bg-[#8BC34A]/10 text-[#8BC34A]"
-                  : "text-gray-600 hover:bg-gray-100"
+                activeTab === "collaborating" ? "bg-[#8BC34A]/10 text-[#8BC34A]" : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               Collaborating On
@@ -504,11 +520,12 @@ export default function MyProjectsPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab("invites"); setSelectedOrgId(null); }}
+              onClick={() => {
+                setActiveTab("invites");
+                setSelectedOrgId(null);
+              }}
               className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "invites"
-                  ? "bg-[#8BC34A]/10 text-[#8BC34A]"
-                  : "text-gray-600 hover:bg-gray-100"
+                activeTab === "invites" ? "bg-[#8BC34A]/10 text-[#8BC34A]" : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               Invites Received
@@ -521,15 +538,17 @@ export default function MyProjectsPage() {
 
             <div>
               <button
-                onClick={() => { setActiveTab("organizations"); setSelectedOrgId(null); }}
+                onClick={() => {
+                  setActiveTab("organizations");
+                  setSelectedOrgId(null);
+                }}
                 className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === "organizations"
-                    ? "bg-[#8BC34A]/10 text-[#8BC34A]"
-                    : "text-gray-600 hover:bg-gray-100"
+                  activeTab === "organizations" ? "bg-[#8BC34A]/10 text-[#8BC34A]" : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 My Organizations
               </button>
+
               {activeTab === "organizations" && organizations.length > 0 && (
                 <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
                   {organizations.map((org) => (
@@ -567,11 +586,12 @@ export default function MyProjectsPage() {
                           ? organizations.find((o) => o.organization_id === selectedOrgId)?.name || "Organization"
                           : "My Organizations"}
               </h1>
+
               <p className="text-gray-600 mt-1">
                 {activeTab === "personal"
                   ? "Manage and track all of your campaigns."
                   : activeTab === "backed"
-                    ? "Campaigns you've saved for now, until donation tracking is wired up."
+                    ? "Campaigns you've backed."
                     : activeTab === "collaborating"
                       ? "Campaigns where you've joined as a collaborator."
                       : activeTab === "invites"
@@ -602,18 +622,14 @@ export default function MyProjectsPage() {
           </div>
 
           {activeTab === "backed" ? (
-            savedCampaigns.length === 0 ? (
+            backedCampaigns.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  No backed campaigns yet
-                </h3>
-                <p className="text-gray-500">
-                  Saved campaigns will show up here for now.
-                </p>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">No backed campaigns yet</h3>
+                <p className="text-gray-500">Campaigns you donate to will show up here.</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {savedCampaigns.map((campaign) => (
+                {backedCampaigns.map((campaign) => (
                   <Link
                     key={campaign.campaign_id}
                     href={`/project/${campaign.url || campaign.campaign_id}`}
@@ -627,29 +643,36 @@ export default function MyProjectsPage() {
                     </div>
 
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-3 flex-wrap">
-                      {campaign.category && (
-                        <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>
-                      )}
+                      {campaign.category && <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>}
                       {campaign.time_created && <span>Created {formatDate(campaign.time_created)}</span>}
-                      {campaign.saved_at && <span>Saved {formatDate(campaign.saved_at)}</span>}
-                      {campaign.creator && (
-                        <span>By {getCreatorDisplayName(campaign.creator)}</span>
-                      )}
+                      {campaign.backed_at && <span>Backed {formatDate(campaign.backed_at)}</span>}
+                      {campaign.creator && <span>By {getCreatorDisplayName(campaign.creator)}</span>}
                     </div>
 
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="text-gray-700 font-medium">
-                        {formatUSD((campaign.amount_raised_cents || 0) / 100)} raised of {formatUSD((campaign.funding_goal_cents || 0) / 100)}
+                        {formatUSD((campaign.amount_raised_cents || 0) / 100)} raised of{" "}
+                        {formatUSD((campaign.funding_goal_cents || 0) / 100)}
                       </span>
                       <span className="text-[#8BC34A] font-medium">
-                        {campaign.funding_goal_cents > 0 ? Math.round(((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100) : 0}%
+                        {campaign.funding_goal_cents > 0
+                          ? Math.round(((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100)
+                          : 0}
+                        %
                       </span>
                     </div>
 
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-[#8BC34A] h-2 rounded-full"
-                        style={{ width: `${Math.min(100, campaign.funding_goal_cents > 0 ? ((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100 : 0)}%` }}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            campaign.funding_goal_cents > 0
+                              ? ((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100
+                              : 0
+                          )}%`,
+                        }}
                       />
                     </div>
 
@@ -663,12 +686,8 @@ export default function MyProjectsPage() {
           ) : activeTab === "collaborating" ? (
             visibleCollaborationCampaigns.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  No matching collaborations
-                </h3>
-                <p className="text-gray-500">
-                  Try changing the filter or sort options.
-                </p>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">No matching collaborations</h3>
+                <p className="text-gray-500">Try changing the filter or sort options.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -684,29 +703,44 @@ export default function MyProjectsPage() {
                         {campaign.status?.replaceAll("_", " ") || "unknown"}
                       </span>
                     </div>
+
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-3 flex-wrap">
-                      {campaign.category && (
-                        <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>
-                      )}
+                      {campaign.category && <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>}
                       {campaign.time_created && <span>Created {formatDate(campaign.time_created)}</span>}
                       {(campaign.owner_name || campaign.owner_username) && (
-                        <span>By {[campaign.owner_name, campaign.owner_last_name].filter(Boolean).join(" ").trim() || campaign.owner_username}</span>
+                        <span>
+                          By {[campaign.owner_name, campaign.owner_last_name].filter(Boolean).join(" ").trim() || campaign.owner_username}
+                        </span>
                       )}
                     </div>
+
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="text-gray-700 font-medium">
-                        {formatUSD((campaign.amount_raised_cents || 0) / 100)} raised of {formatUSD((campaign.funding_goal_cents || 0) / 100)}
+                        {formatUSD((campaign.amount_raised_cents || 0) / 100)} raised of{" "}
+                        {formatUSD((campaign.funding_goal_cents || 0) / 100)}
                       </span>
                       <span className="text-[#8BC34A] font-medium">
-                        {campaign.funding_goal_cents > 0 ? Math.round(((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100) : 0}%
+                        {campaign.funding_goal_cents > 0
+                          ? Math.round(((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100)
+                          : 0}
+                        %
                       </span>
                     </div>
+
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-[#8BC34A] h-2 rounded-full"
-                        style={{ width: `${Math.min(100, campaign.funding_goal_cents > 0 ? ((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100 : 0)}%` }}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            campaign.funding_goal_cents > 0
+                              ? ((campaign.amount_raised_cents || 0) / campaign.funding_goal_cents) * 100
+                              : 0
+                          )}%`,
+                        }}
                       />
                     </div>
+
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                       <span>{campaign.backers || 0} backers</span>
                     </div>
@@ -717,12 +751,8 @@ export default function MyProjectsPage() {
           ) : activeTab === "invites" ? (
             invites.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  No invites yet
-                </h3>
-                <p className="text-gray-500">
-                  Campaign collaboration invites will appear here.
-                </p>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">No invites yet</h3>
+                <p className="text-gray-500">Campaign collaboration invites will appear here.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -732,16 +762,11 @@ export default function MyProjectsPage() {
                   const isProcessing = processingInviteId === invite.collaborator_id;
 
                   return (
-                    <div
-                      key={invite.collaborator_id}
-                      className="border border-gray-200 rounded-xl p-6 bg-white"
-                    >
+                    <div key={invite.collaborator_id} className="border border-gray-200 rounded-xl p-6 bg-white">
                       <div className="flex items-start justify-between gap-6">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {campaign?.title || "Untitled campaign"}
-                            </h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{campaign?.title || "Untitled campaign"}</h3>
                             <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(invite.status)}`}>
                               {invite.status}
                             </span>
@@ -753,38 +778,24 @@ export default function MyProjectsPage() {
                           </div>
 
                           <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                            {campaign?.category && (
-                              <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>
-                            )}
-                            {invite.time_created && (
-                              <span>Invited {formatDate(invite.time_created)}</span>
-                            )}
-                            {campaign?.time_created && (
-                              <span>Campaign created {formatDate(campaign.time_created)}</span>
-                            )}
+                            {campaign?.category && <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>}
+                            {invite.time_created && <span>Invited {formatDate(invite.time_created)}</span>}
+                            {campaign?.time_created && <span>Campaign created {formatDate(campaign.time_created)}</span>}
                           </div>
 
                           {inviter && (
                             <div className="mt-4 text-sm text-gray-700">
                               Invited by{" "}
-                              <Link
-                                href={getProfileHref(inviter)}
-                                className="font-medium text-gray-900 hover:text-[#8BC34A] transition-colors"
-                              >
+                              <Link href={getProfileHref(inviter)} className="font-medium text-gray-900 hover:text-[#8BC34A] transition-colors">
                                 {getInviterName(inviter)}
                               </Link>
-                              {getInviterHandle(inviter) ? (
-                                <span className="text-gray-500"> ({getInviterHandle(inviter)})</span>
-                              ) : null}
+                              {getInviterHandle(inviter) ? <span className="text-gray-500"> ({getInviterHandle(inviter)})</span> : null}
                             </div>
                           )}
 
                           {campaign ? (
                             <div className="mt-4">
-                              <Link
-                                href={`/project/${campaign.url || campaign.campaign_id}`}
-                                className="inline-flex items-center text-sm font-medium text-[#8BC34A] hover:text-[#7CB342]"
-                              >
+                              <Link href={`/project/${campaign.url || campaign.campaign_id}`} className="inline-flex items-center text-sm font-medium text-[#8BC34A] hover:text-[#7CB342]">
                                 View campaign
                               </Link>
                             </div>
@@ -800,6 +811,7 @@ export default function MyProjectsPage() {
                           >
                             {isProcessing ? "Working..." : "Decline"}
                           </button>
+
                           <button
                             type="button"
                             disabled={isProcessing}
@@ -818,113 +830,78 @@ export default function MyProjectsPage() {
           ) : activeTab === "organizations" ? (
             organizations.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-                <svg
-                  className="w-16 h-16 mx-auto text-gray-300 mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-                <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  No organizations yet
-                </h3>
-                <p className="text-gray-500">
-                  Organization campaign will appear here.
-                </p>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">No organizations yet</h3>
+                <p className="text-gray-500">Organization campaign will appear here.</p>
               </div>
             ) : !selectedOrgId ? (
               <div className="text-center py-16 text-gray-500">
                 <p>Select an organization from the sidebar to view its campaigns.</p>
               </div>
             ) : (() => {
-              const org = organizations.find((o) => o.organization_id === selectedOrgId);
-              if (!org) return null;
-              return org.campaigns.length === 0 ? (
-                <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-                  <h3 className="text-lg font-medium text-gray-700 mb-2">
-                    No campaigns yet
-                  </h3>
-                  <p className="text-gray-500">
-                    This organization hasn&apos;t created any campaigns.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {org.campaigns.map((c) => (
-                    <Link
-                      key={c.campaign_id}
-                      href={`/project/${c.url || c.campaign_id}`}
-                      className="block border border-gray-200 rounded-xl p-6 hover:border-[#8BC34A] transition-colors bg-white"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{c.title}</h3>
-                        {c.status && (
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(c.status)}`}>
-                            {c.status.replace("_", " ")}
+                const org = organizations.find((o) => o.organization_id === selectedOrgId);
+                if (!org) return null;
+
+                return org.campaigns.length === 0 ? (
+                  <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">No campaigns yet</h3>
+                    <p className="text-gray-500">This organization hasn&apos;t created any campaigns.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {org.campaigns.map((c) => (
+                      <Link
+                        key={c.campaign_id}
+                        href={`/project/${c.url || c.campaign_id}`}
+                        className="block border border-gray-200 rounded-xl p-6 hover:border-[#8BC34A] transition-colors bg-white"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{c.title}</h3>
+                          {c.status && (
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(c.status)}`}>
+                              {c.status.replace("_", " ")}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          {c.category && <span className="bg-gray-100 px-2 py-1 rounded text-xs">{c.category}</span>}
+                          {c.time_created && <span>Created {formatDate(c.time_created)}</span>}
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-gray-700 font-medium">
+                            {formatUSD(c.amount_raised_cents / 100)} raised of {formatUSD(c.funding_goal_cents / 100)}
                           </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                        {c.category && (
-                          <span className="bg-gray-100 px-2 py-1 rounded text-xs">{c.category}</span>
-                        )}
-                        {c.time_created && (
-                          <span>Created {formatDate(c.time_created)}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-700 font-medium">
-                          {formatUSD(c.amount_raised_cents / 100)} raised of {formatUSD(c.funding_goal_cents / 100)}
-                        </span>
-                        <span className="text-[#8BC34A] font-medium">
-                          {c.funding_goal_cents > 0 ? Math.round((c.amount_raised_cents / c.funding_goal_cents) * 100) : 0}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-[#8BC34A] h-2 rounded-full"
-                          style={{ width: `${Math.min(100, c.funding_goal_cents > 0 ? (c.amount_raised_cents / c.funding_goal_cents) * 100 : 0)}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                        <span>{c.backers} backers</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              );
-            })()
+                          <span className="text-[#8BC34A] font-medium">
+                            {c.funding_goal_cents > 0 ? Math.round((c.amount_raised_cents / c.funding_goal_cents) * 100) : 0}%
+                          </span>
+                        </div>
+
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-[#8BC34A] h-2 rounded-full"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                c.funding_goal_cents > 0 ? (c.amount_raised_cents / c.funding_goal_cents) * 100 : 0
+                              )}%`,
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <span>{c.backers} backers</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })()
           ) : visiblePersonalCampaigns.length === 0 ? (
             <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
-              <svg
-                className="w-16 h-16 mx-auto text-gray-300 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                />
-              </svg>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">
-                No matching campaigns
-              </h3>
-              <p className="text-gray-500 mb-6">
-                Try changing the filter or sort options.
-              </p>
-              <Link
-                href="/create-project/basics"
-                className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors"
-              >
+              <h3 className="text-lg font-medium text-gray-700 mb-2">No matching campaigns</h3>
+              <p className="text-gray-500 mb-6">Try changing the filter or sort options.</p>
+              <Link href="/create-project/basics" className="inline-block bg-[#8BC34A] text-white px-6 py-3 rounded-full font-medium hover:bg-[#7CB342] transition-colors">
                 Start a New Campaign
               </Link>
             </div>
@@ -939,25 +916,15 @@ export default function MyProjectsPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {campaign.title}
-                        </h3>
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(campaign.status)}`}
-                        >
+                        <h3 className="text-lg font-semibold text-gray-900">{campaign.title}</h3>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${statusColor(campaign.status)}`}>
                           {campaign.status?.replace("_", " ") || "unknown"}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-4 text-sm text-gray-500">
-                        {campaign.category && (
-                          <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                            {campaign.category}
-                          </span>
-                        )}
-                        {campaign.created_at && (
-                          <span>Created {formatDate(campaign.created_at)}</span>
-                        )}
+                        {campaign.category && <span className="bg-gray-100 px-2 py-1 rounded text-xs">{campaign.category}</span>}
+                        {campaign.created_at && <span>Created {formatDate(campaign.created_at)}</span>}
                       </div>
 
                       <div className="mt-4">
@@ -965,21 +932,19 @@ export default function MyProjectsPage() {
                           <span className="text-gray-700 font-medium">
                             {formatUSD(campaign.raised_amount)} raised of {formatUSD(campaign.goal_amount)}
                           </span>
-                          <span className="text-[#8BC34A] font-medium">
-                            {campaign.funding_percentage}%
-                          </span>
+                          <span className="text-[#8BC34A] font-medium">{campaign.funding_percentage}%</span>
                         </div>
+
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className="bg-[#8BC34A] h-2 rounded-full"
                             style={{ width: `${Math.min(campaign.funding_percentage, 100)}%` }}
                           />
                         </div>
+
                         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                           <span>{campaign.donors_count} backers</span>
-                          {campaign.days_left !== null && campaign.days_left > 0 && (
-                            <span>{campaign.days_left} days left</span>
-                          )}
+                          {campaign.days_left !== null && campaign.days_left > 0 && <span>{campaign.days_left} days left</span>}
                         </div>
                       </div>
                     </div>

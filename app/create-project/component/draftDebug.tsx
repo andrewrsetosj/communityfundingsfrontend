@@ -2,9 +2,15 @@
 
 // import { useCampaignDraft } from "../store/useCampaignDraft";
 
+/** Opt-in only: `npm run dev` still sets NODE_ENV=development, so we gate on this flag. */
+function isDraftDebugVisible() {
+  return process.env.NEXT_PUBLIC_SHOW_DRAFT_DEBUG === "true";
+}
+
 export function DraftDebug() {
   // const { draft } = useCampaignDraft();
 
+<<<<<<< HEAD
   // return (
   //   <div className="fixed bottom-4 right-4 w-[360px] max-w-[90vw] border bg-white rounded-lg shadow-lg z-50">
   //     <div className="px-3 py-2 border-b text-xs font-semibold text-gray-700">
@@ -17,4 +23,20 @@ export function DraftDebug() {
   // );
 
   return null;
+=======
+  if (!isDraftDebugVisible()) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 w-[360px] max-w-[90vw] border bg-white rounded-lg shadow-lg z-50">
+      <div className="px-3 py-2 border-b text-xs font-semibold text-gray-700">
+        Draft Debug
+      </div>
+      <pre className="p-3 text-[11px] leading-snug overflow-auto max-h-[260px] text-gray-700">
+        {JSON.stringify(draft, null, 2)}
+      </pre>
+    </div>
+  );
+>>>>>>> edcd3b8143b4c758c1f52c0aa386d1ca497eb01c
 }
