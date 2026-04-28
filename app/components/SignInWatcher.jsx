@@ -89,23 +89,10 @@ export default function SignInWatcher() {
           return;
         }
 
-        // If the user typed their full name in Clerk's first name field
-        // suffix so we only store the true first name.
-        const rawFirst = user.firstName ?? null;
-        const rawLast = user.lastName ?? null;
-        let firstName = rawFirst;
-        if (rawFirst && rawLast && rawFirst.includes(" ")) {
-          const parts = rawFirst.trim().split(/\s+/);
-          const lastPart = parts[parts.length - 1];
-          if (lastPart.toLowerCase() === rawLast.trim().toLowerCase()) {
-            firstName = parts.slice(0, -1).join(" ");
-          }
-        }
-
         const payload = {
           id: user.id,
-          first_name: firstName,
-          last_name: rawLast,
+          first_name: user.firstName ?? null,
+          last_name: user.lastName ?? null,
           email: user.primaryEmailAddress?.emailAddress ?? null,
           image_url: user.profileImageUrl ?? null,
         };

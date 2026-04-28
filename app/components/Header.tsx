@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/nextjs";
 import { backendJwtExpired, syncClerkToBackendToken } from "@/lib/backendToken";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 type BusinessRole = "owner" | "admin" | "viewer" | "editor" | "campaign_editor" | "finance";
 
@@ -210,6 +209,49 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
+  if (!user?.id) {
+    setNotifications([]);
+    setUnreadCount(0);
+    return;
+  }
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("cf_backend_token")
+      : null;
+
+  if (!token || token === "undefined" || token === "null") {
+    return;
+  }
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/unread-count`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const json = await res.json();
+      if (!cancelled) {
+        setUnreadCount(Number(json.unread_count || 0));
+      }
+    } catch (err) {
+      console.error("Error fetching unread notifications:", err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id, API_BASE]);
+
+  useEffect(() => {
     if (!user?.id) {
       setNotifications([]);
       setUnreadCount(0);
@@ -406,7 +448,7 @@ useEffect(() => {
           token = localStorage.getItem("cf_backend_token");
         }
         if (!token || cancelled) return;
-        const res = await fetch(`${API_URL}/api/organizations/my-memberships`, {
+        const res = await fetch(`${API_BASE}/api/organizations/my-memberships`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (cancelled) return;
