@@ -205,6 +205,7 @@ export default function OrgBasicsPage() {
     "Crafts",
     "Dance",
     "Design",
+    "Entertainment",
     "Fashion",
     "Film & Video",
     "Food",
