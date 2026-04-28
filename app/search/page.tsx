@@ -17,6 +17,7 @@ const ALL_CATEGORIES = [
   "Design",
   "Environment",
   "Education",
+  "Entertainment",
   "Health",
   "Fashion",
   "Film & Video",

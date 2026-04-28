@@ -161,7 +161,7 @@ export default function OrgPeoplePage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-serif font-bold text-gray-900 mb-2">
-        Introduce your business
+        Creator Profile
       </h1>
       <p className="text-gray-600 mb-8">
         Your business profile will be shown as the creator of this campaign.
@@ -171,7 +171,7 @@ export default function OrgPeoplePage() {
         {/* Business Profile (read-only) */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-4">
-            Creator Profile
+            Profile
           </label>
 
           <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">

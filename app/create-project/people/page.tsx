@@ -180,13 +180,9 @@ export default function PeoplePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-serif font-bold text-gray-900 mb-2">
-        Introduce yourself
+        <h1 className="text-3xl font-serif font-bold text-gray-900 mb-2">
+        Creator Profile
       </h1>
-      <p className="text-gray-600 mb-8">
-        Help backers get to know you and your team.
-      </p>
-
       <div className="space-y-8">
         {/* Vanity URL */}
         <div>

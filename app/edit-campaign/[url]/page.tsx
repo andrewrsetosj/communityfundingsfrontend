@@ -75,6 +75,7 @@ const CATEGORY_OPTIONS = [
   "Design",
   "Environment",
   "Education",
+  "Entertainment",
   "Health",
   "Fashion",
   "Film & Video",

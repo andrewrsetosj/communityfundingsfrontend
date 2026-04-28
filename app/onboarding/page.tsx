@@ -11,6 +11,7 @@ const interests = [
   { name: "Crafts", icon: "✂️" },
   { name: "Dance", icon: "💃" },
   { name: "Design", icon: "🖌️" },
+  { name: "Entertainment", icon: "🎉" },
   { name: "Fashion", icon: "👗" },
   { name: "Film & Video", icon: "🎬" },
   { name: "Food", icon: "🍽️" },

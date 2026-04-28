@@ -209,6 +209,7 @@ export default function BasicsPage() {
     "Design",
     "Environment",
     "Education",
+    "Entertainment",
     "Health",
     "Fashion",
     "Film & Video",

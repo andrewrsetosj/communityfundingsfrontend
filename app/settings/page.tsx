@@ -90,7 +90,7 @@ export default function SettingsPage() {
 
   const allInterests = [
     "Art", "Comics", "Crafts", "Dance", "Design",
-    "Fashion", "Film & Video", "Food", "Games",
+    "Entertainment", "Fashion", "Film & Video", "Food", "Games",
     "Journalism", "Music", "Photography", "Publishing",
     "Technology", "Theater",
   ];
