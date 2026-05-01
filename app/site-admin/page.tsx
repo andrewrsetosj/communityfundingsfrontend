@@ -1,3 +1,5 @@
+/* v100_t25_marker — Tier 2.5 fixes */
+/* v100_t2_frontend_fix — login payload + error hardening */
 "use client";
 
 /* ============================================================
@@ -234,6 +236,27 @@ function AuthScreen({
 
   const submit = async () => {
     setErr(""); setMsg("");
+    const formatError = (d: any): string => {
+      if (!d) return "Authentication failed";
+      if (typeof d === "string") return d;
+      // Pydantic 422 — d.detail is array of error objects
+      if (Array.isArray(d.detail)) {
+        return d.detail
+          .map((e: any) =>
+            typeof e === "string"
+              ? e
+              : e?.msg
+                ? `${e.msg}${e.loc ? ` (${e.loc.join(".")})` : ""}`
+                : JSON.stringify(e)
+          )
+          .join("; ");
+      }
+      if (typeof d.detail === "string") return d.detail;
+      if (d.detail) return JSON.stringify(d.detail);
+      if (d.message) return String(d.message);
+      return "Authentication failed";
+    };
+    
     if (!code || !fn || !ln) { setErr("All fields are required."); return; }
     if (view === "register" && (code.length < 8 || code.length > 10)) {
       setErr("Access code must be 8–10 characters."); return;
@@ -243,10 +266,10 @@ function AuthScreen({
       const r = await fetch(`${API}/api/site-admin/${view}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access_code: code, first_name: fn, last_name: ln }),
+        body: JSON.stringify({ username: code, first_name: fn, last_name: ln }),
       });
       const d = await r.json();
-      if (!r.ok) { setErr(d.detail || "Authentication failed"); return; }
+      if (!r.ok) { setErr(formatError(d)); return; }
       if (view === "register") {
         setMsg("Registered. Please sign in.");
         onSwitch("login");
