@@ -389,6 +389,87 @@ export default function ProjectDetail() {
   const [reportingCommentId, setReportingCommentId] = useState<number | null>(null);
   const [isCampaignReporting, setIsCampaignReporting] = useState(false);
   const [isLeavingCampaign, setIsLeavingCampaign] = useState(false);
+
+  /* v100_donate_main — donation modal state */
+  const PRESET_AMOUNTS = [10, 25, 50, 100];
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [donateAmount, setDonateAmount] = useState<string>("25");
+  const [donateCustom, setDonateCustom] = useState<string>("");
+  const [donorName, setDonorName] = useState<string>("");
+  const [donorEmail, setDonorEmail] = useState<string>("");
+  const [donateMessage, setDonateMessage] = useState<string>("");
+  const [donateAnonymous, setDonateAnonymous] = useState<boolean>(false);
+  const [donateLoading, setDonateLoading] = useState<boolean>(false);
+  const [donateError, setDonateError] = useState<string>("");
+  const [eligibilityAccepted, setEligibilityAccepted] = useState<boolean>(false);
+
+  /* v100_donate_main — Stripe checkout handler */
+  async function handleBackProject(amount?: string): Promise<void> {
+    setDonateError("");
+    const finalAmount = parseFloat(amount || donateCustom || donateAmount);
+    if (isNaN(finalAmount) || finalAmount <= 0) {
+      setDonateError("Please enter a valid amount");
+      return;
+    }
+    if (!data?.campaign?.campaign_id) {
+      setDonateError("Campaign not loaded");
+      return;
+    }
+    setDonateLoading(true);
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const token = typeof window !== "undefined" ? localStorage.getItem("cf_backend_token") : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+
+      // v100_signin_guard — sign-in required for donations
+
+
+      if (!user) {
+
+
+        window.location.href = "/sign-in?redirect_url=" + encodeURIComponent(window.location.pathname);
+
+
+        return;
+
+
+      }
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE}/api/donations-v2/create-checkout-session`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          campaign_id: data.campaign.campaign_id,
+          amount: finalAmount,
+          donor_name: donorName || "Anonymous",
+          donor_email: donorEmail || null,
+          is_anonymous: donateAnonymous,
+          message: donateMessage || null,
+          donor_clerk_id: user?.id ?? null, /* v100_donor_link */
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setDonateError(err.detail || `Failed (HTTP ${res.status})`);
+        setDonateLoading(false);
+        return;
+      }
+      const out = await res.json();
+      if (out.checkout_url) {
+        window.location.href = out.checkout_url;
+      } else {
+        setDonateError("No checkout URL returned");
+        setDonateLoading(false);
+      }
+    } catch (e) {
+      setDonateError("Network error — is the backend running?");
+      setDonateLoading(false);
+    }
+  }
+  /* /v100_donate_main */
+
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "most_liked">("newest");
 
   async function loadCampaignPage(targetPage: number, targetSortBy: "newest" | "oldest" | "most_liked" = sortBy) {
@@ -1486,6 +1567,8 @@ export default function ProjectDetail() {
                     <p className="text-sm text-gray-500 mb-6">days to go</p>
 
                     <button
+                      /* v100_donate_main — wired onClick */
+                      onClick={() => { if (isCampaignActive && !isOwner && !isCollaborator) { setEligibilityAccepted(false); setShowDonateModal(true); } }}
                       disabled={!isCampaignActive || isOwner || isCollaborator}
                       className={`w-full py-3 rounded-lg font-medium transition-colors mb-3 ${
                         isCampaignActive && !isOwner && !isCollaborator
@@ -1692,7 +1775,127 @@ export default function ProjectDetail() {
         )}
       </main>
 
+      {/* v100_donate_main — Donation Modal */}
+      {showDonateModal && data?.campaign && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowDonateModal(false); setEligibilityAccepted(false); } }}
+        >
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Back this campaign</h2>
+                <p className="text-sm text-gray-500 mt-0.5">{data.campaign.title}</p>
+              </div>
+              <button
+                onClick={() => { setShowDonateModal(false); setEligibilityAccepted(false); }}
+                className="text-gray-400 hover:text-gray-600 p-1 -mr-1"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {!eligibilityAccepted ? (
+              <div>
+                <p className="text-sm font-semibold text-gray-800 mb-2">Before you back this campaign</p>
+                <p className="text-xs text-gray-600 mb-4">By proceeding, you acknowledge:</p>
+                <ul className="space-y-2.5 mb-5 text-xs text-gray-700">
+                  <li className="flex gap-2"><span className="text-[#8BC34A] font-bold">{"•"}</span><span><strong>General Transaction Policies.</strong> Donations are processed securely through Stripe. By proceeding, you authorize Community Fundings to charge your selected payment method. Transactions are final once processed and subject to Community Fundings&apos; Terms of Service.</span></li>
+                  <li className="flex gap-2"><span className="text-[#8BC34A] font-bold">{"•"}</span><span><strong>Platform fee.</strong> A 5% platform fee plus standard payment processing fees apply to your donation.</span></li>
+                  <li className="flex gap-2"><span className="text-[#8BC34A] font-bold">{"•"}</span><span><strong>No guarantee of delivery.</strong> Community Fundings is not responsible for delivery of rewards or completion of projects by campaign creators.</span></li>
+                  <li className="flex gap-2"><span className="text-[#8BC34A] font-bold">{"•"}</span><span><strong>You must be 18+.</strong> You confirm you are at least 18 years old and authorized to use the payment method you provide.</span></li>
+                  <li className="flex gap-2"><span className="text-[#8BC34A] font-bold">{"•"}</span><span><strong>Refund policy.</strong> Refund requests are handled per Community Fundings&apos; refund policy and may be limited after a campaign succeeds.</span></li>
+                </ul>
+                <label className="flex items-start gap-2 mb-5 cursor-pointer text-sm text-gray-700 select-none">
+                  <input
+                    type="checkbox"
+                    checked={eligibilityAccepted}
+                    onChange={(e) => setEligibilityAccepted(e.target.checked)}
+                    className="mt-0.5 rounded text-[#8BC34A] focus:ring-[#8BC34A]"
+                  />
+                  <span>I have read and agree to these terms.</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={!eligibilityAccepted}
+                  onClick={() => setDonateError("")}
+                  className="w-full bg-[#8BC34A] text-white py-3 rounded-lg font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {eligibilityAccepted ? "Continue to donation" : "Please agree to continue"}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {PRESET_AMOUNTS.map(a => (
+                    <button
+                      key={a}
+                      onClick={() => { setDonateAmount(String(a)); setDonateCustom(""); }}
+                      className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${(!donateCustom && parseInt(donateAmount) === a) ? "bg-[#8BC34A] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                    >
+                      ${a}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={donateCustom}
+                  onChange={(e) => setDonateCustom(e.target.value)}
+                  placeholder="Custom amount"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                />
+                <input
+                  type="text"
+                  value={donorName}
+                  onChange={(e) => setDonorName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                />
+                <input
+                  type="email"
+                  value={donorEmail}
+                  onChange={(e) => setDonorEmail(e.target.value)}
+                  placeholder="Email (for receipt)"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                />
+                <textarea
+                  value={donateMessage}
+                  onChange={(e) => setDonateMessage(e.target.value)}
+                  placeholder="Add a message (optional)"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#8BC34A]"
+                />
+                <label className="flex items-center gap-2 mb-4 cursor-pointer text-sm text-gray-700 select-none">
+                  <input
+                    type="checkbox"
+                    checked={donateAnonymous}
+                    onChange={(e) => setDonateAnonymous(e.target.checked)}
+                    className="rounded text-[#8BC34A] focus:ring-[#8BC34A]"
+                  />
+                  <span>Donate anonymously</span>
+                </label>
+                {donateError && <p className="text-sm text-red-600 mb-3">{donateError}</p>}
+                <button
+                  onClick={() => handleBackProject()}
+                  disabled={donateLoading}
+                  className="w-full bg-[#8BC34A] text-white py-3 rounded-lg font-medium hover:bg-[#7CB342] transition-colors disabled:opacity-50"
+                >
+                  {donateLoading ? "Processing..." : `Pledge $${parseFloat(donateCustom || donateAmount || "0").toFixed(2)}`}
+                </button>
+                <p className="text-xs text-gray-500 text-center mt-3">
+                  Secure payment via Stripe. A 5% platform fee supports the platform.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {/* /v100_donate_main */}
       <Footer />
     </div>
+
   );
 }
