@@ -284,150 +284,6 @@ function Avatar({
         height={pixelSize}
         className={`${sizeClasses} rounded-full object-cover flex-shrink-0`}
       />
-        {/* v100_t25_report_button — Report Campaign button */}
-        <div style={{
-          position: "fixed",
-          bottom: 20,
-          right: 20,
-          zIndex: 1000,
-        }}>
-          <button
-            onClick={() => {
-              if (!user) {
-                alert("Please sign in to report a campaign");
-                return;
-              }
-              setShowReportModal(true);
-            }}
-            style={{
-              background: "#fff",
-              border: "1px solid #fca5a5",
-              color: "#dc2626",
-              padding: "10px 18px",
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            }}
-            title="Report this campaign"
-          >
-            ⚠️ Report Campaign
-          </button>
-        </div>
-
-        {/* v100_t25_report_button — Report Modal */}
-        {showReportModal && (
-          <div
-            onClick={() => !reportSubmitting && setShowReportModal(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 2000,
-              padding: 20,
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: "#fff",
-                borderRadius: 16,
-                padding: 28,
-                maxWidth: 460,
-                width: "100%",
-                boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
-              }}
-            >
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: "#111" }}>
-                Report this campaign
-              </h2>
-              <p style={{ fontSize: 13, color: "#666", marginBottom: 18 }}>
-                Help us keep the platform safe. Site admins will review your report.
-              </p>
-
-              {reportSuccess ? (
-                <div style={{
-                  background: "#dcfce7", color: "#166534",
-                  padding: 14, borderRadius: 10, marginBottom: 12,
-                  textAlign: "center", fontWeight: 600,
-                }}>
-                  ✅ Report submitted. Thank you.
-                </div>
-              ) : (
-                <>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
-                    Reason
-                  </label>
-                  <select
-                    value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
-                    style={{
-                      width: "100%", padding: "10px 12px", marginBottom: 14,
-                      border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14,
-                    }}
-                  >
-                    <option value="">Select a reason…</option>
-                    <option value="Spam">Spam</option>
-                    <option value="Misleading">Misleading information</option>
-                    <option value="Inappropriate">Inappropriate content</option>
-                    <option value="Fraud">Suspected fraud</option>
-                    <option value="Hate speech">Hate speech</option>
-                    <option value="Other">Other</option>
-                  </select>
-
-                  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
-                    Additional notes (optional)
-                  </label>
-                  <textarea
-                    value={reportNotes}
-                    onChange={(e) => setReportNotes(e.target.value)}
-                    rows={3}
-                    placeholder="Provide more details to help our review..."
-                    style={{
-                      width: "100%", padding: "10px 12px", marginBottom: 14,
-                      border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14,
-                      resize: "vertical", fontFamily: "inherit",
-                    }}
-                  />
-
-                  {reportError && (
-                    <div style={{
-                      background: "#fee2e2", color: "#991b1b",
-                      padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13,
-                    }}>{reportError}</div>
-                  )}
-
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button
-                      onClick={() => setShowReportModal(false)}
-                      disabled={reportSubmitting}
-                      style={{
-                        padding: "10px 18px", border: "1px solid #d1d5db",
-                        background: "#fff", borderRadius: 8, fontSize: 13,
-                        fontWeight: 600, color: "#374151", cursor: "pointer",
-                      }}
-                    >Cancel</button>
-                    <button
-                      onClick={submitReport}
-                      disabled={reportSubmitting || !reportReason}
-                      style={{
-                        padding: "10px 18px", border: "none",
-                        background: reportSubmitting || !reportReason ? "#fca5a5" : "#dc2626",
-                        color: "#fff", borderRadius: 8, fontSize: 13,
-                        fontWeight: 600, cursor: reportSubmitting || !reportReason ? "not-allowed" : "pointer",
-                      }}
-                    >{reportSubmitting ? "Submitting…" : "Submit report"}</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
     );
   }
 
@@ -2090,7 +1946,154 @@ export default function ProjectDetail() {
       )}
       {/* /v100_donate_main */}
       <Footer />
-    </div>
+    
+      {/* v100_t25fix_marker — Report Campaign button + modal */}
+      <>
+{/* v100_t25_report_button — Report Campaign button */}
+        <div style={{
+          position: "fixed",
+          bottom: 20,
+          right: 20,
+          zIndex: 1000,
+        }}>
+          <button
+            onClick={() => {
+              if (!user) {
+                alert("Please sign in to report a campaign");
+                return;
+              }
+              setShowReportModal(true);
+            }}
+            style={{
+              background: "#fff",
+              border: "1px solid #fca5a5",
+              color: "#dc2626",
+              padding: "10px 18px",
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+            title="Report this campaign"
+          >
+            ⚠️ Report Campaign
+          </button>
+        </div>
+
+        {/* v100_t25_report_button — Report Modal */}
+        {showReportModal && (
+          <div
+            onClick={() => !reportSubmitting && setShowReportModal(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2000,
+              padding: 20,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: 28,
+                maxWidth: 460,
+                width: "100%",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+              }}
+            >
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: "#111" }}>
+                Report this campaign
+              </h2>
+              <p style={{ fontSize: 13, color: "#666", marginBottom: 18 }}>
+                Help us keep the platform safe. Site admins will review your report.
+              </p>
+
+              {reportSuccess ? (
+                <div style={{
+                  background: "#dcfce7", color: "#166534",
+                  padding: 14, borderRadius: 10, marginBottom: 12,
+                  textAlign: "center", fontWeight: 600,
+                }}>
+                  ✅ Report submitted. Thank you.
+                </div>
+              ) : (
+                <>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+                    Reason
+                  </label>
+                  <select
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 12px", marginBottom: 14,
+                      border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14,
+                    }}
+                  >
+                    <option value="">Select a reason…</option>
+                    <option value="Spam">Spam</option>
+                    <option value="Misleading">Misleading information</option>
+                    <option value="Inappropriate">Inappropriate content</option>
+                    <option value="Fraud">Suspected fraud</option>
+                    <option value="Hate speech">Hate speech</option>
+                    <option value="Other">Other</option>
+                  </select>
+
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+                    Additional notes (optional)
+                  </label>
+                  <textarea
+                    value={reportNotes}
+                    onChange={(e) => setReportNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Provide more details to help our review..."
+                    style={{
+                      width: "100%", padding: "10px 12px", marginBottom: 14,
+                      border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14,
+                      resize: "vertical", fontFamily: "inherit",
+                    }}
+                  />
+
+                  {reportError && (
+                    <div style={{
+                      background: "#fee2e2", color: "#991b1b",
+                      padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13,
+                    }}>{reportError}</div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => setShowReportModal(false)}
+                      disabled={reportSubmitting}
+                      style={{
+                        padding: "10px 18px", border: "1px solid #d1d5db",
+                        background: "#fff", borderRadius: 8, fontSize: 13,
+                        fontWeight: 600, color: "#374151", cursor: "pointer",
+                      }}
+                    >Cancel</button>
+                    <button
+                      onClick={submitReport}
+                      disabled={reportSubmitting || !reportReason}
+                      style={{
+                        padding: "10px 18px", border: "none",
+                        background: reportSubmitting || !reportReason ? "#fca5a5" : "#dc2626",
+                        color: "#fff", borderRadius: 8, fontSize: 13,
+                        fontWeight: 600, cursor: reportSubmitting || !reportReason ? "not-allowed" : "pointer",
+                      }}
+                    >{reportSubmitting ? "Submitting…" : "Submit report"}</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </>
+      </div>
 
   );
 }
