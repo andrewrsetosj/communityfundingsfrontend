@@ -2,7 +2,7 @@
 
 /* v100_donate_main — Donation receipt page (3 actions) */
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -37,6 +37,14 @@ function fmtReceiptDate(s: string | undefined | null): string {
 
 
 export default function DonationReceiptPage() {
+  return (
+    <Suspense fallback={<CenterMsg msg="Loading your receipt…" />}>
+      <DonationReceiptContent />
+    </Suspense>
+  );
+}
+
+function DonationReceiptContent() {
   const params = useSearchParams();
   const router = useRouter();
   const donationId = params.get("donation_id");
