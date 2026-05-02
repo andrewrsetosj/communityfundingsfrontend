@@ -7,7 +7,7 @@
  * Apple-inspired: generous space, restrained palette, subtle motion.
  * ============================================================ */
 
-import { useState, useEffect, Suspense, useCallback, useMemo, type ReactElement } from "react";
+import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -85,7 +85,7 @@ const gradientFor = (s: string) => gradients[hash(s) % gradients.length];
 /* ---------- icons (minimal, SF-Symbols-esque) ---------- */
 const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
   const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  const paths: Record<string, ReactElement> = {
+  const paths: Record<string, JSX.Element> = {
     home: (<g><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9v11a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9" /></g>),
     chart: (<g><path d="M3 3v18h18" /><path d="M7 14l4-4 4 4 5-6" /></g>),
     campaign: (<g><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></g>),
