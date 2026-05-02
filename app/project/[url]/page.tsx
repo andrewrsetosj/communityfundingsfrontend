@@ -135,48 +135,6 @@ const COMMENT_MAX_LENGTH = 1000;
 
 function formatUSD(cents?: number) {
   if (typeof cents !== "number") return "";
-  // v100_t25_report_button — submit report handler
-  const submitReport = async () => {
-    if (!user) {
-      setReportError("Please sign in to report a campaign");
-      return;
-    }
-    if (!reportReason) {
-      setReportError("Please select a reason");
-      return;
-    }
-    setReportError("");
-    setReportSubmitting(true);
-    try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
-      const cid = (campaign as any)?.campaign_id || (campaign as any)?.id;
-      const r = await fetch(`${apiBase}/api/reports/campaign/${cid}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reporter_clerk_id: user.id,
-          reason: reportReason,
-          notes: reportNotes || undefined,
-        }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (r.ok) {
-        setReportSuccess(true);
-        setTimeout(() => {
-          setShowReportModal(false);
-          setReportSuccess(false);
-          setReportReason("");
-          setReportNotes("");
-        }, 1800);
-      } else {
-        setReportError(typeof d.detail === "string" ? d.detail : "Failed to submit report");
-      }
-    } catch {
-      setReportError("Network error");
-    } finally {
-      setReportSubmitting(false);
-    }
-  };
 
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
@@ -412,6 +370,48 @@ export default function ProjectDetail() {
   const [reportSuccess, setReportSuccess] = useState(false);
 
   const { user } = useUser();
+  // v100_t25_report_button — submit report handler
+  const submitReport = async () => {
+    if (!user) {
+      setReportError("Please sign in to report a campaign");
+      return;
+    }
+    if (!reportReason) {
+      setReportError("Please select a reason");
+      return;
+    }
+    setReportError("");
+    setReportSubmitting(true);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+      const cid = (campaign as any)?.campaign_id || (campaign as any)?.id;
+      const r = await fetch(`${apiBase}/api/reports/campaign/${cid}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reporter_clerk_id: user.id,
+          reason: reportReason,
+          notes: reportNotes || undefined,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setReportSuccess(true);
+        setTimeout(() => {
+          setShowReportModal(false);
+          setReportSuccess(false);
+          setReportReason("");
+          setReportNotes("");
+        }, 1800);
+      } else {
+        setReportError(typeof d.detail === "string" ? d.detail : "Failed to submit report");
+      }
+    } catch {
+      setReportError("Network error");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
   const router = useRouter();
   const params = useParams<{ url: string }>();
   const url = params?.url;

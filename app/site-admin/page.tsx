@@ -7,6 +7,7 @@
  * Apple-inspired: generous space, restrained palette, subtle motion.
  * ============================================================ */
 
+import type { JSX } from "react";
 import { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";

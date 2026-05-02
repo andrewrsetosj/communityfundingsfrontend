@@ -2,7 +2,7 @@
 
 /* v100_donate_main — Donation receipt page (3 actions) */
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -36,7 +36,7 @@ function fmtReceiptDate(s: string | undefined | null): string {
 }
 
 
-export default function DonationReceiptPage() {
+function _DonationReceiptInner() {
   const params = useSearchParams();
   const router = useRouter();
   const donationId = params.get("donation_id");
@@ -232,3 +232,12 @@ function ErrorCard({ message }: { message: string }) {
     </div>
   );
 }
+
+export default function DonationReceiptPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>}>
+      <_DonationReceiptInner />
+    </Suspense>
+  );
+}
+
